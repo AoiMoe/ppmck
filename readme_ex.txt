@@ -1,4 +1,4 @@
-ppmck release 9a ex1 by BKC
+ppmck release 9a ex2 by BKC
 
 
 **** このファイルについて
@@ -109,6 +109,13 @@ y : 0でエンベロープのループ
   nesasmのバグ修正。srcディレクトリ内Makefileの調節。
 　sounddrv.hの長過ぎるラベルを32文字以内に修正。
 
-2010/01/01 release 9a ex 1
+2010/01/01 release 9a ex1
 
  release 9aの主な変更点であるppmck.asmをマージした。
+
+2010/03/05 release 9a ex2
+
+ mmc5のハードウェアエンベロープ機能を修正。
+ スラーが未対応のトラックではタイになるよう修正。
+
+

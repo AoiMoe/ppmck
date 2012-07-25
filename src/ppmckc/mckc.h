@@ -107,6 +107,8 @@ typedef struct st_line {
 
 #define ALLTRACK	0xffffffff
 
+#define NOSLAR_TRACK (FME7TRACK|FMTRACK)
+
 #define	_PITCH_MOD_MAX	 64
 #define	_PITCH_ENV_MAX	128
 #define	_ENVELOPE_MAX	128

@@ -3548,7 +3548,11 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 //				  case _SHUFFLE_QUONTIZE_OFF:
 				  case _SELF_DELAY_OFF:
 				  case _SELF_DELAY_QUEUE_RESET:
-					setCommandBuf( 0, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					if (mml[i].num == _SLAR && ( NOSLAR_TRACK & (1<<trk) ))
+						ptr = setCommandBufR( cmd, _TIE, ptr, line, mml[i].enable&(1<<trk) );
+					else
+						setCommandBuf( 0, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+
 					if( (mml[i].enable&(1<<trk)) == 0 ) {
 						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
 					}

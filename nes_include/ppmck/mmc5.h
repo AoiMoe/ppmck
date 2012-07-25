@@ -179,6 +179,7 @@ mmc5_duty_select_part:
 
 ;;;;	ora	#%00110000		;waveform hold on & hardware envelope off
 
+	ora	register_high,x
 	sta	register_high,x		;‘‚«‚İ
 	ora	register_low,x
 	ldy	<channel_selx4
