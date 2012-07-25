@@ -198,6 +198,9 @@ int_hwenv_command:
 	and	#%11001111
 	ora	[sound_add_low,x]
 	sta	effect2_flags,x
+	and #%00110000
+	eor #%00110000
+	sta register_high,x
 	jsr	sound_data_address
 	jmp	sound_data_read
 
@@ -349,6 +352,7 @@ rest_set:
 	beq	tri
 
 	lda	register_high,x
+	ora #%00110000 ; hw_envelope disable
 	sta	$4000,y
 	jsr	sound_data_address
 	rts
