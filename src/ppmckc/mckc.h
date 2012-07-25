@@ -187,6 +187,11 @@ enum {
 	_DATA_WRITE,
 	_DATA_THRUE,
 
+	_SMOOTH_ON,
+	_SMOOTH_OFF,
+
+	_PITCH_SHIFT,
+
 	_NEW_BANK,
 
 	_REPEAT_ST2,
@@ -255,6 +260,9 @@ enum {
 enum {
 	MCK_REPEAT_END = 0xa0,
 	MCK_REPEAT_ESC = 0xa1,
+	MCK_PITCH_SHIFT = 0xe7,
+	MCK_SMOOTH = 0xe8,
+	MCK_SLAR = 0xe9,
 	MCK_GOTO = 0xee,
 	MCK_SET_SHIFT_AMOUNT = 0xef,
 	MCK_SET_FDS_HWENV = 0xf0,

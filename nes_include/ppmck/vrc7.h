@@ -334,9 +334,21 @@ vrc7_y_command_set:
 ;ウェイト設定
 vrc7_wait_set:
 	cmp	#$f4
-	bne	vrc7_oto_set
+	bne	vrc7_slur
 	jsr	wait_sub
 	rts
+;----------
+;スラー
+vrc7_slur:
+	cmp	#$e9
+	bne	vrc7_oto_set
+	lda	effect2_flags,x
+	ora	#%00000001
+	sta	effect2_flags,x
+	jsr	sound_data_address
+	jmp	sound_vrc7_read
+
+
 ;----------
 vrc7_oto_set:
 	sta	sound_sel,x		;処理はまた後で
@@ -345,6 +357,17 @@ vrc7_oto_set:
 	sta	sound_counter,x		;実際のカウント値となります
 	jsr	sound_data_address
 	jsr	vrc7_freq_set		;周波数セットへ
+
+	lda	effect2_flags,x		;スラーフラグのチェック
+	and	#%00000001
+	beq	no_slur_vrc7
+
+	lda	effect2_flags,x
+	and	#%11111110
+	sta	effect2_flags,x		;スラーフラグのクリア
+	jmp	sound_flag_clear_key_on
+
+no_slur_vrc7:
 ;volume
 	lda	#INST_VOL
 	jsr	vrc7_adrs_ch

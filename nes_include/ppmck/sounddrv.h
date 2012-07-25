@@ -39,6 +39,13 @@ temp_data_add		.ds	2		;
 VRC6_DST_REG_LOW	.ds	1		; for vrc6.h
 VRC6_DST_REG_HIGH	.ds	1		;
 
+t4			.ds	1 ; for divider
+t5			.ds	1
+t6			.ds	1
+t7			.ds	1
+
+ps_temp		.ds	1
+
 ;-----------------------------------
 ;非ゼロページのメモリ定義
 
@@ -115,8 +122,25 @@ vrc7_volume
 extra_mem2		.ds	1		;
 			.ds	CH_COUNT*2 - 2	;
 
+ps_step			.ds	1		;
+ps_count		.ds	1		;
+			.ds	CH_COUNT*2 - 2	;
+
+ps_nextnote		.ds	1		;
+ps_dummy		.ds	1		;
+			.ds	CH_COUNT*2 - 2	;
+
+ps_addfreq_l		.ds	1		;
+ps_addfreq_h		.ds	1		;
+			.ds	CH_COUNT*2 - 2	;
+
+effect2_flags		.ds	1
+sound_lasthigh		.ds	1
+			.ds	CH_COUNT*2 - 2	;
+
 ;-------------
 ;その他
+
 temporary		.ds	1		;
 temporary2		.ds	1		;
 
@@ -338,6 +362,8 @@ sound_init:
 	.endif
 	; x = ch<<1; y = ?
 	
+	lda	#$ff
+	sta	sound_lasthigh,x
 	lda	#$00
 	sta	effect_flag,x
 	lda	#$01
@@ -920,14 +946,24 @@ sound_duty_enverope:
 	indirect_lda	duty_add_low		;エンベロープデータ読み込み
 	cmp	#$ff			;最後かどーか
 	beq	return22		;最後ならそのままおしまい
-	asl	a
-	asl	a
-	asl	a
-	asl	a
-	asl	a
-	asl	a
-	ora	#%00110000		;hardware envelope & ... disable
+	pha
+
+	lda	effect2_flags,x         ; hw_envelope
+	and	#%00110000
+	eor	#%00110000
 	sta	register_high,x
+
+	pla
+	asl	a
+	asl	a
+	asl	a
+	asl	a
+	asl	a
+	asl	a
+;	ora	#%00110000		;hardware envelope & ... disable
+	ora	register_high,x		;hw_envelope
+	sta	register_high,x
+
 	ora	register_low,x		;音色データ（上位4bit）と下位4bitで足し算
 	ldy	<channel_selx4
 	sta	$4000,y			;書き込み～
@@ -1128,6 +1164,8 @@ ARPEGGIO_RETRIG = 0			; 1だとsound_freq_highが変化しなくても書き込む
 	beq	.end
 	.endif
 	sta	$4003,y
+	sta	sound_lasthigh,x
+	
 .end:
 	jsr	arpeggio_address
 	rts
@@ -1281,7 +1319,380 @@ urararara:
 ittoke:	
 	.endif
 ;休符フラグクリア&Key Onフラグ書き込み
+sound_flag_clear_key_on
 	lda	#%00000010
 	sta	rest_flag,x
 	rts
+;
+;-------------------------
+;
+; curfreq = freq
+; call frequency_set
+; oldfreq = freq
+;
+; t_note = note
+;
+; read note
+; read count
+;
+; call frequency_set
+;
+; if (oldfreq < freq)
+;  { nega = 0, diff = freq - oldfreq }
+; else
+;  { nega = 1, diff = oldfreq - freq }
+;
+; note = t_note
+; freq = curfreq
+;
+; if (diff < count)
+; {
+;   step = count / diff
+;   addfreq = 1
+; }
+; else
+; {
+;   step = 1
+;   addfreq = diff / count
+; }
+;
+; if (nega) addfreq = 0 - addfreq
+; count = step
+;
+
+; proc_addfreq
+; if (!step) return
+; count--
+; if (count) return
+; count = step
+; freq += addfreq
+; return
+; 
+;
+;-------------------------
+;pitchshift_setup
+;
+; t4 = curfreq , t2 = oldfreq
+; t6 = t_note
+;
+; dest : t0,t1
+; Note that t0 and t1 might be used in a subroutine
+;
+
+pitchshift_setup:
+	; curfreq = freq
+	ldx	<channel_selx2
+	lda	sound_freq_low,x
+	sta	<t4
+	lda	sound_freq_high,x
+	sta	<t5
+
+	jsr	frequency_set
+	ldx	<channel_selx2
+
+	; oldfreq = freq
+	lda	sound_freq_low,x
+	sta	<t2
+	lda	sound_freq_high,x
+	sta	<t3
+
+	lda	sound_sel,x
+	sta	<t6
+	
+	; read note
+	jsr	sound_data_address
+	lda	[sound_add_low,x]
+	sta	sound_sel,x
+	sta	ps_nextnote,x
+
+	; read count
+	jsr	sound_data_address
+	lda	[sound_add_low,x]
+	sta	ps_count,x
+	sta	sound_counter,x
+
+	jsr	sound_data_address
+
+	lda	sound_sel,x
+	cmp	<t6
+	bne	ps_calc_freq
+
+	; next = current
+	lda	#$00
+	sta	ps_step,x
+	rts
+	
+
+ps_calc_freq:
+	jsr	frequency_set
+	ldx	<channel_selx2
+
+	; if ( oldfreq < freq ) goto posi else goto nega
+	lda	<t3
+	cmp	sound_freq_high,x
+	bcc	ps_diff_posi  ; (A < B)
+	bne	ps_diff_nega  ; (A > B)
+	lda	<t2 ; (A == B)
+	cmp	sound_freq_low,x
+	bcs	ps_diff_nega  ; (A >= B)
+
+ps_diff_posi:
+	; nega = 0
+	lda	#$00
+	sta	<ps_temp
+	
+	; diff = freq - oldfreq
+	sec
+	lda	sound_freq_low,x
+	sbc	<t2
+	sta	<t0
+
+	lda	sound_freq_high,x
+	sbc	<t3
+	sta	<t1
+	jmp	ps_restore_note
+ps_diff_nega:
+	; nega = 1
+	lda	#$01
+	sta	<ps_temp
+	
+	; diff = oldfreq - freq
+	sec
+	lda	<t2
+	sbc	sound_freq_low,x
+	sta	<t0
+
+	lda	<t3
+	sbc	sound_freq_high,x
+	sta	<t1
+
+ps_restore_note:
+
+	; note = t_note
+	lda	<t6
+	sta	sound_sel,x
+
+	; freq = curfreq
+	lda	<t4
+	sta	sound_freq_low,x
+	lda	<t5
+	sta	sound_freq_high,x
+
+
+	; if ( diff < count ) goto step else goto freq
+	lda	<t1
+	cmp	#$00
+	bcc	ps_step_base  ; (A < B)
+	bne	ps_freq_base  ; (A > B)
+	lda	<t0 ; (A == B)
+	cmp	ps_count,x
+	bcs	ps_freq_base  ; (A >= B)
+
+ps_step_base:
+
+	; addfreq = 1
+	lda	#$01
+	sta	ps_addfreq_l,x
+	lda	#$00
+	sta	ps_addfreq_h,x
+
+	; step = count / diff
+	; t2 = t0
+	lda	<t0
+	sta	<t2
+	lda	<t1
+	sta	<t3
+
+	; t0 = count
+	lda	ps_count,x
+	sta	<t0
+	lda	#$00
+	sta	<t1
+	
+	jsr	b_div
+
+	; step = t6
+	lda	<t6
+	sta	ps_step,x
+
+	jmp	ps_nega_chk
+ps_freq_base:
+	lda	#$01
+	sta	ps_step,x
+
+	; addfreq = diff / count
+	lda	ps_count,x
+	sta	<t2
+	lda	#$00
+	sta	<t3
+
+	jsr	b_div
+
+	; addfreq = t6
+	lda	<t6
+	sta	ps_addfreq_l,x
+	lda	<t7
+	sta	ps_addfreq_h,x
+
+ps_nega_chk:
+	lda	<ps_temp
+	beq	ps_posi
+	; addfreq = 0 - addfreq
+
+	sec
+	lda	#$00
+	sbc	ps_addfreq_l,x
+	sta	ps_addfreq_l,x
+
+	lda	#$00
+	sbc	ps_addfreq_h,x
+	sta	ps_addfreq_h,x
+	
+ps_posi:
+	lda	ps_step,x
+	sta	ps_count,x
+
+	rts
+
+
+;--------------------------
+;process_ps
+;called from effect part
+;
+process_ps:
+	lda	ps_step,x
+	beq	process_ps_fin ; if (!step) return
+	dec	ps_count,x
+	bne	process_ps_fin ; if (count > 0) return
+	lda	ps_step,x
+	sta	ps_count,x
+
+	lda	sound_freq_high,x
+	sta	temporary
+
+	; freq += ps_addfreq
+	clc
+	lda	sound_freq_low,x
+	adc	ps_addfreq_l,x
+	sta	sound_freq_low,x
+
+	lda	sound_freq_high,x
+	adc	ps_addfreq_h,x
+	sta	sound_freq_high,x
+
+	; write to sound regs
+	lda	sound_freq_low,x
+	ldy	<channel_selx4
+	sta	$4002,y
+	lda	sound_freq_high,x
+
+	cmp	temporary
+	beq	process_ps_fin
+	sta	$4003,y
+	sta	sound_lasthigh,x
+
+
+process_ps_fin:
+	rts
+
+
+; -------------------------
+; b_div
+; 16bit binary divider
+; C = A / B
+;
+; in   :
+;   t0,t1 = dividend(A)  t2,t3 = divider(B) 
+; temp :
+;   t4,t5 = temp
+; out  :
+;   t6,t7 = quotient(C)
+;
+; dest : almost all params
+;
+b_div:
+	lda  #$00
+	sta  <t6
+	sta  <t7
+
+	lda  #$01
+	sta  <t4
+	lda  #$00
+	sta  <t5
+
+	lda  <t2
+	ora  <t3
+	bne  b_div_lp1
+	rts  ; divided by zero
+
+b_div_lp1:
+	lda  <t3
+	and  #$80
+	bne  b_div_sub
+	asl  <t2 ; B <<=1
+	rol  <t3
+
+	; if ( A < B ) goto fin_ls else next_ls
+	lda	<t1
+	cmp	<t3
+	bcc	b_div_fin_ls  ; (A < B)
+	bne	b_div_next_ls ; (A > B)
+	lda	<t0 ; (A == B)
+	cmp	<t2
+	bcc	b_div_fin_ls ; (A < B)
+
+b_div_next_ls:
+	asl  <t4	; temp <<= 1
+	rol  <t5
+	jmp  b_div_lp1
+b_div_fin_ls:
+	lsr  <t3 ; B>>=1
+	ror  <t2
+;	lsr  <t5 ; temp >>= 1
+;	ror  <t4 ;
+b_div_sub:
+	lda  <t0 ; A-=B
+	sec
+	sbc  <t2
+	sta  <t0
+
+	lda  <t1
+	sbc  <t3
+	sta  <t1
+
+	; C += temp
+	clc
+	lda  <t6
+	adc  <t4
+	sta  <t6
+
+	lda  <t7
+	adc  <t5
+	sta  <t7
+
+b_div_shift:
+	; B >>= 1 
+	lsr  <t3
+	ror  <t2
+
+	; temp >>= 1 
+	lsr  <t5
+	ror  <t4
+	bcs  b_div_fin
+
+	; if ( A(t0) < B(t2) ) goto shift else sub
+	lda	<t1		  
+	cmp	<t3		  
+	bcc	b_div_shift       ; (t0 < t2)
+	bne	b_div_sub	  ; (t0 > t2)
+	lda	<t0
+	cmp	<t2
+	bcc	b_div_shift	  ; (t0 < t2)
+	jmp	b_div_sub
+
+
+b_div_fin:
+	rts
+
+
 

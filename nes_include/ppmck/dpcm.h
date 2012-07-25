@@ -30,7 +30,7 @@ dmc_loop_program2
 ;バンク切り替え
 dmc_bank_command
 	cmp	#$ee
-	bne	no_dpcm
+	bne	slur_dpcm
 	jsr	data_bank_addr
 	jmp	sound_dpcm_play
 ;----------
@@ -40,6 +40,13 @@ dmc_bank_command
 ;	jsr	data_end_sub
 ;	jmp	sound_dpcm_play
 ;----------
+;スラーコマンド（DPCMの為、無視)
+slur_dpcm:
+	cmp	#$e9
+	bne	no_dpcm
+	jsr	sound_data_address
+	jmp	sound_dpcm_play
+
 no_dpcm:
 	cmp	#$fc
 	bne	dmc_y_command_set
