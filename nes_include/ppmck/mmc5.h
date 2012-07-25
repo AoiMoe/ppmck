@@ -163,12 +163,6 @@ mmc5_duty_select_part:
 	lda	effect_flag,x
 	and	#%11111011
 	sta	effect_flag,x		;デューティエンベロープ無効指定
-
-	lda	effect2_flags,x         ; hw_envelope
-	and	#%00110000
-	eor	#%00110000
-	sta	register_high,x
-
 	pla
 	asl	a
 	asl	a
@@ -176,9 +170,7 @@ mmc5_duty_select_part:
 	asl	a
 	asl	a
 	asl	a
-
-;;;;	ora	#%00110000		;waveform hold on & hardware envelope off
-
+	ora	#%00110000		;waveform hold on & hardware envelope off
 	sta	register_high,x		;書き込み
 	ora	register_low,x
 	ldy	<channel_selx4
@@ -291,37 +283,9 @@ mmc5_y_command_set:
 ;ウェイト設定
 mmc5_wait_set:
 	cmp	#$f4
-	bne	mmc5_hwenv
+	bne	mmc5_oto_set
 	jsr	wait_sub
 	rts
-
-
-;----------
-;ハードエンベロープ
-mmc5_hwenv:
-	cmp	#$f0
-	bne	mmc5_slur
-
-	jsr	sound_data_address
-	lda	effect2_flags,x
-	and	#%11001111
-	ora	[sound_add_low,x]
-	sta	effect2_flags,x
-	jsr	sound_data_address
-	jmp	sound_mmc5_read
-
-
-;----------
-;スラー
-mmc5_slur:
-	cmp	#$e9
-	bne	mmc5_oto_set
-	lda	effect2_flags,x
-	ora	#%00000001
-	sta	effect2_flags,x
-	jsr	sound_data_address
-	jmp	sound_mmc5_read
-
 ;----------
 mmc5_oto_set:
 	sta	sound_sel,x		;処理はまた後で
@@ -330,19 +294,8 @@ mmc5_oto_set:
 	sta	sound_counter,x		;実際のカウント値となります
 	jsr	sound_data_address
 	jsr	mmc5_freq_set		;周波数セットへ
-
-	lda	effect2_flags,x		;スラーフラグのチェック
-	and	#%00000001
-	beq	no_slur_mmc5
-
-	lda	effect2_flags,x
-	and	#%11111110
-	sta	effect2_flags,x		;スラーフラグのクリア
-	jmp	sound_flag_clear_key_on
-
-no_slur_mmc5:
-	jmp	effect_init
-
+	jsr	effect_init
+	rts
 ;-------------------------------------------------------------------------------
 sound_mmc5_write:
 	ldx	<channel_selx2

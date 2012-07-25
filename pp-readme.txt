@@ -24,54 +24,91 @@ MagicKit assembler by J. H. Van Ornum, David Michel, Dave Shadoff, Charles Doty
 
 ■ファイル構成
 mck
-│  pp-changes.txt              更新履歴
-│  pp-readme.txt               このファイル
-│  ppmck-ja.txt                ppmck/ppmckcでのオリジナルからの変更点の説明
-│  ppmck.txt                   
-│  
-├─bin
-│      nesasm.exe              MagicKit v2.51付属のNESASMのソースを再コンパイルしたバイナリ
-│      ppmckc.exe              MMLからmckデータへのコンバータ
-│      ppmckc_e.exe            English version
-│      
-├─doc
-│  │  mck.txt                 オリジナルmckのドキュメント
-│  │  mckc.txt                オリジナルmckcのドキュメント
-│  │  mckc_p040719.txt        5-658氏パッチのドキュメント
-│  │  pmck.txt                pmckのドキュメント
-│  │  pmckc.txt               pmckcのドキュメント
-│  │  
-│  └─nesasm                  nesasmのドキュメント
-│          CPU_INST.TXT
-│          HISTORY.TXT
-│          INDEX.TXT
-│          NESHDR20.TXT
-│          USAGE.TXT
-│          
-├─nes_include
-│  │  ppmck.asm               ドライバのアセンブラソース
-│  │  
-│  └─ppmck                   ドライバのアセンブラソース
-│          dpcm.h
-│          fds.h
-│          fme7.h
-│          freqdata.h
-│          internal.h
-│          mmc5.h
-│          n106.h
-│          sounddrv.h
-│          vrc6.h
-│          vrc7.h
-│          
-├─scripts
-│      mml2nsf.pl              一発コンパイル用perlスクリプト
-│      
-├─songs
-│      00startcmd.bat          コマンドプロンプトを起動
-│      mknsf.bat               一発コンパイル用バッチ
-│      
-└─src
-    └─ppmckc                  ppmckcソース
+|   pp-changes.txt              更新履歴
+|   pp-readme.txt               このファイル
+|   ppmck-ja.txt                ppmck/ppmckcでのオリジナルからの変更点の説明
+|   ppmck.txt
+|   
++---bin
+|       nesasm.exe              MagicKit v2.51付属のNESASMのソースを再コンパイルしたバイナリ
+|       ppmckc.exe              MMLからmckデータへのコンバータ
+|       ppmckc_e.exe            English version
+|       
++---doc
+|   |   mck.txt                 オリジナルmckのドキュメント
+|   |   mckc.txt                オリジナルmckcのドキュメント
+|   |   mckc_p040719.txt        5-658氏パッチのドキュメント
+|   |   pmck.txt                pmckのドキュメント
+|   |   pmckc.txt               pmckcのドキュメント
+|   |   
+|   +---nesasm                  nesasmのドキュメント
+|           CPU_INST.TXT
+|           HISTORY.TXT
+|           INDEX.TXT
+|           NESHDR20.TXT
+|           USAGE.TXT
+|           
++---nes_include
+|   |   ppmck.asm               ドライバのアセンブラソース
+|   |   
+|   +---ppmck                   ドライバのアセンブラソース
+|           dpcm.h
+|           fds.h
+|           fme7.h
+|           freqdata.h
+|           internal.h
+|           mmc5.h
+|           n106.h
+|           sounddrv.h
+|           vrc6.h
+|           vrc7.h
+|           
++---scripts
+|       mml2nsf.pl
+|       
++---songs
+|       00startcmd.bat          コマンドプロンプトを起動
+|       mkmultines.bat
+|       mkmultinsf.bat
+|       mknes.bat
+|       mknsf                   一発コンパイル用シェルスクリプト(Unix用)
+|       mknsf.bat               一発コンパイル用バッチ
+|       set_envs.sh
+|       set_envs.bat
+|
++---src
+    |   compile_unix.sh         nesasm, ppmckc コンパイル用シェルスクリプト
+    |   
+    +---nesasm                  nesasmソース
+    |       assemble.c
+    |       code.c
+    |       command.c
+    |       crc.c
+    |       defs.h
+    |       expr.c
+    |       expr.h
+    |       externs.h
+    |       func.c
+    |       input.c
+    |       inst.h
+    |       macro.c
+    |       main.c
+    |       Makefile
+    |       Makefile.unx
+    |       map.c
+    |       mml.c
+    |       nes.c
+    |       nes.h
+    |       output.c
+    |       pce.c
+    |       pce.h
+    |       pcx.c
+    |       proc.c
+    |       protos.h
+    |       symbol.c
+    |       vars.h
+    |       
+    +---ppmckc                  ppmckcソース
             datamake.c
             file.c
             Makefile
@@ -79,4 +116,4 @@ mck
             mckc.h
             strings.c
             version.c
-
+            

@@ -42,11 +42,8 @@ do_effect:
 .lfo_write2:
 	lda	effect_flag,x
 	and	#%00010000
-	beq	.ps_process
+	beq	.pitchenve_write2
 	jsr	sound_lfo
-
-.ps_process:
-	jsr	process_ps
 
 .pitchenve_write2:
 	lda	effect_flag,x
@@ -128,24 +125,11 @@ sound_data_write:
 	lda	register_low,x		;音量保持
 	ora	register_high,x
 	sta	$4000,y
+	
 	lda	sound_freq_low,x	;Low Write
 	sta	$4002,y
-
-	lda	effect2_flags,x
-	and	#%00000010
-	bne	sound_write_smooth
 	lda	sound_freq_high,x	;High Write
 	sta	$4003,y
-	sta	sound_lasthigh,x
-	rts
-
-sound_write_smooth:
-	lda	sound_freq_high,x	;High Write
-	cmp	sound_lasthigh,x
-	beq	sound_data_skip_high
-	sta	$4003,y
-	sta	sound_lasthigh,x
-sound_data_skip_high:
 	rts
 
 ;-------------------------------------------------------------------------------
@@ -176,7 +160,7 @@ loop_program2
 ;バンク切り替え
 bank_command
 	cmp	#$ee
-	bne	int_hwenv_command
+	bne	duty_set
 	jsr	data_bank_addr
 	jmp	sound_data_read
 ;----------
@@ -187,66 +171,6 @@ bank_command
 ;	jsr	data_end_sub
 ;	jmp	sound_data_read
 
-;----------
-;ハードエンベロープ
-int_hwenv_command:
-	cmp	#$f0
-	bne	slur_command
-
-	jsr	sound_data_address
-	lda	effect2_flags,x
-	and	#%11001111
-	ora	[sound_add_low,x]
-	sta	effect2_flags,x
-	jsr	sound_data_address
-	jmp	sound_data_read
-
-
-;----------
-;スラー
-slur_command:
-	cmp	#$e9
-	bne	smooth_command
-	lda	effect2_flags,x
-	ora	#%00000001
-	sta	effect2_flags,x
-	jsr	sound_data_address
-	jmp	sound_data_read
-
-;----------
-;スムース
-smooth_command:
-	cmp	#$e8
-	bne	pitchshift_command
-	jsr	sound_data_address
-	lda	[sound_add_low,x]
-	beq	.smooth_off
-.smooth_on
-	lda	effect2_flags,x
-	ora	#%00000010
-	sta	effect2_flags,x
-	jmp	.smooth_fin
-.smooth_off:
-	lda	effect2_flags,x
-	and	#%11111101
-	sta	effect2_flags,x
-.smooth_fin:
-	jsr	sound_data_address
-	jmp	sound_data_read
-
-;----------
-;ピッチシフト
-pitchshift_command:
-	cmp	#$e7
-	bne	duty_set
-	lda	ps_step,x
-	beq	.ps_setup
-
-	lda	ps_nextnote,x    ; PSコマンドに使用したノートを基準にする
-	sta	sound_sel,x
-
-.ps_setup
-	jmp	pitchshift_setup
 
 ;----------
 ;音色設定
@@ -258,20 +182,10 @@ duty_set:
 	pha
 	bpl	duty_enverope_part	;ヂューティエンベ処理へ
 
-
-; register_high = 上位4bit、一時退避先として利用
-
-
 duty_select_part:
 	lda	effect_flag,x
 	and	#%11111011
 	sta	effect_flag,x		;デューティエンベロープ無効指定
-
-	lda	effect2_flags,x         ; hw_envelope
-	and	#%00110000
-	eor	#%00110000
-	sta	register_high,x
-
 	pla
 	asl	a
 	asl	a
@@ -279,8 +193,7 @@ duty_select_part:
 	asl	a
 	asl	a
 	asl	a
-;	ora	#%00110000		;hardware envelope & ... disable
-	ora	register_high,x		;hw_envelope
+	ora	#%00110000		;hardware envelope & ... disable
 	sta	register_high,x		;書き込み
 	ora	register_low,x
 	ldy	<channel_selx4
@@ -425,24 +338,12 @@ wait_set:
 oto_set:
 	sta	sound_sel,x		;処理はまた後で
 
-	lda	#$00
-	sta	ps_step,x
-
 	jsr	sound_data_address
 	lda	[sound_add_low,x]	;音長読み出し
 	sta	sound_counter,x		;実際のカウント値となります
 	jsr	sound_data_address
 
 	jsr	frequency_set		;周波数セットへ
-	lda	effect2_flags,x		;スラーフラグのチェック
-	and	#%00000001
-	beq	no_slur
-	lda	effect2_flags,x
-	and	#%11111110
-	sta	effect2_flags,x		;スラーフラグのクリア
-	jmp	sound_flag_clear_key_on
-
-no_slur:
-	jmp	effect_init
-
+	jsr	effect_init
+	rts
 

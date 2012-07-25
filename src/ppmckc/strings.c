@@ -28,64 +28,6 @@ char *skipSpaceOld( char *ptr )
 
 
 /*--------------------------------------------------------------
-	文字列のスキップ
---------------------------------------------------------------*/
-
-char *skipQuote( char *ptr )
-{
-	if (*ptr && 
-	    *ptr == '\"')
-	{
-		ptr++; // skip start charactor
-		while( *ptr )
-		{
-			if ( *ptr == '\"') // end of the quote
-			{
-				ptr++; break;
-			}
-
-			if ( *ptr == '\\' && *( ptr+1 ) ) // skip Escape
-				ptr++;
-			ptr++;
-		}
-	}
-	return ptr;
-}
-
-/*--------------------------------------------------------------
-	コメント文字のチェック
---------------------------------------------------------------*/
-int  isComment( char *ptr )
-{
-	if (*ptr && 
-	    ( *ptr == ';' ||
-//	   (*ptr == '/' && *(ptr+1) == '/') )
-	    *ptr == '/' ) )
-		return 1;
-
-	return 0;
-}
-
-/*--------------------------------------------------------------
-	コメントのスキップ
---------------------------------------------------------------*/
-char *skipComment( char *ptr )
-{
-	if (isComment(ptr))
-	{
-		while(1) 
-		{
-			// '\0' = EOL or EOF , '\n' = EOL
-			if (*ptr == '\0' || *ptr == '\n') 
-				break;
-			ptr++;
-		}
-	}
-	return  ptr;
-}
-
-
-/*--------------------------------------------------------------
 	スペース／タブのスキップ(行コメントも飛ばす)
 --------------------------------------------------------------*/
 char *skipSpace( char *ptr )
@@ -96,9 +38,14 @@ char *skipSpace( char *ptr )
 			//Skip Space
 			ptr++;
 			continue;
-		} else if ( isComment(ptr) ) {
+		} else if (*ptr == '/' || *ptr == ';') {
 			//Skip Comment(return EOL)
-			ptr = skipComment( ptr );
+			while (1) {
+				if (*ptr == '\0') break; //EOL or EOF;
+				if (*ptr == '\n') break; //EOL;
+				ptr++;
+			}
+			break;
 		} else {
 			//Normal Chars
 			break;

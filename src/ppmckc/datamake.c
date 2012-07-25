@@ -27,11 +27,6 @@ extern FILE *openDmc(char *name);
 extern char *skipSpaceOld( char *ptr );
 extern char *skipSpace( char *ptr );
 
-extern char *skipQuote( char *ptr );
-extern char *skipComment( char *ptr );
-extern int  isComment( char *ptr );
-
-
 void	putBankOrigin(FILE *fp, int bank);
 int checkBankRange(int bank);
 int double2int(double d);
@@ -138,7 +133,6 @@ enum {
 	ABNORMAL_SWEEP_VALUE,
 	ABNORMAL_DETUNE_VALUE,
 	ABNORMAL_SHIFT_AMOUNT,
-	ABNORMAL_NOTE_AFTER_COMMAND,
 	RELATIVE_VOLUME_WAS_USED_WITHOUT_SPECIFYING_VOLUME,
 	VOLUME_RANGE_OVER_OF_RELATIVE_VOLUME,
 	VOLUME_RANGE_UNDER_OF_RELATIVE_VOLUME,
@@ -193,7 +187,6 @@ const	char	*ErrorlMessage[] = {
 	"スイープの値が異常です",								"Abnormal sweep value",
 	"ディチューンの値が異常です",							"Abnormal detune value",
 	"ピッチシフト量の値が異常です",							"Abnormal pitch shift amount value",
-	"コマンド後のノートが異常です",							"Abnormal note after command",
 	"音量が指定されていない状態で相対音量を使用しました",	"Relative volume was used without specifying volume",
 	"相対音量(+)で音量の範囲を超えました",					"Volume range over(+) of relative volume",
 	"相対音量(-)で音量の範囲を超えました",					"Volume range under(-) of relative volume",
@@ -472,14 +465,7 @@ int setEffectSub(LINE *lptr, int line, int *ptr_status_end_flag, int min, int ma
 		if( *temp == '}' ) {
 			*ptr_status_end_flag = 0;
 		}
-		if ( *temp == '\"' )
-			temp = skipQuote( temp );
-		else
-		if ( isComment( temp ) )
-			temp = skipComment( temp );
-		else
-			temp++;
-
+		temp++;
 	}
 	return 1;
 on_error:
@@ -556,13 +542,7 @@ void getLineStatus(LINE *lptr, int inc_nest )
 				if( *temp == '}' ) {
 					status_end_flag = 0;
 				}
-				if ( *temp == '\"' )
-					temp = skipQuote( temp );
-				else
-				if ( isComment( temp ) )
-					temp = skipComment( temp );
-				else
-					temp++;
+				temp++;
 			}
 		/* 行の先頭に何も無い時は無効な行とする */
 		} else if( *ptr == '\n' || *ptr == '\0' ) {
@@ -1194,7 +1174,7 @@ void getPitchEnv( LINE *lptr )
 					break;
 				  default:
 					num = Asc2Int( ptr, &cnt );
-					if( cnt != 0 && (-127 <= num && num <= 126) ) {
+					if( cnt != 0 && (-127 <= num && num <= 127) ) {
 						pitch_env_tbl[no][i] = num;
 						pitch_env_tbl[no][0]++;
 						ptr += cnt;
@@ -2942,30 +2922,28 @@ char *setCommandBuf( int n, CMD *cmd, int com_no, char *ptr, int line, int enabl
 	}
 
 	if( n != 0 ) {
-		for(i = 0; i < n; i++) 
-		{
-			cnt = 0;
-			param[i] = Asc2Int( ptr, &cnt );
-			if( cnt == 0 ) {		/* パラメータが無い場合はエラーの出る数値に書き換える */
-				param[i] = PARAM_OMITTED;
-			}
-			ptr += cnt;
-
-			if (i < n-1) // nが2個以上のときは","の処理が入る
-			{
-
+		i = 0;
+		if( n > 1 ) {					// nが2個以上のときは","の処理が入る
+			for( i = 0; i < n-1; i++ ) {
+				cnt = 0;
+				param[i] = Asc2Int( ptr, &cnt );
+				if( cnt == 0 ) {		/* パラメータが無い場合はエラーの出る数値に書き換える */
+					param[i] = PARAM_OMITTED;
+				}
+				ptr += cnt;
 				ptr = skipSpace( ptr );
 				if( *ptr == ',' ) {
 					ptr++;
 					ptr = skipSpace( ptr );
 				}
-				else //  ","の区切りがない場合、パラメータは省略されている
-				{
-					for(i++; i<n; i++ ) // 現在の次のパラメータから省略
-						param[i] = PARAM_OMITTED;
-				}
 			}
 		}
+		cnt = 0;
+		param[i] = Asc2Int( ptr, &cnt );
+		if( cnt == 0 ) {		/* パラメータが無い場合はエラーの出る数値に書き換える */
+			param[i] = PARAM_OMITTED;
+		}
+		ptr += cnt;
 	}
 
 	if( enable != 0 ) {
@@ -3021,8 +2999,7 @@ char *getLengthSub( char *ptr, double *len, double def )
 		*len = Asc2Int( ptr, &cnt );
 		if( cnt != 0 ) {
 			ptr += cnt;
-			if (*len > 0)
-				*len = _BASE/(*len);
+			*len = _BASE/(*len);
 		} else {
 			/* パラメータが無い場合はエラーの出る数値に書き換える */
 			*len = def;
@@ -3371,13 +3348,7 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 		{ "EN",   _EN_ON,		(ALLTRACK&~DPCMTRACK) },
 		{ "MPOF", _LFO_OFF,		(ALLTRACK&~DPCMTRACK) },
 		{ "MP",   _LFO_ON,		(ALLTRACK&~DPCMTRACK) },
-
-		{ "SMOF", _SMOOTH_OFF,		(TRACK(0)|TRACK(1)|TRACK(2)) },
-		{ "SM", _SMOOTH_ON,		(TRACK(0)|TRACK(1)|TRACK(2)) },
-
-		{ "PS", _PITCH_SHIFT,		(TRACK(0)|TRACK(1)|TRACK(2)) },
-
-		{ "EH",	_HARD_ENVELOPE,		(TRACK(0)|TRACK(1)|NOISETRACK|FMTRACK|MMC5TRACK) },
+		{ "EH",	_HARD_ENVELOPE,		(FMTRACK) },
 		{ "MHOF", _MH_OFF,		(FMTRACK) },
 		{ "MH",	  _MH_ON,		(FMTRACK) },
 		{ "OP",   _VRC7_TONE,		(VRC7TRACK) },
@@ -3404,9 +3375,6 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 		{ "|:", _REPEAT_ST2,		(ALLTRACK) },
 		{ ":|", _REPEAT_END2,		(ALLTRACK) },
 		{ "\\", _REPEAT_ESC2,		(ALLTRACK) },
-
-
-
 
 #if 0
 		{ "SQOF", _SHUFFLE_QUONTIZE_OFF,	(ALLTRACK) },
@@ -3530,7 +3498,6 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 					}
 					break;
 				/* コマンドパラメータが0個の物 */
-				  case _PITCH_SHIFT:		/* ピッチシフト */
 				  case _SLAR:			/* スラー */
 				  case _SONG_LOOP:			/* 曲ループ */
 				  case _REPEAT_ST:		/* リピート(現状では展開する) */
@@ -3540,8 +3507,6 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 				  case _EP_OFF:
 				  case _EN_OFF:
 				  case _MH_OFF:
-				  case _SMOOTH_ON:
-				  case _SMOOTH_OFF:
 				  case _REPEAT_ST2:		/* リピート2 */
 				  case _REPEAT_ESC2:	/* リピート途中抜け2 */
 //				  case _SHUFFLE_QUONTIZE_RESET:
@@ -3701,18 +3666,6 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 				  case _HARD_ENVELOPE:
 					ptr = setCommandBuf( 2, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
-						if ( (1<<trk) & (TRACK(0)|TRACK(1)) )
-						{
-						if( (cmd->param[0] < 0 || cmd->param[0] >  1)
-						 && (cmd->param[1] < 0 || cmd->param[1] >  1) ) {
-							dispError( ABNORMAL_ENVELOPE_VALUE, lptr[line].filename, line );
-							cmd->cmd = 0;
-							cmd->line = 0;
-						}
-
-						}
-						else
-						{
 						if( (cmd->param[0] < 0 || cmd->param[0] >  1)
 						 && (cmd->param[1] < 0 || cmd->param[1] > 63) ) {
 							dispError( ABNORMAL_ENVELOPE_VALUE, lptr[line].filename, line );
@@ -3720,7 +3673,6 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 							cmd->line = 0;
 						} else {
 							volume_flag = 0x8000;
-						}
 						}
 					} else {
 						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
@@ -4425,10 +4377,9 @@ CMD *getDeltaTime(CMD *cmd, int *delta, int allow_slur) {
 			*delta += ((cmd+1)->lfrm - cmd->lfrm);
 		}
 		cmd++;
-		/* if( cmd->cmd == _SLAR && allow_slur) {
+		if( cmd->cmd == _SLAR && allow_slur) {
 			cmd++;
-		} else */
-		if( cmd->cmd != _TIE ) {
+		} else if( cmd->cmd != _TIE ) {
 			break;
 		}
 	}
@@ -4606,34 +4557,6 @@ void doNewBank(FILE *fp, int trk, const CMD *cmd)
 }
 
 
-
-int isCmdNotOutput(CMD *cmd)
-{
-  switch(cmd->cmd)
-  {
-	case _NOP:
-	case _TEMPO:
-	case _TEMPO2:
- 	case _OCTAVE:
-	case _OCT_UP:
-	case _OCT_DW:
-	case _LENGTH:
-	case _TRANSPOSE:
-		return 1;
-  }
-  return 0;
-}
-
-int isNextSlar(CMD *cmd)
-{
-  while(cmd->cmd != _TRACK_END
-	&& isCmdNotOutput(cmd)) cmd++;
-
-  if (cmd->cmd == _SLAR)
-	return 1;
-
-  return 0;
-}
 
 
 
@@ -4839,10 +4762,7 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 		int repeat_esc_flag = 0;
 		int i;
 		char loop_point_label[256];
-		int slar_flag = 0;
-		int slar_cmdcnt = 0;
-
-
+		
 		defaultPlayState(&ps);
 		
 		cmd = cmdtop;
@@ -4896,34 +4816,6 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 			  case _TRANSPOSE:
 				cmd++;
 				break;
-			  case _SLAR:
-				if (!slar_flag)
-				{
-					slar_flag = 1;
-					slar_cmdcnt=0;
-				}
-				putAsm( fp, MCK_SLAR );
-				cmd++;
-			  break;
-			  case _PITCH_SHIFT:
-				if (!slar_flag)
-				{
-					slar_flag = 1;
-					slar_cmdcnt=0;
-				}
-				putAsm( fp, MCK_PITCH_SHIFT );
-				cmd++;
-			  break;
-			  case _SMOOTH_ON:
-				putAsm( fp, MCK_SMOOTH );
-				putAsm( fp, 0x01 );
-				cmd++;
-			  break;
-			  case _SMOOTH_OFF:
-				putAsm( fp, MCK_SMOOTH );
-				putAsm( fp, 0x00 );
-				cmd++;
-			  break;
 			  case _ENVELOPE:
 				putAsm( fp, MCK_SET_VOL );
 				ps.env = cmd->param[0]&0x7f; 
@@ -4953,11 +4845,7 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 				break;
 			  case _HARD_ENVELOPE:
 				putAsm( fp, MCK_SET_FDS_HWENV );
-
-				if ((trk == BTRACK(0)) || (trk == BTRACK(1) ))
-					ps.env = ( ((cmd->param[0]&1)<<4)|((cmd->param[1]&1)<<5) );
-					else
-					ps.env = ((cmd->param[0]&1)<<6)|(cmd->param[1]&0x3f);
+				ps.env = ((cmd->param[0]&1)<<6)|(cmd->param[1]&0x3f|0x100);
 				putAsm( fp, (ps.env & 0xff) ); 
 				ps.last_written_env = ps.env;
 				cmd++;
@@ -5235,28 +5123,12 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 							break;
 						}
 					}
-
-
 					
 					
 					delta_time = 0;
 					cmd = getDeltaTime(cmd, &delta_time, 1);
-
-					if (isNextSlar(cmd)) 
-					{
-						GATE_Q temp_gate;
-
-						temp_gate.rate = 8;
-						temp_gate.adjust = ps.gate_q.adjust;
-						gate_time = calcGateTime(delta_time, &temp_gate);
-					}
-					else
-						gate_time = calcGateTime(delta_time, &(ps.gate_q));
-
 					
-//					gate_time = calcGateTime(delta_time, &(ps.gate_q));
-
-
+					gate_time = calcGateTime(delta_time, &(ps.gate_q));
 					left_time = delta_time - gate_time;
 					
 					if( delta_time == 0 ) {
@@ -5264,14 +5136,6 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 						break;
 					}
 					
-
-					if (slar_flag && slar_cmdcnt > 1)
-					{
-						dispError( ABNORMAL_NOTE_AFTER_COMMAND, cmd->filename, cmd->line );
-						cmd++;
-						break;
-					}
-					slar_flag = 0;
 					
 					if( ps.last_written_env != ps.env ) {		// 最後に書き込んだエンべロープor音量と、現在の通常のエンベロープor音量が違う
 						if ( (trk == BFMTRACK) && (ps.env > 0xFF) ) {
@@ -5337,8 +5201,6 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 				break;
 			} // switch (cmdtemp.cmd)
 			
-			if (slar_flag)
-				slar_cmdcnt++;
 			
 		} while( cmd->cmd != _TRACK_END );
 		

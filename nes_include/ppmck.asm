@@ -100,19 +100,26 @@ songno    = $0100
 pad_click = $0101
 pad_press = $0102
 nmi_flag  = $0103 ;$ff when play needed
-wantinit  = $0104
+wantinit  = $0104 ;$ff when init
 
  .bank 0
 
 NMI:
 	bit	wantinit
-	bmi	song_init
+	bmi	song_init_1
 	bit	nmi_flag
 	bmi	do_rti		; 処理落ち
 	dec	nmi_flag
 IRQ:
 do_rti:
 	rti
+
+song_init_1:
+	ldx	#$ff
+	txs
+	inx
+	jmp	song_init
+
 
 RESET:				; このあたりのXレジスタの使い方はQuietustさんの方法を参考にしました
 	sei

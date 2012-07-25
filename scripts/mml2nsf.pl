@@ -1,5 +1,9 @@
 #!perl
 
+#######################################################
+# This script is not maintained, so this may not work.
+#######################################################
+
 use warnings;
 use strict;
 use File::Spec;

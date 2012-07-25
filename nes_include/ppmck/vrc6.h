@@ -273,7 +273,7 @@ vrc6_loop_program2
 ;バンク切り替え
 vrc6_bank_command
 	cmp	#$ee
-	bne	vrc6_slur
+	bne	vrc6_wave_set
 	jsr	data_bank_addr
 	jmp	sound_vrc6_read
 ;----------
@@ -283,17 +283,6 @@ vrc6_bank_command
 ;	bne	vrc6_wave_set
 ;	jsr	data_end_sub
 ;	jmp	sound_vrc6_read
-;----------
-;スラー
-vrc6_slur:
-	cmp	#$e9
-	bne	vrc6_wave_set
-	lda	effect2_flags,x
-	ora	#%00000001
-	sta	effect2_flags,x
-	jsr	sound_data_address
-	jmp	sound_vrc6_read
-
 ;----------
 ;音色設定
 vrc6_wave_set:
@@ -440,19 +429,8 @@ vrc6_oto_set:
 	sta	sound_counter,x		;実際のカウント値となります
 	jsr	sound_data_address
 	jsr	vrc6_freq_set		;周波数セットへ
-
-	lda	effect2_flags,x		;スラーフラグのチェック
-	and	#%00000001
-	beq	no_slur_vrc6
-
-	lda	effect2_flags,x
-	and	#%11111110
-	sta	effect2_flags,x		;スラーフラグのクリア
-	jmp	sound_flag_clear_key_on
-
-no_slur_vrc6:
-	jmp	effect_init
-
+	jsr	effect_init
+	rts
 ;-------------------------------------------------------------------------------
 sound_vrc6_write:
 	jsr	vrc6_ctrl_reg_write
