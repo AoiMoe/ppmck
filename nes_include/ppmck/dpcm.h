@@ -40,10 +40,15 @@ dmc_bank_command
 ;	jsr	data_end_sub
 ;	jmp	sound_dpcm_play
 ;----------
-;スラーコマンド（DPCMの為、無視)
+;スラーコマンド（DPCMの為、発音時間を伸ばすのみ)
 slur_dpcm:
 	cmp	#$e9
 	bne	no_dpcm
+
+	lda	effect2_flags,x
+	ora	#%00000001
+	sta	effect2_flags,x
+
 	jsr	sound_data_address
 	jmp	sound_dpcm_play
 
@@ -71,6 +76,20 @@ wait_set2:
 
 dpcm_set:
 	pha
+
+	lda	effect2_flags,x		;スラーフラグのチェック
+	and	#%00000001
+	beq	no_slur_dpcm
+
+	lda	effect2_flags,x
+	and	#%11111110
+	sta	effect2_flags,x		;スラーフラグのクリア
+
+	pla
+	jmp	ontyou2			;カウンタのみ変更
+
+no_slur_dpcm:
+
 	lda	#$0F
 	sta	$4015		;DPCM stop
 ;;;;;;;;;; 無理矢理改造 "MCK virtual keyboard" by Norix

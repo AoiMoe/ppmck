@@ -3372,10 +3372,10 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 		{ "MPOF", _LFO_OFF,		(ALLTRACK&~DPCMTRACK) },
 		{ "MP",   _LFO_ON,		(ALLTRACK&~DPCMTRACK) },
 
-		{ "SMOF", _SMOOTH_OFF,		(ALLTRACK&~DPCMTRACK) },
-		{ "SM", _SMOOTH_ON,		(ALLTRACK&~DPCMTRACK) },
+		{ "SMOF", _SMOOTH_OFF,		(TRACK(0)|TRACK(1)|TRACK(2)) },
+		{ "SM", _SMOOTH_ON,		(TRACK(0)|TRACK(1)|TRACK(2)) },
 
-		{ "PS", _PITCH_SHIFT,		(ALLTRACK) },
+		{ "PS", _PITCH_SHIFT,		(TRACK(0)|TRACK(1)|TRACK(2)) },
 
 		{ "EH",	_HARD_ENVELOPE,		(TRACK(0)|TRACK(1)|FMTRACK) },
 		{ "MHOF", _MH_OFF,		(FMTRACK) },

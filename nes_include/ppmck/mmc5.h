@@ -283,9 +283,21 @@ mmc5_y_command_set:
 ;ウェイト設定
 mmc5_wait_set:
 	cmp	#$f4
-	bne	mmc5_oto_set
+	bne	mmc5_slur
 	jsr	wait_sub
 	rts
+
+;----------
+;スラー
+mmc5_slur:
+	cmp	#$e9
+	bne	mmc5_oto_set
+	lda	effect2_flags,x
+	ora	#%00000001
+	sta	effect2_flags,x
+	jsr	sound_data_address
+	jmp	sound_mmc5_read
+
 ;----------
 mmc5_oto_set:
 	sta	sound_sel,x		;処理はまた後で
@@ -294,8 +306,19 @@ mmc5_oto_set:
 	sta	sound_counter,x		;実際のカウント値となります
 	jsr	sound_data_address
 	jsr	mmc5_freq_set		;周波数セットへ
-	jsr	effect_init
-	rts
+
+	lda	effect2_flags,x		;スラーフラグのチェック
+	and	#%00000001
+	beq	no_slur_mmc5
+
+	lda	effect2_flags,x
+	and	#%11111110
+	sta	effect2_flags,x		;スラーフラグのクリア
+	jmp	sound_flag_clear_key_on
+
+no_slur_mmc5:
+	jmp	effect_init
+
 ;-------------------------------------------------------------------------------
 sound_mmc5_write:
 	ldx	<channel_selx2
