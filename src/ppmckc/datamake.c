@@ -3377,7 +3377,7 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 
 		{ "PS", _PITCH_SHIFT,		(TRACK(0)|TRACK(1)|TRACK(2)) },
 
-		{ "EH",	_HARD_ENVELOPE,		(TRACK(0)|TRACK(1)|FMTRACK) },
+		{ "EH",	_HARD_ENVELOPE,		(TRACK(0)|TRACK(1)|NOISETRACK|FMTRACK|MMC5TRACK) },
 		{ "MHOF", _MH_OFF,		(FMTRACK) },
 		{ "MH",	  _MH_ON,		(FMTRACK) },
 		{ "OP",   _VRC7_TONE,		(VRC7TRACK) },

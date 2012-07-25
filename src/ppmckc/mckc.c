@@ -91,7 +91,7 @@ int main( int argc , char *argv[] )
 	in = out = 0;
 
 // タイトル表示
-	printf( "MML to MCK Data Converter Ver %d.%02d by Manbow-J\npmck modification by BKC rel 0.2\n",
+	printf( "MML to MCK Data Converter Ver %d.%02d by Manbow-J\n",
 			(VersionNo/100), (VersionNo%100) );
 	//printf("patches by [OK] and 2ch mck thread people\n");
 	printf(patchstr);
