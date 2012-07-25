@@ -165,7 +165,7 @@ typedef struct t_proc {
 	int  call;
 	int  type;
 	int  refcnt;
-	char name[SBOLSZ];
+	char name[SBOLSZ+1];
 } t_proc;
 
 typedef struct t_symbol {
@@ -184,7 +184,7 @@ typedef struct t_symbol {
 	int  reserved;
 	int  data_type;
 	int  data_size;
-	char name[SBOLSZ];
+	char name[SBOLSZ+1];
 } t_symbol;
 
 typedef struct t_line {
@@ -195,13 +195,13 @@ typedef struct t_line {
 typedef struct t_macro {
 	struct t_macro *next;
 	struct t_line *line;
-	char name[SBOLSZ];
+	char name[SBOLSZ+1];
 } t_macro;
 
 typedef struct t_func {
 	struct t_func *next;
 	char line[128];
-	char name[SBOLSZ];
+	char name[SBOLSZ+1];
 } t_func;
 
 typedef struct t_tile {

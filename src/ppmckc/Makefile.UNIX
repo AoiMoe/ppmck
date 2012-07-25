@@ -3,9 +3,9 @@
 ifndef DEBUG
 
   CC = gcc
-  CFLAGS = -O2 -Wall# -mno-cygwin
+  CFLAGS = -O2 -Wall
   CDEFS = 
-  LDFLAGS=-mno-cygwin
+  LDFLAGS=
   STRIP = strip
 
 else
@@ -19,7 +19,7 @@ else
 endif
 
 OBJS = datamake.o file.o mckc.o strings.o 
-EXESFX=.exe
+EXESFX=
 EXEDIR=../../bin
 
 

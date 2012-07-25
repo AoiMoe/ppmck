@@ -867,7 +867,7 @@ detune_plus_with_asl:
 	lda	#0
 	sta	<t1
 	sta	<t2
-	beq	freq_add_mcknumber_with_asl_arithmetic_shift	;always
+	beq	freq_add_mcknumber_shift	;always
 
 detune_minus_nomask_with_asl:
 	eor	#$ff
@@ -879,7 +879,7 @@ detune_minus_nomask_with_asl:
 	sta	<t1
 	sta	<t2
 
-freq_add_mcknumber_with_asl_arithmetic_shift:
+freq_add_mcknumber_shift:
 .lp
 		asl	<t0
 		rol	<t1

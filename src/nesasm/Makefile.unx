@@ -26,8 +26,8 @@ all: $(TARGETS)
 
 clean:
 	$(RM) *.o
-	$(RM) ..\..\bin\pceas
-	$(RM) ..\..\bin\nesasm
+	$(RM) ../../bin/pceas
+	$(RM) ../../bin/nesasm
 
 # ASSEMBLER
 #

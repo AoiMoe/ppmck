@@ -1,4 +1,4 @@
-ppmck release 9 ex5 by BKC
+ppmck release 9 ex5.1 by BKC
 
 
 **** このファイルについて
@@ -103,4 +103,9 @@ y : 0でエンベロープのループ
 2009/10/20 release 9 ex5
 
   ハードウェアエンベロープ(EH)をノイズトラック、MMC5でも利用可能にした。
+
+2009/11/28 release 9 ex5.1
+
+  nesasmのバグ修正。srcディレクトリ内Makefileの調節。
+　sounddrv.hの長過ぎるラベルを32文字以内に修正。
 
