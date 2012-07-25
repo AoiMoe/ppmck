@@ -194,7 +194,7 @@ n106_loop_program2
 ;バンク切り替え
 n106_bank_command
 	cmp	#$ee
-	bne	n106_wave_set
+	bne	n106_slur
 	jsr	data_bank_addr
 	jmp	sound_n106_read
 ;----------
@@ -204,6 +204,18 @@ n106_bank_command
 ;	bne	n106_wave_set
 ;	jsr	data_end_sub
 ;	jmp	sound_n106_read
+
+;----------
+;スラー
+n106_slur:
+	cmp	#$e9
+	bne	n106_wave_set
+	lda	effect2_flags,x
+	ora	#%00000001
+	sta	effect2_flags,x
+	jsr	sound_data_address
+	jmp	sound_n106_read
+
 ;----------
 ;音色設定
 n106_wave_set:
@@ -379,6 +391,17 @@ n106_oto_set:
 	sta	sound_counter,x		;実際のカウント値となります
 	jsr	sound_data_address
 	jsr	n106_freq_set		;周波数セットへ
+
+	lda	effect2_flags,x		;スラーフラグのチェック
+	and	#%00000001
+	beq	no_slur_n106
+
+	lda	effect2_flags,x
+	and	#%11111110
+	sta	effect2_flags,x		;スラーフラグのクリア
+	jmp	sound_flag_clear_key_on
+
+no_slur_n106:
 ;volume
 	lda	#$7f
 	jsr	n106_write_sub

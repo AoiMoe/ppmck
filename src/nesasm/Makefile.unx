@@ -1,7 +1,7 @@
 # MAGICKIT LINUX MAKEFILE
 #
 
-RM       = rm -f
+RM       = rm
 CC       = gcc
 
 CFLAGS   = -O2 -Wall

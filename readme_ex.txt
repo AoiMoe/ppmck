@@ -1,9 +1,9 @@
-ppmck release 9 ex5.1 by BKC
+ppmck release 9a ex1 by BKC
 
 
 **** このファイルについて
 
-　ppmck release9を改変したものです。
+　ppmck release9aを改変したものです。
 
 　ppmckの機能と以下の機能が利用可能です。
 
@@ -24,7 +24,7 @@ ppmck release 9 ex5.1 by BKC
 
 **** 使い方
 
-    1. ppmck release 9をこのパッケージにあるファイルで置き換える
+    1. ppmck release 9aをこのパッケージにあるファイルで置き換える
     2. mmlでスラー(&)を使って楽しむ。
 
 
@@ -109,3 +109,6 @@ y : 0でエンベロープのループ
   nesasmのバグ修正。srcディレクトリ内Makefileの調節。
 　sounddrv.hの長過ぎるラベルを32文字以内に修正。
 
+2010/01/01 release 9a ex 1
+
+ release 9aの主な変更点であるppmck.asmをマージした。
