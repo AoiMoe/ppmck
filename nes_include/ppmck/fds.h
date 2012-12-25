@@ -1,4 +1,7 @@
 fds_sound_init:
+	lda #$02		; 2C33 Sound Enable
+	sta $4023
+
 	lda	#$00
 	sta	$4080
 	sta	$4082
