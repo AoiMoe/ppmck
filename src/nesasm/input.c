@@ -12,6 +12,13 @@ struct t_input_info input_file[8];
 char   incpath[10][128];
 
 
+void input_init()
+{
+	infile_error = infile_num = 0;
+	MEMCLR(input_file);
+	MEMCLR(incpath);
+}
+
 /* ----
  * init_path()
  * ----

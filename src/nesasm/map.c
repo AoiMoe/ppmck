@@ -9,6 +9,11 @@
 static unsigned char buffer[512];
 
 
+void map_init()
+{
+	MEMCLR(buffer);
+}
+
 /* ----
  * pce_load_map()
  * ----

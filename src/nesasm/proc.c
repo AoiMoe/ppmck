@@ -19,6 +19,15 @@ struct t_proc *proc_look(void);
 int            proc_install(void);
 void           poke(int addr, int data);
 
+void proc_init(void)
+{
+	MEMCLR(proc_tbl);
+
+	proc_nb = call_ptr = call_bank = 0;
+	proc_ptr = NULL;
+	proc_first = proc_last = NULL;
+}
+
 
 /* ----
  * do_call()

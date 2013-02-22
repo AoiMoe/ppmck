@@ -105,6 +105,12 @@ char	maker[1024] = "Maker\0";
 char	programer_buf[1024] = "";
 char	*programer = NULL;
 
+int bank_org_written_flag[128] = {1};
+
+char *putasm_fn = "";
+int putasm_ln = 0;
+
+
 const	char	str_track[] = _TRACK_STR;
 
 // エラー番号
@@ -237,7 +243,91 @@ const	char	*WarningMessage[] = {
 	"DPCMサイズ mod 16 が1ではありません",			"DPCM size mod 16 is not 1",
 };
 
+#define MEMCLR(x) memset(x,0,sizeof(x))
 
+
+/*--------------------------------------------------------------
+	グローバル変数初期化
+ Input:
+	
+ Output:
+	none
+--------------------------------------------------------------*/
+
+
+void datamake_init()
+{
+	error_flag = 0;
+	octave = 0;
+	length = 0;
+	octave_flag = 0;
+	gate_denom = 8;
+	pitch_correction = 0;
+	loop_flag = 0;
+	putAsm_pos = 0;
+	mml_file_name = NULL;
+	mml_line_pos = 0;
+	mml_trk = 0;
+	nest = 0;
+	
+	MEMCLR(track_count);
+	
+	volume_flag = 0;
+	tbase = 0.625;
+	transpose = 0;
+	sndgen_flag = 0;
+	
+	track_allow_flag = (TRACK(0)|TRACK(1)|TRACK(2)|NOISETRACK|DPCMTRACK);
+	
+	actual_track_flag = 0;
+	dpcm_track_num = 1;
+	fds_track_num = 0;
+	vrc7_track_num = 0;
+	vrc6_track_num = 0;
+	n106_track_num = 0;
+	fme7_track_num = 0;
+	mmc5_track_num = 0;
+
+	MEMCLR(bank_sel);
+	allow_bankswitching = 1;
+	dpcm_bankswitch = 0;
+	auto_bankswitch = 0;
+	curr_bank = 0;
+	
+	MEMCLR(bank_usage);
+	bank_maximum = 0;
+	dpcm_extra_bank_num = 0;
+	
+	MEMCLR(tone_tbl);
+	MEMCLR(envelope_tbl);
+	MEMCLR(pitch_env_tbl);
+	MEMCLR(pitch_mod_tbl);
+	MEMCLR(arpeggio_tbl);
+	MEMCLR(fm_tone_tbl);
+	MEMCLR(vrc7_tone_tbl);
+	MEMCLR(n106_tone_tbl);
+	MEMCLR(hard_effect_tbl);
+	MEMCLR(effect_wave_tbl);
+
+	MEMCLR(dpcm_tbl);
+	dpcm_data = NULL;
+	dpcm_size = 0;
+	dpcm_reststop = 0;
+	
+	strcpy(song_name,"Song Name\0");
+	strcpy(composer,"Artist\0");
+	strcpy(maker,"Maker\0");
+	strcpy(programer_buf,"");
+
+	programer = NULL;
+	
+	MEMCLR(bank_org_written_flag);
+	bank_org_written_flag[0] = 1;
+	
+	putasm_fn = "";
+	putasm_ln = 0;
+
+}
 
 /*--------------------------------------------------------------
 	エラー表示
@@ -4304,15 +4394,14 @@ CMD *translateData( CMD **cmd, CMD *ptr )
 --------------------------------------------------------------*/
 void putAsm( FILE *fp, int data )
 {
-	static char *fn = "";
-	static int ln = 0;
 	if( putAsm_pos == 0 ) {
-		fn = mml_file_name;
-		ln = mml_line_pos;
+		putasm_fn = mml_file_name;
+		putasm_ln = mml_line_pos;
 		fprintf( fp, "\tdb\t$%02x", data&0xff );
 	} else if( putAsm_pos == 7 ) {
 		fprintf( fp, ",$%02x",  data&0xff );
-		fprintf( fp, "\t;Trk %c; %s: %d", str_track[mml_trk], fn, ln);
+		fprintf( fp, "\t;Trk %c; %s: %d",
+			str_track[mml_trk], putasm_fn, putasm_ln);
 		fprintf( fp, "\n");
 	} else {
 		fprintf( fp, ",$%02x",  data&0xff );
@@ -4329,7 +4418,6 @@ void putAsm( FILE *fp, int data )
 --------------------------------------------------------------*/
 void putBankOrigin(FILE *fp, int bank)
 {
-	static int bank_org_written_flag[128] = {1};
 	int org;
 	if (bank > 127) {
 		//assert(0);
@@ -5422,6 +5510,9 @@ int data_make( void )
 	LINE	*line_ptr[MML_MAX];
 	CMD		*cmd_buf;
 	int	trk_flag[_TRACK_MAX];
+	
+	
+	datamake_init();
 
 	for(i=0; i < _TRACK_MAX; i++) {
 		bank_sel[i] = -1; // 初期状態は切り替え無し

@@ -10,6 +10,12 @@ unsigned char auto_tag;
 unsigned int  auto_tag_value;
 
 
+void code_init()
+{
+	auto_inc = auto_tag = 0;
+	auto_tag_value = 0;
+}
+
 /* ----
  * class1()
  * ----

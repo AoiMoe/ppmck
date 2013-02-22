@@ -11,6 +11,12 @@ static unsigned char buffer[16384];	/* buffer for .inc and .def directives */
 static unsigned char header[512];	/* rom header */
 
 
+void pce_init()
+{
+	MEMCLR(buffer);
+	MEMCLR(header);
+}
+
 /* ----
  * write_header()
  * ----

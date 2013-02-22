@@ -230,3 +230,8 @@ typedef struct t_machine {
     void (*write_header)(FILE *, int);
 } MACHINE;
 
+/* memset macro */
+#define MEMCLR(x) memset(x,0,sizeof(x))
+
+
+

@@ -31,6 +31,13 @@
 #include "vars.h"
 #include "inst.h"
 
+/* compiling as a module */
+#ifndef AS_MODULE
+#define ENTRY main
+#else
+#define ENTRY asm_main
+#endif
+
 /* defines */
 #define STANDARD_CD	1
 #define SUPER_CD	2
@@ -58,6 +65,62 @@ int   xlist;		/* listing file main flag */
 int   list_level;	/* output level */
 int   asm_opt[8];	/* assembler options */
 
+void main_init()
+{
+	/* vars.h */
+	MEMCLR(rom);
+	MEMCLR(map);
+	MEMCLR(bank_name);
+	MEMCLR(bank_loccnt);
+	MEMCLR(bank_page);
+	
+	max_zp = max_bss = max_bank = 0;
+	data_loccnt = data_size = data_level = 0;
+	loccnt = bank = bank_base = rom_limit = bank_limit = 0;
+	page = rsbase = section = 0;
+	MEMCLR(section_bank);
+	stop_pass = 0;
+	errcnt = 0;
+	
+	machine = NULL;
+	
+	MEMCLR(inst_tbl);
+	MEMCLR(hash_tbl);
+	lablptr = glablptr = lastlabl = NULL;
+	MEMCLR(bank_glabl);
+	
+	MEMCLR(hex);
+	opflg = opval = optype = 0;
+	opext = 0;
+	pass = 0;
+	
+	MEMCLR(prlnbuf);
+	MEMCLR(tmplnbuf);
+	slnum = 0;
+	MEMCLR(symbol);
+	undef = 0;
+	value = 0;
+	
+
+	/* main.c */
+	MEMCLR(ipl_buffer);
+	MEMCLR(in_fname);
+	MEMCLR(out_fname);
+	MEMCLR(bin_fname);
+	MEMCLR(lst_fname);
+	prg_name = NULL;
+	in_fp = lst_fp = NULL;
+	
+	dump_seg = develo_opt = header_opt = srec_opt = 0;
+	run_opt = scd_opt = cd_opt = mx_opt = 0;
+	mlist_opt = xlist = list_level = 0;
+	
+	MEMCLR(asm_opt);
+	
+}
+
+
+
 
 /* ----
  * main()
@@ -65,7 +128,7 @@ int   asm_opt[8];	/* assembler options */
  */
 
 int
-main(int argc, char **argv)
+ENTRY(int argc, char **argv)
 {
 	FILE *fp, *ipl;
 	char *p;
@@ -73,6 +136,9 @@ main(int argc, char **argv)
 	int i, j;
 	int file;
 	int ram_bank;
+	
+	main_init();
+
 
 	/* get program name */
 	if ((prg_name = strrchr(argv[0], '/')) != NULL)
@@ -105,6 +171,18 @@ main(int argc, char **argv)
 	cd_opt = 0;
 	mx_opt = 0;
 	file = 0;
+	
+	/* init external variables */
+	assemble_init();
+	code_init();
+	func_init();
+	input_init();
+	macro_init();
+	map_init();
+	nes_init();
+	pce_init();
+	pcx_init();
+	proc_init();
 
 	/* display assembler version message */
     printf("%s\n\n", machine->asm_title);
@@ -217,7 +295,7 @@ main(int argc, char **argv)
 	/* open the input file */
 	if (open_input(in_fname)) {
 		printf("Can not open input file '%s'!\n", in_fname);
-		exit(1);
+		return (1);
 	}
 
 	/* clear the ROM array */
@@ -381,7 +459,7 @@ main(int argc, char **argv)
 			if (xlist && list_level) {
 				if ((lst_fp = fopen(lst_fname, "w")) == NULL) {
 					printf("Can not open listing file '%s'!\n", lst_fname);
-					exit(1);
+					return(1);
 				}
 				fprintf(lst_fp, "#[1]   %s\n", input_file[1].name);
 			}
@@ -395,7 +473,7 @@ main(int argc, char **argv)
 			/* open output file */
 			if ((fp = fopen(bin_fname, "wb")) == NULL) {
 				printf("Can not open output file '%s'!\n", bin_fname);
-				exit(1);
+				return(1);
 			}
 		
 			/* boot code */
@@ -403,7 +481,7 @@ main(int argc, char **argv)
 				/* open ipl binary file */
 				if ((ipl = open_file("boot.bin", "rb")) == NULL) {
 					printf("Can not find CD boot file 'boot.bin'!\n");
-					exit(1);
+					return(1);
 				}
 
 				/* load ipl */
@@ -469,7 +547,7 @@ main(int argc, char **argv)
 				/* open file */
 				if ((fp = fopen(bin_fname, "wb")) == NULL) {
 					printf("Can not open binary file '%s'!\n", bin_fname);
-					exit(1);
+					return(1);
 				}
 		
 				/* write header */

@@ -15,6 +15,15 @@ int skip_lines;		/* set when lines must be skipped */
 int continued_line;	/* set when a line is the continuation of another line */
 
 
+void assemble_init()
+{
+	in_if = if_expr = if_level = 0;
+	skip_lines = continued_line = 0;
+
+	MEMCLR(if_state);
+	MEMCLR(if_flag);
+}
+
 /* ----
  * assemble()
  * ----

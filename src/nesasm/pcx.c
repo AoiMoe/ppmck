@@ -43,6 +43,26 @@ extern int expr_lablcnt;	/* number of label seen in an expression */
 #define GET_SHORT(a) ((a[1] << 8) + a[0])
 
 
+void pcx_init()
+{
+	MEMCLR(pcx_name);
+	pcx_w = pcx_h = 0;
+	pcx_nb_colors = pcx_nb_args = 0;
+	
+	MEMCLR(pcx_arg);
+	pcx_buf = NULL;
+	
+	MEMCLR(pcx_pal);
+	MEMCLR(pcx_plane);
+	tile_offset = 0;
+	MEMCLR(tile);
+	MEMCLR(tile_tbl);
+	
+	tile_lablptr = NULL;
+	
+	memset(&pcx,0,sizeof(pcx));
+}
+
 /* ----
  * pcx_pack_8x8_tile()
  * ----
@@ -290,7 +310,7 @@ pcx_get_args(int *ip)
 		if (expr_lablcnt == 0)
 			error("No tile table reference!");
 		if (expr_lablcnt > 1) {
-			expr_lablcnt = NULL;
+			expr_lablcnt = 0;
 			error("Too many tile table references!");
 		}
 		if (!pcx_set_tile(expr_lablptr, value))
@@ -363,7 +383,7 @@ pcx_load(char *name)
 	/* check if the file is the same as the previously loaded one;
 	 * if this is the case do not reload it
 	 */
-	if (strlen(name) && (strcasecmp(pcx_name, name) == NULL))
+	if (strlen(name) && (strcasecmp(pcx_name, name) == 0))
 		return (1);
 	else {
 		/* no it's a new file - ok let's prepare loading */

@@ -18,6 +18,14 @@ static struct INES {		/* INES rom header */
 } header;
 
 
+void nes_init()
+{
+	ines_prg = 0;
+	ines_chr = 0;
+	MEMCLR(ines_mapper);
+	memset(&header,0,sizeof(header));
+}
+
 /* ----
  * write_header()
  * ----

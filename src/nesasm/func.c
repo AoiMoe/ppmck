@@ -13,6 +13,17 @@ char func_arg[8][10][80];
 int  func_idx;
 
 
+void func_init()
+{
+	func_ptr = NULL;
+	
+	MEMCLR(func_tbl);
+	MEMCLR(func_line);
+	MEMCLR(func_arg);
+	
+	func_idx = 0;
+}
+
 /* ----
  * do_func()
  * ----

@@ -6,6 +6,12 @@
 
 #include	"mckc.h"
 
+#ifndef AS_MODULE
+#define ENTRY main
+#else
+#define ENTRY mckc_main
+#endif
+
 extern void splitPath( const char *ptr, char *path, char *name, char *ext );
 extern void makePath( char *ptr, const char *path, const char *name, const char *ext );
 extern char *skipSpace( char *ptr );
@@ -69,7 +75,7 @@ void dispHelpMessage( void )
 				"\t-u      : Multiple song NSF creation\n"
 	    );
 	}
-	exit( 1 );
+	// exit( 1 );
 }
 
 
@@ -82,7 +88,7 @@ void dispHelpMessage( void )
  Output:
 	0:正常終了 0:以外以上終了
 --------------------------------------------------------------*/
-int main( int argc , char *argv[] )
+int ENTRY( int argc , char *argv[] )
 {
 	int	i,in,out;
 	char	path[256],name[256],ext[256];
@@ -104,7 +110,12 @@ int main( int argc , char *argv[] )
 
 	for ( i = 1; i < argc; i++ ) {
 		// スイッチ？
+#ifdef _WIN32
 		if ( (argv[i][0] == '-') || (argv[i][0] == '/') ) {
+#else
+		// パスセパレータの問題(WIN32以外)
+		if ( (argv[i][0] == '-') ) {
+#endif
 			switch( toupper( argv[i][1] ) ) {
 			  case 'H':
 			  case '?':

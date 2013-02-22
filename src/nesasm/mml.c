@@ -59,6 +59,7 @@ mml_start(unsigned char *buffer)
 {
 	*buffer = SND_OFF;
 
+	snd_wave = 0;
 	snd_off = 1;
 	snd_wave_flag = 0;
 	snd_octave = 4;

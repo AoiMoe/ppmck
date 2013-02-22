@@ -18,6 +18,19 @@ struct t_line  *mlptr;
 struct t_macro *macro_tbl[256];
 struct t_macro *mptr;
 
+void macro_init()
+{
+	mopt = in_macro = expand_macro = 0;
+	MEMCLR(marg);
+	midx = mcounter = mcntmax = 0;
+	MEMCLR(mcntstack);
+	MEMCLR(mstack);
+	mlptr = NULL;
+	MEMCLR(macro_tbl);
+	mptr = NULL;
+	
+}
+
 /* .macro pseudo */
 
 void
