@@ -18,7 +18,7 @@ n106_sound_init:
 	sta	$f800
 
 	; 定義バンク切り替え
-	lda	#bank(n106_channel)
+	lda	#bank(n106_channel)*2
 	jsr	change_bank
 
 	lda	n106_channel
@@ -233,7 +233,7 @@ n106_wave_set:
 	tax				;何番目の波形を使うかの設定開始
 
 	; 定義バンク切り替え
-	lda	#bank(n106_wave_init)
+	lda	#bank(n106_wave_init)*2
 	jsr	change_bank
 
 	lda	n106_wave_init,x	;;波形データ長リード

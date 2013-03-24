@@ -203,7 +203,7 @@ fds_wave_set:
 	tax
 
 	; 定義バンク切り替え
-	lda	#bank(fds_data_table)
+	lda	#bank(fds_data_table)*2
 	jsr	change_bank
 
 	lda	fds_data_table,x
@@ -255,7 +255,7 @@ fds_softenve_part:
 	asl	a
 	tay
 	; 定義バンク切り替え
-	lda	#bank(softenve_table)
+	lda	#bank(softenve_table)*2
 	jsr	change_bank
 
 	lda	softenve_table,y	;ソフトエンベデータアドレス設定
@@ -358,7 +358,7 @@ fds_hard_lfo_data_set:
 	tay
 
 	; 定義バンク切り替え
-	lda	#bank(fds_effect_select)
+	lda	#bank(fds_effect_select)*2
 	jsr	change_bank
 
 	sta	fds_hard_select
@@ -494,7 +494,7 @@ set_4088:
 	ldx	#$00
 fds_4088_write:
 	; 定義バンク切り替え
-	lda	#bank(fds_4088_data)
+	lda	#bank(fds_4088_data)*2
 	jsr	change_bank
 
 	lda	fds_4088_data,y

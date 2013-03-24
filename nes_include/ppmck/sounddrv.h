@@ -588,6 +588,10 @@ volume_sub:
 	sta	softenve_sel,x
 	asl	a
 	tay
+
+	lda	#bank(softenve_table)*2
+	jsr	change_bank
+
 	lda	softenve_table,y	;ソフトエンベデータアドレス設定
 	sta	soft_add_low,x
 	lda	softenve_table+1,y
@@ -614,7 +618,7 @@ lfo_data_set:
 	tay
 
 	; 定義テーブルにバンクを切り替え
-	lda #bank(lfo_data)
+	lda	#bank(lfo_data)*2
 	jsr	change_bank
 	
 	ldx	<channel_selx2
@@ -734,13 +738,14 @@ arpeggio_set_sub:
 	rts
 
 arpeggio_part:
-	; 定義バンク切り替え
-	lda	#bank(arpeggio_table)
-	jsr	change_bank
-
 	sta	arpeggio_sel,x
 	asl	a
 	tay
+
+	; 定義バンク切り替え
+	lda	#bank(arpeggio_table)*2
+	jsr	change_bank
+
 	lda	arpeggio_table,y
 	sta	arpe_add_low,x
 	lda	arpeggio_table+1,y
@@ -921,7 +926,7 @@ sound_software_enverope:
 	rts				;おしまい
 
 volume_enve_sub:
-	lda	#bank(softenve_table)
+	lda	#bank(softenve_table)*2
 	jsr	change_bank
 
 	ldx	<channel_selx2
@@ -954,7 +959,7 @@ sound_duty_enverope:
 	cmp	#$02
 	beq	return21		;三角波なら飛ばし～
 
-	lda	#bank(dutyenve_table)
+	lda	#bank(dutyenve_table)*2
 	jsr	change_bank
 
 	indirect_lda	duty_add_low		;エンベロープデータ読み込み
@@ -1136,7 +1141,7 @@ end3:
 pitch_sub:
 
 	; 定義バンク切り替え
-	lda	#bank(pitchenve_table)
+	lda	#bank(pitchenve_table)*2
 	jsr	change_bank
 
 	ldx	<channel_selx2
@@ -1193,7 +1198,7 @@ ARPEGGIO_RETRIG = 0			; 1だとsound_freq_highが変化しなくても書き込む
 ;--------------------------------------------------
 note_add_set:
 	; 定義バンク切り替え
-	lda	#bank(arpeggio_table)
+	lda	#bank(arpeggio_table)*2
 	jsr	change_bank
 
 	lda	arpeggio_sel,x
@@ -1219,7 +1224,7 @@ return83:
 note_enve_sub:
 
 	; 定義バンク切り替え
-	lda	#bank(arpeggio_table)
+	lda	#bank(arpeggio_table)*2
 	jsr	change_bank
 
 	ldx	<channel_selx2
@@ -1287,7 +1292,7 @@ note_enve_end:
 effect_init:
 ;ソフトウェアエンベロープ読み込みアドレス初期化
 	; 定義バンク切り替え
-	lda	#bank(softenve_table)
+	lda	#bank(softenve_table)*2
 	jsr	change_bank
 
 	lda	softenve_sel,x
@@ -1300,7 +1305,7 @@ effect_init:
 
 ;ピッチエンベロープ読み込みアドレス初期化
 	; 定義バンク切り替え
-	lda	#bank(pitchenve_table)
+	lda	#bank(pitchenve_table)*2
 	jsr	change_bank
 
 	lda	pitch_sel,x
@@ -1313,7 +1318,7 @@ effect_init:
 
 ;デューティエンベロープ読み込みアドレス初期化
 	; 定義バンク切り替え
-	lda	#bank(dutyenve_table)
+	lda	#bank(dutyenve_table)*2
 	jsr	change_bank
 
 	lda	duty_sel,x
@@ -1326,7 +1331,7 @@ effect_init:
 
 ;ノートエンベロープ読み込みアドレス初期化
 	; 定義バンク切り替え
-	lda	#bank(arpeggio_table)
+	lda	#bank(arpeggio_table)*2
 	jsr	change_bank
 
 	lda	arpeggio_sel,x

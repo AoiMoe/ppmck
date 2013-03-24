@@ -300,7 +300,7 @@ duty_enverope_part:
 	asl	a
 	tay
 
-	lda	#bank(dutyenve_table)
+	lda	#bank(dutyenve_table)*2
 	jsr	change_bank
 
 	lda	dutyenve_table,y	;デューティエンベロープアドレス設定

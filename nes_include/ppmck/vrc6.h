@@ -517,7 +517,7 @@ sound_vrc6_dutyenve:
 	ldx	<channel_selx2
 
 	; ’è‹`ƒoƒ“ƒNØ‚è‘Ö‚¦
-	lda	#bank(dutyenve_table)
+	lda	#bank(dutyenve_table)*2
 	jsr	change_bank
 
 

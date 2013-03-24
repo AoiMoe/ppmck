@@ -174,7 +174,7 @@ vrc7_wave_set:
 	tax
 
 	; ’è‹`ƒoƒ“ƒNØ‚è‘Ö‚¦
-	lda	#bank(vrc7_data_table)
+	lda	#bank(vrc7_data_table)*2
 	jsr	change_bank
 
 	lda	vrc7_data_table,x
