@@ -201,6 +201,11 @@ fds_wave_set:
 
 	asl	a
 	tax
+
+	; 定義バンク切り替え
+	lda	#bank(fds_data_table)
+	jsr	change_bank
+
 	lda	fds_data_table,x
 	sta	<temp_data_add
 	inx
@@ -249,6 +254,10 @@ fds_softenve_part:
 	sta	softenve_sel,x		;0 ～ 127の番号
 	asl	a
 	tay
+	; 定義バンク切り替え
+	lda	#bank(softenve_table)
+	jsr	change_bank
+
 	lda	softenve_table,y	;ソフトエンベデータアドレス設定
 	sta	soft_add_low,x
 	lda	softenve_table+1,y
@@ -347,6 +356,10 @@ fds_hard_lfo_data_set:
 	asl	a
 	asl	a
 	tay
+
+	; 定義バンク切り替え
+	lda	#bank(fds_effect_select)
+	jsr	change_bank
 
 	sta	fds_hard_select
 	inc	fds_hard_select
@@ -480,6 +493,10 @@ set_4088:
 	tay
 	ldx	#$00
 fds_4088_write:
+	; 定義バンク切り替え
+	lda	#bank(fds_4088_data)
+	jsr	change_bank
+
 	lda	fds_4088_data,y
 	sta	$4088
 	iny

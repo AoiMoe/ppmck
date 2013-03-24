@@ -16,6 +16,11 @@ n106_sound_init:
 
 	lda	#$7f
 	sta	$f800
+
+	; 定義バンク切り替え
+	lda	#bank(n106_channel)
+	jsr	change_bank
+
 	lda	n106_channel
 	sec
 	sbc	#$01
@@ -226,6 +231,10 @@ n106_wave_set:
 
 	asl	a
 	tax				;何番目の波形を使うかの設定開始
+
+	; 定義バンク切り替え
+	lda	#bank(n106_wave_init)
+	jsr	change_bank
 
 	lda	n106_wave_init,x	;;波形データ長リード
 	asl	a

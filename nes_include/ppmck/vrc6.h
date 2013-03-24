@@ -516,6 +516,11 @@ sound_vrc6_note_enve
 sound_vrc6_dutyenve:
 	ldx	<channel_selx2
 
+	; 定義バンク切り替え
+	lda	#bank(dutyenve_table)
+	jsr	change_bank
+
+
 	indirect_lda	duty_add_low		;エンベロープデータ読み込み
 	cmp	#$ff			;最後かどーか
 	beq	vrc6_return22		;最後ならそのままおしまい

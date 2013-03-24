@@ -299,6 +299,10 @@ duty_enverope_part:
 	sta	duty_sel,x
 	asl	a
 	tay
+
+	lda	#bank(dutyenve_table)
+	jsr	change_bank
+
 	lda	dutyenve_table,y	;デューティエンベロープアドレス設定
 	sta	duty_add_low,x
 	lda	dutyenve_table+1,y

@@ -173,6 +173,10 @@ vrc7_wave_set:
 	asl	a
 	tax
 
+	; ’è‹`ƒoƒ“ƒNØ‚è‘Ö‚¦
+	lda	#bank(vrc7_data_table)
+	jsr	change_bank
+
 	lda	vrc7_data_table,x
 	sta	<temp_data_add
 	inx

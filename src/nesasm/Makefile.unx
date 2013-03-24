@@ -1,8 +1,10 @@
 # MAGICKIT LINUX MAKEFILE
 #
 
-RM       = rm
+RM       = rm -f
 CC       = gcc
+CP       = cp
+
 
 CFLAGS   = -O2 -Wall
 
@@ -10,10 +12,12 @@ OBJS     = main.o input.o assemble.o expr.o code.o command.o\
          macro.o func.o proc.o symbol.o pcx.o output.o crc.o\
          pce.o map.o mml.o nes.o
 
-EXEDIR   = ../../bin
+EXEDIR   = ../../bin/
 
-TARGPCE  = $(EXEDIR)/pceas
-TARGNES  = $(EXEDIR)/nesasm
+EXESFX =
+
+TARGPCE  = pceas$(EXESFX)
+TARGNES  = nesasm$(EXESFX)
 TARGETS  = $(TARGPCE) $(TARGNES)
 
 #
@@ -26,8 +30,14 @@ all: $(TARGETS)
 
 clean:
 	$(RM) *.o
-	$(RM) ../../bin/pceas
-	$(RM) ../../bin/nesasm
+	$(RM) $(TARGETS)
+
+# INSTALL
+#
+
+install: $(TARGPCE) $(TARGNES)
+	$(CP) $(TARGPCE) $(EXEDIR)
+	$(CP) $(TARGNES) $(EXEDIR)
 
 # ASSEMBLER
 #

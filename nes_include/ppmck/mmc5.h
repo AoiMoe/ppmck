@@ -195,6 +195,11 @@ mmc5_duty_enverope_part:
 	sta	duty_sel,x
 	asl	a
 	tay
+
+	; 定義バンク切り替え
+	lda	#bank(dutyenve_table)
+	jsr	change_bank
+
 	lda	dutyenve_table,y	;デューティエンベロープアドレス設定
 	sta	duty_add_low,x
 	lda	dutyenve_table+1,y
@@ -424,6 +429,10 @@ sound_mmc5_note_enve
 ;-------------------------------------------------------------------------------
 sound_mmc5_dutyenve:
 	ldx	<channel_selx2
+
+	; 定義バンク切り替え
+	lda	#bank(dutyenve_table)
+	jsr	change_bank
 
 	indirect_lda	duty_add_low		;エンベロープデータ読み込み
 	cmp	#$ff			;最後かどーか

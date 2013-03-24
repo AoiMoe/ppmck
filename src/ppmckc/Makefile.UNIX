@@ -1,21 +1,17 @@
 # mckc makefile for MinGW
 
+CC = gcc
+STRIPER = strip
+CP = cp
+CDEFS =
+LDFLAGS=
+
 ifndef DEBUG
-
-  CC = gcc
   CFLAGS = -O2 -Wall
-  CDEFS = 
-  LDFLAGS=
   STRIP = strip
-
 else
-
-  CC = gcc
   CFLAGS = -g
-  CDEFS =
-  LDFLAGS =
-  STRIP =
-
+  STRIP = 
 endif
 
 OBJS = datamake.o file.o mckc.o strings.o 
@@ -23,10 +19,10 @@ EXESFX=
 EXEDIR=../../bin
 
 
-.PHONY: all clean strip
+.PHONY: all clean strip install
 
-TARGET_E = $(EXEDIR)/ppmckc_e$(EXESFX)
-TARGET = $(EXEDIR)/ppmckc$(EXESFX)
+TARGET_E = ppmckc_e$(EXESFX)
+TARGET = ppmckc$(EXESFX)
 
 all: $(TARGET_E) $(TARGET) $(STRIP)
 
@@ -43,10 +39,15 @@ version_e.o: version.c
 	$(CC) $(CFLAGS) $(CDEFS) -c $<
 
 strip:
-	strip $(TARGET) $(TARGET_E)
+	$(STRIPER) $(TARGET) $(TARGET_E)
 
 mckc.o: mckc.h
 datamake.o: mckc.h
+
+install: all
+	$(CP) $(TARGET) $(EXEDIR)/
+	$(CP) $(TARGET_E) $(EXEDIR)/
+	
 
 clean:
 	$(RM) $(OBJS) version.o version_e.o $(TARGET) $(TARGET_E)

@@ -78,7 +78,12 @@ int		bank_sel[_TRACK_MAX];	// 0 ～ 127 = バンク切り替え , 0xFF = 変更無し
 int		allow_bankswitching = 1;
 int		dpcm_bankswitch = 0;
 int		auto_bankswitch = 0;
+int		effect_bankswitch = 0;
 int		curr_bank = 0x00;
+
+int		effect_bank = 0x00;
+int		effect_usage = 0;
+
 int		bank_usage[128];		//bank_usage[0]は今のところ無意味
 int		bank_maximum = 0;		//8KB
 int		dpcm_extra_bank_num = 0;	//8KB
@@ -292,7 +297,10 @@ void datamake_init()
 	allow_bankswitching = 1;
 	dpcm_bankswitch = 0;
 	auto_bankswitch = 0;
+	effect_bankswitch = 0;
 	curr_bank = 0;
+	effect_bank = 0;
+	effect_usage = 0;
 	
 	MEMCLR(bank_usage);
 	bank_maximum = 0;
@@ -1048,14 +1056,15 @@ void getLineStatus(LINE *lptr, int inc_nest )
  Input:
 	
  Output:
-	無し
+	int : 長さ
 --------------------------------------------------------------*/
-void getTone( LINE *lptr )
+int getTone( LINE *lptr )
 {
-	int		line, i, no, end_flag, offset, num, cnt;
+	int		line, i, no, end_flag, offset, num, cnt , length;
 	char	*ptr;
 
 	cnt = 0;
+    length = 0;
 
 	for( line = 1; line <= lptr->line; line++ ) {
 		/* 音色データ発見？ */
@@ -1111,6 +1120,7 @@ void getTone( LINE *lptr )
 						tone_tbl[no][0]++;
 						ptr += cnt;
 						i++;
+                        length++;
 					} else {
 						dispError( TONE_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
 						tone_tbl[no][0] = 0;
@@ -1128,9 +1138,11 @@ void getTone( LINE *lptr )
 			dispError( TONE_DEFINITION_IS_WRONG, lptr[line].filename, line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
-			getTone( lptr[line].inc_ptr );
+			length += getTone( lptr[line].inc_ptr );
 		}
 	}
+	
+	return length;
 }
 
 
@@ -1140,14 +1152,15 @@ void getTone( LINE *lptr )
  Input:
 	
  Output:
-	無し
+	int : 長さ
 --------------------------------------------------------------*/
-void getEnvelope( LINE *lptr )
+int getEnvelope( LINE *lptr )
 {
 	int		line, i, no, end_flag, offset, num, cnt;
 	char	*ptr;
 
 	cnt = 0;
+    int length = 0;
 
 	for( line = 1; line <= lptr->line; line++ ) {
 		/* エンベロープデータ発見？ */
@@ -1201,6 +1214,7 @@ void getEnvelope( LINE *lptr )
 						envelope_tbl[no][0]++;
 						ptr += cnt;
 						i++;
+                        length++;
 					} else {
 						dispError( ENVELOPE_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
 						envelope_tbl[no][0] = 0;
@@ -1218,9 +1232,10 @@ void getEnvelope( LINE *lptr )
 			dispError( ENVELOPE_DEFINITION_IS_WRONG, lptr[line].filename, line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
-			getEnvelope( lptr[line].inc_ptr );
+			length += getEnvelope( lptr[line].inc_ptr );
 		}
 	}
+	return length;
 }
 
 /*--------------------------------------------------------------
@@ -1228,14 +1243,15 @@ void getEnvelope( LINE *lptr )
  Input:
 	
  Output:
-	無し
+	int : 長さ
 --------------------------------------------------------------*/
-void getPitchEnv( LINE *lptr )
+int getPitchEnv( LINE *lptr )
 {
 	int		line, i, no, end_flag, offset, num, cnt;
 	char	*ptr;
 
 	cnt = 0;
+	int length = 0;
 
 	for( line = 1; line <= lptr->line; line++ ) {
 		/* ピッチエンベロープデータ発見？ */
@@ -1289,6 +1305,7 @@ void getPitchEnv( LINE *lptr )
 						pitch_env_tbl[no][0]++;
 						ptr += cnt;
 						i++;
+						length++;
 					} else {
 						dispError( PITCH_ENVELOPE_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
 						pitch_env_tbl[no][0] = 0;
@@ -1306,9 +1323,10 @@ void getPitchEnv( LINE *lptr )
 			dispError( PITCH_ENVELOPE_DEFINITION_IS_WRONG, lptr[line].filename, line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
-			getPitchEnv( lptr[line].inc_ptr );
+			length += getPitchEnv( lptr[line].inc_ptr );
 		}
 	}
+	return length;
 }
 
 /*--------------------------------------------------------------
@@ -1316,14 +1334,15 @@ void getPitchEnv( LINE *lptr )
  Input:
 	
  Output:
-	無し
+	int : 長さ
 --------------------------------------------------------------*/
-void getPitchMod( LINE *lptr )
+int getPitchMod( LINE *lptr )
 {
 	int		line, i, no, end_flag, offset, num, cnt;
 	char	*ptr;
 
 	cnt = 0;
+	int length = 0;
 
 	for( line = 1; line <= lptr->line; line++ ) {
 		/* 音色データ発見？ */
@@ -1375,6 +1394,7 @@ void getPitchMod( LINE *lptr )
 								pitch_mod_tbl[no][0]++;
 								ptr += cnt;
 								i++;
+								length++;
 							} else {
 								dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
 								pitch_mod_tbl[no][0] = 0;
@@ -1387,6 +1407,7 @@ void getPitchMod( LINE *lptr )
 								pitch_mod_tbl[no][0]++;
 								ptr += cnt;
 								i++;
+								length++;
 							} else {
 								dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
 								pitch_mod_tbl[no][0] = 0;
@@ -1416,9 +1437,10 @@ void getPitchMod( LINE *lptr )
 			dispError( LFO_DEFINITION_IS_WRONG, lptr[line].filename, line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
-			getPitchMod( lptr[line].inc_ptr );
+			length += getPitchMod( lptr[line].inc_ptr );
 		}
 	}
+	return length;
 }
 
 
@@ -1428,14 +1450,15 @@ void getPitchMod( LINE *lptr )
  Input:
 	
  Output:
-	無し
+	int : 長さ
 --------------------------------------------------------------*/
-void getArpeggio( LINE *lptr )
+int getArpeggio( LINE *lptr )
 {
 	int		line, i, no, end_flag, offset, num, cnt;
 	char	*ptr;
 
 	cnt = 0;
+	int length = 0;
 
 	for( line = 1; line <= lptr->line; line++ ) {
 		/* アルペジオデータ発見？ */
@@ -1467,6 +1490,7 @@ void getArpeggio( LINE *lptr )
 				  case '|':
 					arpeggio_tbl[no][i] = EFTBL_LOOP;
 					arpeggio_tbl[no][0]++;
+					length++;
 					i++;
 					ptr++;
 					break;
@@ -1493,6 +1517,7 @@ void getArpeggio( LINE *lptr )
 						arpeggio_tbl[no][0]++;
 						ptr += cnt;
 						i++;
+						length++;
 					} else {
 						dispError( NOTE_ENVELOPE_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
 						arpeggio_tbl[no][0] = 0;
@@ -1510,9 +1535,10 @@ void getArpeggio( LINE *lptr )
 			dispError( NOTE_ENVELOPE_DEFINITION_IS_WRONG, lptr[line].filename, line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
-			getArpeggio( lptr[line].inc_ptr );
+			length += getArpeggio( lptr[line].inc_ptr );
 		}
 	}
+	return length;
 }
 
 
@@ -1712,14 +1738,15 @@ void getDPCM( LINE *lptr )
  Input:
 	
  Output:
-	無し
+	int : 長さ
 --------------------------------------------------------------*/
-void getFMTone( LINE *lptr )
+int getFMTone( LINE *lptr )
 {
 	int		line, i, no, end_flag, offset, num, cnt;
 	char	*ptr;
 
 	cnt = 0;
+	int length = 0;
 
 	for( line = 1; line <= lptr->line; line++ ) {
 		/* 音色データ発見？ */
@@ -1767,6 +1794,7 @@ void getFMTone( LINE *lptr )
 						fm_tone_tbl[no][0]++;
 						ptr += cnt;
 						i++;
+						length++;
 						if( i > 65 ) {
 							dispError( ABNORMAL_PARAMETERS_OF_FM_TONE, lptr[line+offset].filename, line+offset );
 							fm_tone_tbl[no][0] = 0;
@@ -1791,9 +1819,10 @@ void getFMTone( LINE *lptr )
 			dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line].filename, line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
-			getFMTone( lptr[line].inc_ptr );
+			length += getFMTone( lptr[line].inc_ptr );
 		}
 	}
+	return length;
 }
 
 
@@ -1802,14 +1831,15 @@ void getFMTone( LINE *lptr )
  Input:
 	
  Output:
-	無し
+	int : 長さ
 --------------------------------------------------------------*/
-void getVRC7Tone( LINE *lptr )
+int getVRC7Tone( LINE *lptr )
 {
 	int		line, i, no, end_flag, offset, num, cnt;
 	char	*ptr;
 
 	cnt = 0;
+	int length = 0;
 
 	for( line = 1; line <= lptr->line; line++ ) {
 		/* 音色データ発見？ */
@@ -1857,6 +1887,7 @@ void getVRC7Tone( LINE *lptr )
 						vrc7_tone_tbl[no][0]++;
 						ptr += cnt;
 						i++;
+						length++;
 						if( i > 9 ) {
 							dispError( ABNORMAL_PARAMETERS_OF_FM_TONE, lptr[line+offset].filename, line+offset );
 							vrc7_tone_tbl[no][0] = 0;
@@ -1889,9 +1920,10 @@ void getVRC7Tone( LINE *lptr )
 			dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line].filename, line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
-			getVRC7Tone( lptr[line].inc_ptr );
+			length += getVRC7Tone( lptr[line].inc_ptr );
 		}
 	}
+	return length;
 }
 
 
@@ -1901,9 +1933,9 @@ void getVRC7Tone( LINE *lptr )
  Input:
 	
  Output:
-	無し
+	int : 長さ
 --------------------------------------------------------------*/
-void getN106Tone( LINE *lptr )
+int getN106Tone( LINE *lptr )
 {
 	int		line, i, no, end_flag, offset, num, cnt;
 	char	*ptr;
@@ -1912,6 +1944,8 @@ void getN106Tone( LINE *lptr )
 	int	n106_tone_num;
 
 	cnt = 0;
+	int length = 0;
+
 	for( line = 1; line <= lptr->line; line++ ) {
 		/* 音色データ発見？ */
 		if( lptr[line].status == _SET_N106_TONE ) {
@@ -1954,6 +1988,7 @@ void getN106Tone( LINE *lptr )
 							n106_tone_tbl[no][0]++;
 							ptr += cnt;
 							i++;
+							length++;
 						} else {
 							dispError( N106_TONE_DEFINITION_IS_WRONG, lptr[line].filename, line+offset );
 							n106_tone_tbl[no][0] = 0;
@@ -1966,6 +2001,7 @@ void getN106Tone( LINE *lptr )
 							n106_tone_tbl[no][0]++;
 							ptr += cnt;
 							i++;
+							length++;
 							if( i > 2+32 ) {
 								dispError( ABNORMAL_PARAMETERS_OF_N106_TONE, lptr[line+offset].filename, line+offset );
 								n106_tone_tbl[no][0] = 0;
@@ -2010,9 +2046,10 @@ void getN106Tone( LINE *lptr )
 			dispError( N106_TONE_DEFINITION_IS_WRONG, lptr[line].filename, line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
-			getN106Tone( lptr[line].inc_ptr );
+			length += getN106Tone( lptr[line].inc_ptr );
 		}
 	}
+	return length;
 }
 
 
@@ -2024,12 +2061,13 @@ void getN106Tone( LINE *lptr )
  Output:
 	無し
 --------------------------------------------------------------*/
-void getHardEffect( LINE *lptr )
+int getHardEffect( LINE *lptr )
 {
 	int		line, i, no, end_flag, offset, num, cnt;
 	char	*ptr;
 
 	cnt = 0;
+	int length = 0;
 
 	for( line = 1; line <= lptr->line; line++ ) {
 		/* 音色データ発見？ */
@@ -2071,6 +2109,7 @@ void getHardEffect( LINE *lptr )
 					break;
 				  default:
 					num = Asc2Int( ptr, &cnt );
+					length++;
 					if( cnt != 0 ) {
 						switch( i ) {
 						  case 1:
@@ -2144,9 +2183,10 @@ void getHardEffect( LINE *lptr )
 			dispError( LFO_DEFINITION_IS_WRONG, lptr[line].filename, line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
-			getHardEffect( lptr[line].inc_ptr );
+			length += getHardEffect( lptr[line].inc_ptr );
 		}
 	}
+	return length;
 }
 
 
@@ -2156,14 +2196,16 @@ void getHardEffect( LINE *lptr )
  Input:
 	
  Output:
-	無し
+	int : 長さ
 --------------------------------------------------------------*/
-void getEffectWave( LINE *lptr )
+int getEffectWave( LINE *lptr )
 {
 	int		line, i, no, end_flag, offset, num, cnt;
 	char	*ptr;
 
 	cnt = 0;
+	int length = 0;
+
 
 	for( line = 1; line <= lptr->line; line++ ) {
 		/* 音色データ発見？ */
@@ -2206,6 +2248,7 @@ void getEffectWave( LINE *lptr )
 					break;
 				  default:
 					num = Asc2Int( ptr, &cnt );
+					length++;
 					if( cnt != 0 && (0 <= num && num <= 7) ) {
 						effect_wave_tbl[no][i] = num;
 						effect_wave_tbl[no][0]++;
@@ -2235,9 +2278,10 @@ void getEffectWave( LINE *lptr )
 			dispError( EFFECT_WAVE_DEFINITION_IS_WRONG, lptr[line].filename, line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
-			getEffectWave( lptr[line].inc_ptr );
+			length += getEffectWave( lptr[line].inc_ptr );
 		}
 	}
+	return length;
 }
 
 
@@ -4416,7 +4460,7 @@ void putAsm( FILE *fp, int data )
 /*--------------------------------------------------------------
 	
 --------------------------------------------------------------*/
-void putBankOrigin(FILE *fp, int bank)
+void putBankOriginAddress(FILE *fp, int bank,int fixed)
 {
 	int org;
 	if (bank > 127) {
@@ -4424,24 +4468,31 @@ void putBankOrigin(FILE *fp, int bank)
 		return;
 	}
 	if (bank_org_written_flag[bank] == 0) {
-		switch (bank) {
-		case 0:
-			org = 0x8000;
-			//assert(0);
-			break;
-		case 1:
-			org = 0xa000;
-			break;
-		case 2:
-			org = 0xc000;
-			break;
-		case 3:
-			org = 0xe000;
-			break;
-		default:
-			org = 0xa000;
-			break;
-		}
+        if (fixed)
+        {
+            org = 0xa000;
+        }
+        else
+        {
+            switch (bank) {
+            case 0:
+                org = 0x8000;
+                //assert(0);
+                break;
+            case 1:
+                org = 0xa000;
+                break;
+            case 2:
+                org = 0xc000;
+                break;
+            case 3:
+                org = 0xe000;
+                break;
+            default:
+                org = 0xa000;
+                break;
+            }
+        }
 		fprintf(fp, "\t.org\t$%04x\n", org);
 		bank_org_written_flag[bank] = 1;
 		if (bank > bank_maximum) {
@@ -4450,6 +4501,13 @@ void putBankOrigin(FILE *fp, int bank)
 	}
 
 }
+
+void putBankOrigin(FILE *fp, int bank)
+{
+    putBankOriginAddress(fp,bank,0);
+}
+
+
 
 /*--------------------------------------------------------------
 	!=0: OK,  ==0: out of range
@@ -5491,6 +5549,22 @@ void display_counts_sub(int i, char trk)
 	}
 }
 
+void effect_nextbank(FILE *fp , int length)
+{
+	if (effect_bankswitch)
+	{
+		if (effect_usage + length + 128 >= 8192)
+		{
+			effect_bank = bank_maximum + 1;
+			fprintf( fp,"\n\t.bank\t%d\n",effect_bank);
+			putBankOriginAddress( fp , effect_bank ,  1 );
+			effect_usage = length + 128;
+			bank_usage[ effect_bank ] = 8192;
+		}
+		else
+			effect_usage += length + 128;
+	}
+}
 
 
 /*--------------------------------------------------------------
@@ -5521,6 +5595,18 @@ int data_make( void )
 		dpcm_tbl[i].flag = 0;
 		dpcm_tbl[i].index = -1;
 	}
+	
+	int tone_len = 0;
+	int env_len = 0;
+	int penv_len = 0;
+	int pmod_len = 0;
+	int arpe_len = 0;
+	int fm_len = 0;
+	int vrc7_len = 0;
+	int n106_len = 0;
+	int he_len = 0;
+	int eff_len = 0;
+	
 
 	/* 全てのMMLからエフェクトを読み込み */
 	for (mml_idx = 0; mml_idx < mml_num; mml_idx++) {
@@ -5534,18 +5620,34 @@ int data_make( void )
 #endif
 
 
-		getTone(     line_ptr[mml_idx] );
-		getEnvelope( line_ptr[mml_idx] );
-		getPitchEnv( line_ptr[mml_idx] );
-		getPitchMod( line_ptr[mml_idx] );
-		getArpeggio( line_ptr[mml_idx] );
+		tone_len += getTone(     line_ptr[mml_idx] );
+		env_len += getEnvelope( line_ptr[mml_idx] );
+		penv_len += getPitchEnv( line_ptr[mml_idx] );
+		pmod_len += getPitchMod( line_ptr[mml_idx] );
+		arpe_len += getArpeggio( line_ptr[mml_idx] );
 		getDPCM(     line_ptr[mml_idx] );
-		getFMTone(   line_ptr[mml_idx] );
-		getVRC7Tone( line_ptr[mml_idx] );
-		getN106Tone( line_ptr[mml_idx] );
-		getHardEffect(line_ptr[mml_idx]);
-		getEffectWave(line_ptr[mml_idx]);
+		fm_len += getFMTone(   line_ptr[mml_idx] );
+		vrc7_len += getVRC7Tone( line_ptr[mml_idx] );
+		n106_len += getN106Tone( line_ptr[mml_idx] );
+		he_len += getHardEffect(line_ptr[mml_idx]);
+		eff_len += getEffectWave(line_ptr[mml_idx]);
 	}
+	
+	int total_effect_size =
+		tone_len + env_len + penv_len + pmod_len + arpe_len +
+		fm_len + vrc7_len + n106_len + he_len + eff_len;
+
+	if (allow_bankswitching && total_effect_size > 1024)
+	{
+		effect_bankswitch = 1;
+		effect_bank = bank_maximum + 1;
+		effect_usage = 0;
+		bank_usage[effect_bank] = 8192;
+		
+		printf("Total effect size = %d\n", total_effect_size);
+	}
+	
+	
 
 	tone_max      = checkLoop(       tone_tbl,      _TONE_MAX );
 	envelope_max  = checkLoop(   envelope_tbl,  _ENVELOPE_MAX );
@@ -5594,16 +5696,28 @@ int data_make( void )
 		}
 		
 
-
 		/* 音色書き込み */
+		if (effect_bankswitch)
+		{
+			fprintf( fp,"\n\t.bank\t%d\n",effect_bank);
+			putBankOriginAddress( fp , effect_bank ,  1 );
+			effect_usage += tone_len + 128; // 定義テーブルも含む
+		}
 		writeTone( fp, tone_tbl, "dutyenve", tone_max );
+
 		/* エンベロープ書き込み */
+		effect_nextbank( fp , env_len );
 		writeTone( fp, envelope_tbl, "softenve", envelope_max );
+
 		/* ピッチエンベロープ書き込み */
+		effect_nextbank( fp , penv_len );
 		writeTone( fp, pitch_env_tbl, "pitchenve", pitch_env_max );
+
 		/* ノートエンベロープ書き込み */
+		effect_nextbank( fp , arpe_len );
 		writeTone( fp, arpeggio_tbl, "arpeggio", arpeggio_max );
 		/* LFO書き込み */
+		effect_nextbank( fp , pmod_len );
 		fprintf( fp,"lfo_data:\n" );
 		if( pitch_mod_max != 0 ) {
 			for( i = 0; i < pitch_mod_max; i++ ) {
@@ -5618,14 +5732,28 @@ int data_make( void )
 			fprintf( fp, "\n" );
 		}
 		/* FM音色書き込み */
+		effect_nextbank( fp , fm_len );
 		writeToneFM( fp, fm_tone_tbl, "fds", fm_tone_max );
+		
+		effect_nextbank( fp ,he_len );
 		writeHardEffect( fp, hard_effect_tbl, "fds", hard_effect_max );
+
+		effect_nextbank( fp ,eff_len );
 		writeEffectWave( fp, effect_wave_tbl, "fds", effect_wave_max );
+
 		/* namco106音色書き込み */
+		effect_nextbank( fp ,n106_len );
 		writeToneN106( fp, n106_tone_tbl, "n106", n106_tone_max );
+
 		/* VRC7音色書き込み */
+		effect_nextbank( fp ,vrc7_len );
 		writeToneVRC7( fp, vrc7_tone_tbl, "vrc7", vrc7_tone_max );
+
 		/* DPCM書き込み */
+		if (effect_bankswitch)
+		{
+			fprintf( fp,"\n\t.bank\t%d\n",0 );
+		}
 		writeDPCM( fp, dpcm_tbl, "dpcm_data", dpcm_max );
 		writeDPCMSample( fp );
 		
