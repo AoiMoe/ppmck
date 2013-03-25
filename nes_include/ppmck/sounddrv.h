@@ -429,6 +429,11 @@ vrc6_return:
 	.if	SOUND_GENERATOR & __N106
 .rept:
 	jsr	sound_n106		;n106行ってこい
+
+	; 定義バンク切り替え
+	lda	#bank(n106_channel)*2
+	jsr	change_bank
+
 	jsr	channel_sel_inc
 	lda	<channel_sel
 	sec
