@@ -720,6 +720,11 @@ pitch_enverope_part:
 	sta	pitch_sel,x
 	asl	a
 	tay
+
+	; ’è‹`ƒoƒ“ƒNØ‚è‘Ö‚¦
+	lda	#bank(pitchenve_table)*2
+	jsr	change_bank
+
 	lda	pitchenve_table,y
 	sta	pitch_add_low,x
 	lda	pitchenve_table+1,y
