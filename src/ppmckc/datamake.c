@@ -51,6 +51,7 @@ int		putAsm_pos;					//
 char		*mml_file_name;				//現在のmmlファイル名(アセンブラ出力時に使用)
 int		mml_line_pos;				//
 int		mml_trk;				//
+int		mml_frame;				//
 
 int		nest;						// リピートのネスト数
 LEN		track_count[MML_MAX][_TRACK_MAX][2];			// 音長トータル保管場所(音長/フレーム/ループ音長/ループフレーム)
@@ -114,6 +115,7 @@ int bank_org_written_flag[128] = {1};
 
 char *putasm_fn = "";
 int putasm_ln = 0;
+int putasm_frame = 0;
 
 
 const	char	str_track[] = _TRACK_STR;
@@ -273,6 +275,7 @@ void datamake_init()
 	mml_file_name = NULL;
 	mml_line_pos = 0;
 	mml_trk = 0;
+	mml_frame = 0;
 	nest = 0;
 	
 	MEMCLR(track_count);
@@ -334,6 +337,7 @@ void datamake_init()
 	
 	putasm_fn = "";
 	putasm_ln = 0;
+	putasm_frame = 0;
 
 }
 
@@ -4441,11 +4445,12 @@ void putAsm( FILE *fp, int data )
 	if( putAsm_pos == 0 ) {
 		putasm_fn = mml_file_name;
 		putasm_ln = mml_line_pos;
+		putasm_frame = mml_frame;
 		fprintf( fp, "\tdb\t$%02x", data&0xff );
 	} else if( putAsm_pos == 7 ) {
 		fprintf( fp, ",$%02x",  data&0xff );
-		fprintf( fp, "\t;Trk %c; %s: %d",
-			str_track[mml_trk], putasm_fn, putasm_ln);
+		fprintf( fp, "\t;Trk %c; %s: %d : %d",
+			str_track[mml_trk], putasm_fn, putasm_ln, putasm_frame);
 		fprintf( fp, "\n");
 	} else {
 		fprintf( fp, ",$%02x",  data&0xff );
@@ -5006,6 +5011,7 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 		
 		mml_file_name = cmd->filename;
 		mml_line_pos = cmd->line;
+		mml_frame = cmd->frm;
 		
 		// 三角波/ノイズトラック対策
 		if( (trk == BTRACK(2)) || (trk == BTRACK(3)) ) {
@@ -5019,6 +5025,7 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 			const CMD cmdtemp = *cmd; //各switch内でcmdポインタが進む可能性があるので一旦保存
 			mml_file_name = cmd->filename;
 			mml_line_pos = cmd->line;
+			mml_frame = cmd->frm;
 			
 			// 自動バンク切り替え
 			if (auto_bankswitch) {

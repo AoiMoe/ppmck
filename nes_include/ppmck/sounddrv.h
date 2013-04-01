@@ -46,6 +46,11 @@ t7			.ds	1
 
 ps_temp		.ds	1
 
+	.ifdef USE_TOTAL_COUNT
+total_count .ds 2
+	.endif
+
+
 ;-----------------------------------
 ;非ゼロページのメモリ定義
 
@@ -378,6 +383,14 @@ sound_init:
 ;main routine
 ;-------------------------------------------------------------------------------
 sound_driver_start:
+	.ifdef USE_TOTAL_COUNT
+	; フレームカウンタ
+	inc	<total_count
+	bne .skip_tcount
+	inc	<total_count+1
+
+.skip_tcount:
+	.endif
 
 	lda	initial_wait
 	beq	.gogo
