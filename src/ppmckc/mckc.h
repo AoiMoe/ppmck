@@ -73,6 +73,7 @@ typedef struct st_line {
 #define	_SET_VRC7_TONE	0x29
 #define _SET_HARD_EFFECT	0x2A
 #define _SET_EFFECT_WAVE	0x2B
+#define	_SET_VRC7_NTONE	0x2C
 #define	_TRACK			0x40
 #define	_SAME_LINE		0x80000000
 

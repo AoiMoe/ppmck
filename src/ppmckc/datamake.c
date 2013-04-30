@@ -630,6 +630,7 @@ void getLineStatus(LINE *lptr, int inc_nest )
 		{ "@FM",             _SET_FM_TONE    },
 		{ "@MH",             _SET_HARD_EFFECT},
 		{ "@MW",             _SET_EFFECT_WAVE},
+		{ "@OT",             _SET_VRC7_NTONE },
 		{ "@OP",             _SET_VRC7_TONE  },
 		{ "@N",              _SET_N106_TONE  },			
 		{ "@V",              _SET_ENVELOPE   },
@@ -766,8 +767,12 @@ void getLineStatus(LINE *lptr, int inc_nest )
 			  case _SET_DPCM_DATA:
 				setEffectSub(lptr, line, &status_end_flag, 0, _DPCM_MAX, DPCM_DEFINITION_IS_WRONG);
 				break;
-			  /* VRC7 Tone */
+			/* VRC7音色レジスタ */
 			  case _SET_VRC7_TONE:
+				setEffectSub(lptr, line, &status_end_flag, 0, _VRC7_TONE_MAX, FM_TONE_DEFINITION_IS_WRONG);
+				break;
+			/* VRC7音色パラメータ */
+			  case _SET_VRC7_NTONE:
 				setEffectSub(lptr, line, &status_end_flag, 0, _VRC7_TONE_MAX, FM_TONE_DEFINITION_IS_WRONG);
 				break;
 			/* FM音色 */
@@ -1929,6 +1934,183 @@ int getVRC7Tone( LINE *lptr )
 	}
 	return length;
 }
+
+enum VRC7_PARM
+{
+ TL, FB,
+ AR1, DR1, SL1, RR1, KL1, MT1, AM1, VB1, EG1, KR1, DT1,
+ AR2, DR2, SL2, RR2, KL2, MT2, AM2, VB2, EG2, KR2, DT2
+};
+
+/*--------------------------------------------------------------
+	VRC7音色(MGSDRV互換)の取得
+ Input:
+	
+ Output:
+	int : 長さ
+--------------------------------------------------------------*/
+int getVRC7HRTone( LINE *lptr )
+{
+	int		line, i, no, end_flag, offset, num, cnt;
+	char	*ptr;
+	
+	int data_max[32] =
+	{
+	 // TL   FB
+		0x3f,0x07,
+	 // AR   DR   SL   RR   KL   MT   AM   VB   EG   KR   DT
+		0x0f,0x0f,0x0f,0x0f,0x03,0x0f,0x01,0x01,0x01,0x01,0x01,
+		0x0f,0x0f,0x0f,0x0f,0x03,0x0f,0x01,0x01,0x01,0x01,0x01,
+	};
+	
+	
+	int data[32];
+	int data_len = 0;
+	
+	cnt = 0;
+	int length = 0;
+
+	for( line = 1; line <= lptr->line; line++ ) {
+		/* 音色データ発見？ */
+		if( lptr[line].status == _SET_VRC7_NTONE ) {
+			no = lptr[line].param;				/* 音色番号取得 */
+			ptr = lptr[line].str;
+			ptr++;								/* '{'の分を飛ばす */
+			if (vrc7_tone_tbl[no][0] != 0) {
+				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, line );
+			}
+			data_len = 0;
+			offset = 0;
+			i = 1;
+			end_flag = 0;
+			while( end_flag == 0 ) {
+				ptr = skipSpace( ptr );
+				switch( *ptr ) {
+				  case '}':
+					if (data_len == 24) {
+
+						// TL FB
+						// 0 1
+
+						// AR DR SL RR KL MT AM VB EG KR DT
+						// 2  3  4  5  6  7  8  9  10 11 12
+
+						// AR DR SL RR KL MT AM VB EG KR DT
+						// 13 14 15 16 17 18 19 20 21 22 23
+
+						// length
+						vrc7_tone_tbl[no][0] = 8;
+						
+						// reg0
+						vrc7_tone_tbl[no][1] =
+							  ((data[AM1] & 0x01) << 7) |
+							  ((data[VB1] & 0x01) << 6) |
+							  ((data[EG1] & 0x01) << 5) |
+							  ((data[KR1] & 0x01) << 4) |
+							  ((data[MT1] & 0x0f) );
+						
+						vrc7_tone_tbl[no][2] =
+							  ((data[AM2] & 0x01) << 7) |
+							  ((data[VB2] & 0x01) << 6) |
+							  ((data[EG2] & 0x01) << 5) |
+							  ((data[KR2] & 0x01) << 4) |
+							  ((data[MT2] & 0x0f) );
+							  
+						vrc7_tone_tbl[no][3] =
+							  ((data[KL1] & 0x03) << 6) |
+							  ((data[TL] & 0x3f) );
+
+						vrc7_tone_tbl[no][4] =
+							  ((data[KL2] & 0x03) << 6) |
+							  ((data[DT1] & 0x01) << 4) |
+							  ((data[DT2] & 0x01) << 3) |
+							  ((data[FB] & 0x07) );
+						
+						vrc7_tone_tbl[no][5] =
+							  ((data[AR1] & 0x0f) << 4) |
+							  ((data[DR1] & 0x0f));
+						
+						vrc7_tone_tbl[no][6] =
+							  ((data[AR2] & 0x0f) << 4) |
+							  ((data[DR2] & 0x0f));
+
+						vrc7_tone_tbl[no][7] =
+							  ((data[SL1] & 0x0f) << 4) |
+							  ((data[RR1] & 0x0f));
+						
+						vrc7_tone_tbl[no][8] =
+							  ((data[SL2] & 0x0f) << 4) |
+							  ((data[RR2] & 0x0f));
+							  
+						length += 8;
+					
+						//OK.
+					} else {
+						dispError( PARAMETER_IS_LACKING, lptr[line].filename, line );
+						data_len = 0;
+					}
+					end_flag = 1;
+					line += offset;
+					break;
+				  case '\0':
+					offset++;
+					if( line+offset <= lptr->line ) {
+						if( (lptr[line+offset].status&_SAME_LINE) == _SAME_LINE ) {
+							ptr = lptr[line+offset].str;
+						}
+					} else {
+						dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line].filename, line+offset );
+						data_len = 0;
+						line += offset;
+						end_flag = 1;
+					}
+					break;
+				  default:
+					num = Asc2Int( ptr, &cnt );
+					if( cnt != 0 && (0 <= num && num <= data_max[i - 1]) ) {
+						data[i - 1] = num;
+						data_len++;
+						ptr += cnt;
+						i++;
+						if( data_len > 24 ) {
+							dispError( ABNORMAL_PARAMETERS_OF_FM_TONE, lptr[line+offset].filename, line+offset );
+							data_len = 0;
+							line += offset;
+							end_flag = 1;
+						}
+					} else {
+						dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line+offset].filename, line+offset );
+						data_len = 0;
+						line += offset;
+						end_flag = 1;
+					}
+					break;
+				}
+				ptr = skipSpace( ptr );
+				if( *ptr == ',' ) {
+					ptr++;
+				}
+			}
+			if( data_len != 24 ) {
+				if (!error_flag) {
+					dispError( ABNORMAL_PARAMETERS_OF_FM_TONE, lptr[line].filename, line);
+					data_len = 0;
+				}
+			}
+
+		/* 音色定義だけど_SAME_LINEの時はエラー */
+		} else if( lptr[line].status == (_SET_VRC7_NTONE|_SAME_LINE) ) {
+			dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line].filename, line );
+		/* インクルードファイル処理 */
+		} else if( lptr[line].status == _INCLUDE ) {
+			length += getVRC7HRTone( lptr[line].inc_ptr );
+		}
+	}
+	
+	return length;
+}
+
+
 
 
 
@@ -5635,6 +5817,7 @@ int data_make( void )
 		getDPCM(     line_ptr[mml_idx] );
 		fm_len += getFMTone(   line_ptr[mml_idx] );
 		vrc7_len += getVRC7Tone( line_ptr[mml_idx] );
+		vrc7_len += getVRC7HRTone( line_ptr[mml_idx] );
 		n106_len += getN106Tone( line_ptr[mml_idx] );
 		he_len += getHardEffect(line_ptr[mml_idx]);
 		eff_len += getEffectWave(line_ptr[mml_idx]);
