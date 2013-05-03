@@ -5755,6 +5755,8 @@ void effect_nextbank(FILE *fp , int length)
 	}
 }
 
+#define PRNVAL(a) printf("%s=%d\n",#a,a)
+#define TBLPTRSIZE (2+2)
 
 /*--------------------------------------------------------------
 	データ作成ルーチン
@@ -5822,22 +5824,11 @@ int data_make( void )
 		he_len += getHardEffect(line_ptr[mml_idx]);
 		eff_len += getEffectWave(line_ptr[mml_idx]);
 	}
-	
+
+
 	int total_effect_size =
 		tone_len + env_len + penv_len + pmod_len + arpe_len +
 		fm_len + vrc7_len + n106_len + he_len + eff_len;
-
-	if (allow_bankswitching && total_effect_size > 1024)
-	{
-		effect_bankswitch = 1;
-		effect_bank = bank_maximum + 1;
-		effect_usage = 0;
-		bank_usage[effect_bank] = 8192;
-		
-		printf("Total effect size = %d\n", total_effect_size);
-	}
-	
-	
 
 	tone_max      = checkLoop(       tone_tbl,      _TONE_MAX );
 	envelope_max  = checkLoop(   envelope_tbl,  _ENVELOPE_MAX );
@@ -5850,7 +5841,48 @@ int data_make( void )
 	vrc7_tone_max = getMaxTone( vrc7_tone_tbl, _VRC7_TONE_MAX );
 	hard_effect_max = getMaxHardEffect( hard_effect_tbl, _HARD_EFFECT_MAX );
 	effect_wave_max = getMaxEffectWave( effect_wave_tbl, _EFFECT_WAVE_MAX );
+	
+	total_effect_size +=
+		tone_max * TBLPTRSIZE +
+		envelope_max * TBLPTRSIZE +
+		pitch_env_max * TBLPTRSIZE +
+		pitch_mod_max * TBLPTRSIZE +
+		arpeggio_max * TBLPTRSIZE +
+		dpcm_max * TBLPTRSIZE +
+		fm_tone_max * TBLPTRSIZE +
+		n106_tone_max * TBLPTRSIZE +
+		vrc7_tone_max * TBLPTRSIZE +
+		hard_effect_max * TBLPTRSIZE +
+		effect_wave_max * TBLPTRSIZE;
 
+	
+#if DEBUG
+	printf("Effect_size = %d\n", total_effect_size);
+	PRNVAL(tone_len);
+	PRNVAL(env_len);
+	PRNVAL(penv_len);
+	PRNVAL(pmod_len);
+	PRNVAL(arpe_len);
+	PRNVAL(fm_len);
+	PRNVAL(vrc7_len);
+	PRNVAL(n106_len);
+	PRNVAL(he_len);
+	PRNVAL(eff_len);
+
+#endif
+
+
+	if (allow_bankswitching && total_effect_size > 1024)
+	{
+		effect_bankswitch = 1;
+		effect_bank = bank_maximum + 1;
+		effect_usage = 0;
+		bank_usage[effect_bank] = 8192;
+		
+		printf("Use effect bank (size = %d)\n", total_effect_size);
+	}
+	
+	
 	sortDPCM( dpcm_tbl );					// 音色のダブりを削除
 	dpcm_size = checkDPCMSize( dpcm_tbl );
 	//printf("dpcmsize $%x\n",dpcm_size);
