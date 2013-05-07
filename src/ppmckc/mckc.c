@@ -12,6 +12,11 @@
 #define ENTRY mckc_main
 #endif
 
+#ifdef _WIN32
+#include <locale.h>
+#include <tchar.h>
+#endif
+
 extern void splitPath( const char *ptr, char *path, char *name, char *ext );
 extern void makePath( char *ptr, const char *path, const char *name, const char *ext );
 extern char *skipSpace( char *ptr );
@@ -27,10 +32,10 @@ int		warning_flag = 1;
 int		include_flag = 0;
 int		mml_num = 0;
 extern	int data_make( void );
-extern	int		message_flag;			// •\¦ƒƒbƒZ[ƒW‚Ìo—Íİ’è( 0:Jp 1:En )
+extern	int		message_flag;			// è¡¨ç¤ºãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã®å‡ºåŠ›è¨­å®š( 0:Jp 1:En )
 
 /*--------------------------------------------------------------
-	ƒwƒ‹ƒv•\¦
+	ãƒ˜ãƒ«ãƒ—è¡¨ç¤º
  Input:
 
  Output:
@@ -40,26 +45,26 @@ void dispHelpMessage( void )
 {
 	if( message_flag == 0 ) {
 #ifdef __MINGW32__
-		puts(	"g—p•û–@:ppmckc [switch] InputFile.mml [OutputFile.h]\n"
-			"‚à‚µ‚­‚Í:ppmckc [switch] -u InputFile1.mml InputFile2.mml ... \n"
+		puts(	"ä½¿ç”¨æ–¹æ³•:ppmckc [switch] InputFile.mml [OutputFile.h]\n"
+			"ã‚‚ã—ãã¯:ppmckc [switch] -u InputFile1.mml InputFile2.mml ... \n"
 				"\t[switch]\n"
-				"\t-h -?   : ƒwƒ‹ƒv‚ğ•\\¦\n"
-				"\t-i      : ‰¹F/ƒGƒ“ƒxƒ[ƒvƒtƒ@ƒCƒ‹‚É‹Èƒf[ƒ^‚ğ’Ç‰Á‚·‚é\n"
-				"\t-m<num> : ƒGƒ‰[/ƒ[ƒjƒ“ƒO•\\¦‚Ì‘I‘ğ(0:Jpn 1:Eng)\n"
-				"\t-o<str> : ‰¹F/ƒGƒ“ƒxƒ[ƒvƒtƒ@ƒCƒ‹‚Ìƒtƒ@ƒCƒ‹–¼‚ğ<str>‚É‚·‚é\n"
-				"\t-w      : WarningƒƒbƒZ[ƒW‚ğ•\\¦‚µ‚Ü‚¹‚ñ\n"
-				"\t-u      : •¡”‹È“o˜^NSFì¬\n"
+				"\t-h -?   : ãƒ˜ãƒ«ãƒ—ã‚’è¡¨ç¤º\n"
+				"\t-i      : éŸ³è‰²/ã‚¨ãƒ³ãƒ™ãƒ­ãƒ¼ãƒ—ãƒ•ã‚¡ã‚¤ãƒ«ã«æ›²ãƒ‡ãƒ¼ã‚¿ã‚’è¿½åŠ ã™ã‚‹\n"
+				"\t-m<num> : ã‚¨ãƒ©ãƒ¼/ãƒ¯ãƒ¼ãƒ‹ãƒ³ã‚°è¡¨\ç¤ºã®é¸æŠ(0:Jpn 1:Eng)\n"
+				"\t-o<str> : éŸ³è‰²/ã‚¨ãƒ³ãƒ™ãƒ­ãƒ¼ãƒ—ãƒ•ã‚¡ã‚¤ãƒ«ã®ãƒ•ã‚¡ã‚¤ãƒ«åã‚’<str>ã«ã™ã‚‹\n"
+				"\t-w      : Warningãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã‚’è¡¨ç¤ºã—ã¾ã›ã‚“\n"
+				"\t-u      : è¤‡æ•°æ›²ç™»éŒ²NSFä½œæˆ\n"
 	    );
 #else
-		puts(	"g—p•û–@:ppmckc [switch] InputFile.mml [OutputFile.h]\n"
-			"‚à‚µ‚­‚Í:ppmckc [switch] -u InputFile1.mml InputFile2.mml ... \n"
+		puts(	"ä½¿ç”¨æ–¹æ³•:ppmckc [switch] InputFile.mml [OutputFile.h]\n"
+			"ã‚‚ã—ãã¯:ppmckc [switch] -u InputFile1.mml InputFile2.mml ... \n"
 				"\t[switch]\n"
-				"\t-h -?   : ƒwƒ‹ƒv‚ğ•\¦\n"
-				"\t-i      : ‰¹F/ƒGƒ“ƒxƒ[ƒvƒtƒ@ƒCƒ‹‚É‹Èƒf[ƒ^‚ğ’Ç‰Á‚·‚é\n"
-				"\t-m<num> : ƒGƒ‰[/ƒ[ƒjƒ“ƒO•\¦‚Ì‘I‘ğ(0:Jpn 1:Eng)\n"
-				"\t-o<str> : ‰¹F/ƒGƒ“ƒxƒ[ƒvƒtƒ@ƒCƒ‹‚Ìƒtƒ@ƒCƒ‹–¼‚ğ<str>‚É‚·‚é\n"
-				"\t-w      : WarningƒƒbƒZ[ƒW‚ğ•\¦‚µ‚Ü‚¹‚ñ\n"
-				"\t-u      : •¡”‹È“o˜^NSFì¬\n"
+				"\t-h -?   : ãƒ˜ãƒ«ãƒ—ã‚’è¡¨ç¤º\n"
+				"\t-i      : éŸ³è‰²/ã‚¨ãƒ³ãƒ™ãƒ­ãƒ¼ãƒ—ãƒ•ã‚¡ã‚¤ãƒ«ã«æ›²ãƒ‡ãƒ¼ã‚¿ã‚’è¿½åŠ ã™ã‚‹\n"
+				"\t-m<num> : ã‚¨ãƒ©ãƒ¼/ãƒ¯ãƒ¼ãƒ‹ãƒ³ã‚°è¡¨ç¤ºã®é¸æŠ(0:Jpn 1:Eng)\n"
+				"\t-o<str> : éŸ³è‰²/ã‚¨ãƒ³ãƒ™ãƒ­ãƒ¼ãƒ—ãƒ•ã‚¡ã‚¤ãƒ«ã®ãƒ•ã‚¡ã‚¤ãƒ«åã‚’<str>ã«ã™ã‚‹\n"
+				"\t-w      : Warningãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã‚’è¡¨ç¤ºã—ã¾ã›ã‚“\n"
+				"\t-u      : è¤‡æ•°æ›²ç™»éŒ²NSFä½œæˆ\n"
 	    );
 #endif
 
@@ -81,12 +86,12 @@ void dispHelpMessage( void )
 
 
 /*--------------------------------------------------------------
-	ƒƒCƒ“ƒ‹[ƒ`ƒ“
+	ãƒ¡ã‚¤ãƒ³ãƒ«ãƒ¼ãƒãƒ³
  Input:
-	int  argc		: ƒRƒ}ƒ“ƒhƒ‰ƒCƒ“ˆø”‚ÌŒÂ”
-	char *argv[]	: ƒRƒ}ƒ“ƒhƒ‰ƒCƒ“ˆø”‚Ìƒ|ƒCƒ“ƒ^
+	int  argc		: ã‚³ãƒãƒ³ãƒ‰ãƒ©ã‚¤ãƒ³å¼•æ•°ã®å€‹æ•°
+	char *argv[]	: ã‚³ãƒãƒ³ãƒ‰ãƒ©ã‚¤ãƒ³å¼•æ•°ã®ãƒã‚¤ãƒ³ã‚¿
  Output:
-	0:³íI—¹ 0:ˆÈŠOˆÈãI—¹
+	0:æ­£å¸¸çµ‚äº† 0:ä»¥å¤–ä»¥ä¸Šçµ‚äº†
 --------------------------------------------------------------*/
 int ENTRY( int argc , char *argv[] )
 {
@@ -95,25 +100,28 @@ int ENTRY( int argc , char *argv[] )
 	int	multiple_song_nsf = 0;
 
 	in = out = 0;
+#ifdef _WIN32
+	_tsetlocale(LC_ALL, _T(""));
+#endif
 
-// ƒ^ƒCƒgƒ‹•\¦
+// ã‚¿ã‚¤ãƒˆãƒ«è¡¨ç¤º
 	printf( "MML to MCK Data Converter Ver %d.%02d by Manbow-J\n",
 			(VersionNo/100), (VersionNo%100) );
 	//printf("patches by [OK] and 2ch mck thread people\n");
 	printf(patchstr);
 	printf(hogereleasestr);
-// ƒRƒ}ƒ“ƒhƒ‰ƒCƒ“‰ğÍ
+// ã‚³ãƒãƒ³ãƒ‰ãƒ©ã‚¤ãƒ³è§£æ
 	if( argc == 1 ) {
 		dispHelpMessage();
 		return -1;
 	}
 
 	for ( i = 1; i < argc; i++ ) {
-		// ƒXƒCƒbƒ`H
+		// ã‚¹ã‚¤ãƒƒãƒï¼Ÿ
 #ifdef _WIN32
 		if ( (argv[i][0] == '-') || (argv[i][0] == '/') ) {
 #else
-		// ƒpƒXƒZƒpƒŒ[ƒ^‚Ì–â‘è(WIN32ˆÈŠO)
+		// ãƒ‘ã‚¹ã‚»ãƒ‘ãƒ¬ãƒ¼ã‚¿ã®å•é¡Œ(WIN32ä»¥å¤–)
 		if ( (argv[i][0] == '-') ) {
 #endif
 			switch( toupper( argv[i][1] ) ) {
@@ -148,21 +156,21 @@ int ENTRY( int argc , char *argv[] )
 				break;
 			  default:
 				if( message_flag == 0 ) {
-					puts( "ƒXƒCƒbƒ`‚Ìw’è‚ªˆá‚¢‚Ü‚·\n" );
+					puts( "ã‚¹ã‚¤ãƒƒãƒã®æŒ‡å®šãŒé•ã„ã¾ã™\n" );
 				} else {
 					puts( "Invalid switch!\n" );
 				}
 				dispHelpMessage();
 				return -1;
 			}
-		// “ü—Í/o—Íƒtƒ@ƒCƒ‹‚ÌŠi”[
+		// å…¥åŠ›/å‡ºåŠ›ãƒ•ã‚¡ã‚¤ãƒ«ã®æ ¼ç´
 		} else {
 			if ( in < MML_MAX ) {
 				mml_names[in] = argv[i];
 				in++;
 			} else {
 				if( message_flag == 0 ) {
-					puts( "ƒpƒ‰ƒ[ƒ^‚ª‘½‚·‚¬‚Ü‚·\n" );
+					puts( "ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ãŒå¤šã™ãã¾ã™\n" );
 				} else {
 					puts( "Too many parameters!\n" );
 				}
@@ -188,7 +196,7 @@ int ENTRY( int argc , char *argv[] )
 			in--;
 		} else {
 			if( message_flag == 0 ) {
-				puts( "ƒpƒ‰ƒ[ƒ^‚ª‘½‚·‚¬‚Ü‚·\n" );
+				puts( "ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ãŒå¤šã™ãã¾ã™\n" );
 			} else {
 				puts( "Too many parameters!\n" );
 			}
@@ -202,19 +210,19 @@ int ENTRY( int argc , char *argv[] )
 		printf("%s + ", mml_names[i]);
 	}
 	printf( "%s -> %s\n" ,mml_names[i],  out_name );
-// ƒRƒ“ƒo[ƒg
+// ã‚³ãƒ³ãƒãƒ¼ãƒˆ
 	i = data_make();
-// I—¹
+// çµ‚äº†
 	if (i == 0) {
 		if( message_flag == 0 ) {
-			puts( "\nI—¹‚µ‚Ü‚µ‚½\n" );
+			puts( "\nçµ‚äº†ã—ã¾ã—ãŸ\n" );
 		} else {
 			puts( "\nCompleated!\n" );
 		}
 		return EXIT_SUCCESS;
 	} else {
 		if( message_flag == 0 ) {
-			puts( "\nƒRƒ“ƒpƒCƒ‹‚É¸”s‚µ‚Ü‚µ‚½\n" );
+			puts( "\nã‚³ãƒ³ãƒ‘ã‚¤ãƒ«ã«å¤±æ•—ã—ã¾ã—ãŸ\n" );
 		} else {
 			puts( "\nCompilation failed!\n" );
 		}

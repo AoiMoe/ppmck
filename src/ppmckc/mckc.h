@@ -8,7 +8,7 @@
 
 #define	MML_MAX			128
 
-/* ƒeƒ“ƒ|ƒx[ƒX -> ƒtƒŒ[ƒ€ƒx[ƒX‚Ö‚Ì•ÏŠ·ƒpƒ‰ƒ[ƒ^ */
+/* ãƒ†ãƒ³ãƒãƒ™ãƒ¼ã‚¹ -> ãƒ•ãƒ¬ãƒ¼ãƒ ãƒ™ãƒ¼ã‚¹ã¸ã®å¤‰æ›ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ */
 #define	_BASE			192.0
 #define	_BASETEMPO		75
 
@@ -29,14 +29,14 @@ typedef struct {
 	int		status;
 } HEAD;
 
-/* ƒ‰ƒCƒ“ƒXƒe[ƒ^ƒX */
+/* ãƒ©ã‚¤ãƒ³ã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹ */
 typedef struct st_line {
-	char	*filename;		/* ƒtƒ@ƒCƒ‹–¼							*/
-	int		line;			/* s”Ô†								*/
-	int		status;			/* sƒXƒe[ƒ^ƒX(‰º‹LdefineQÆ)			*/
-	int		param;			/* ƒpƒ‰ƒ[ƒ^(‰¹F/ƒgƒ‰ƒbƒN”Ô†etc.)	*/
-	char	*str;			/* s•¶š—ñ								*/
-	struct st_line	*inc_ptr;		/* ƒCƒ“ƒNƒ‹[ƒhƒtƒ@ƒCƒ‹‚Ìƒf[ƒ^ƒ|ƒCƒ“ƒ^ */
+	char	*filename;		/* ãƒ•ã‚¡ã‚¤ãƒ«å							*/
+	int		line;			/* è¡Œç•ªå·								*/
+	int		status;			/* è¡Œã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹(ä¸‹è¨˜defineå‚ç…§)			*/
+	int		param;			/* ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿(éŸ³è‰²/ãƒˆãƒ©ãƒƒã‚¯ç•ªå·etc.)	*/
+	char	*str;			/* è¡Œæ–‡å­—åˆ—								*/
+	struct st_line	*inc_ptr;		/* ã‚¤ãƒ³ã‚¯ãƒ«ãƒ¼ãƒ‰ãƒ•ã‚¡ã‚¤ãƒ«ã®ãƒ‡ãƒ¼ã‚¿ãƒã‚¤ãƒ³ã‚¿ */
 } LINE;
 
 #define	_HEADER			1
@@ -122,17 +122,17 @@ typedef struct st_line {
 #define _HARD_EFFECT_MAX	16
 #define _EFFECT_WAVE_MAX	 8
 
-/* ƒRƒ}ƒ“ƒhƒXƒe[ƒ^ƒX */
+/* ã‚³ãƒãƒ³ãƒ‰ã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹ */
 #define	PARAM_MAX		8
 typedef struct {
 	char	*filename;
 	int	line;
-	double	cnt;	//ƒgƒ‰ƒbƒNŠJn“_‚ğ0‚Æ‚µ‚ÄA‚»‚±‚©‚ç‚ÌŒo‰ß‚µ‚½ƒJƒEƒ“ƒg”
-	int	frm;	//ª‚ğƒtƒŒ[ƒ€’PˆÊ‚É‚µ‚½‚à‚Ì
-	double	lcnt;	//ƒgƒ‰ƒbƒN‚Ìƒ‹[ƒv“_(LƒRƒ}ƒ“ƒh)‚ğ0‚Æ‚µ‚ÄA‚»‚±‚©‚ç‚ÌŒo‰ß‚µ‚½ƒJƒEƒ“ƒg”(‚½‚¾‚µL‚æ‚è‘O‚Í0)
-	int	lfrm;	//ª‚ğƒtƒŒ[ƒ€’PˆÊ‚É‚µ‚½‚à‚Ì
+	double	cnt;	//ãƒˆãƒ©ãƒƒã‚¯é–‹å§‹æ™‚ç‚¹ã‚’0ã¨ã—ã¦ã€ãã“ã‹ã‚‰ã®çµŒéã—ãŸã‚«ã‚¦ãƒ³ãƒˆæ•°
+	int	frm;	//â†‘ã‚’ãƒ•ãƒ¬ãƒ¼ãƒ å˜ä½ã«ã—ãŸã‚‚ã®
+	double	lcnt;	//ãƒˆãƒ©ãƒƒã‚¯ã®ãƒ«ãƒ¼ãƒ—ç‚¹(Lã‚³ãƒãƒ³ãƒ‰)ã‚’0ã¨ã—ã¦ã€ãã“ã‹ã‚‰ã®çµŒéã—ãŸã‚«ã‚¦ãƒ³ãƒˆæ•°(ãŸã ã—Lã‚ˆã‚Šå‰ã¯0)
+	int	lfrm;	//â†‘ã‚’ãƒ•ãƒ¬ãƒ¼ãƒ å˜ä½ã«ã—ãŸã‚‚ã®
 	int	cmd;	
-	double	len;	//’PˆÊ:count
+	double	len;	//å˜ä½:count
 	int	param[PARAM_MAX];
 } CMD;
 
@@ -229,11 +229,11 @@ enum {
 
 #define SELF_DELAY_MAX 8
 
-/* DPCM—pƒoƒbƒtƒ@ */
+/* DPCMç”¨ãƒãƒƒãƒ•ã‚¡ */
 typedef struct {
-	int		flag;						// ‰¹Fg—p/–¢g—pƒtƒ‰ƒO
-	int		index;						// ÀÛ‚Éƒtƒ@ƒCƒ‹‚É‘‚«‚Ü‚ê‚éƒCƒ“ƒfƒbƒNƒX”Ô†
-										// ƒRƒR‚ª-1ˆÈŠO‚Ì‚Ífilename‚Í–³‹‚³‚ê‚Äindex”Ô†‚ÌDPCM‚ğg—p‚·‚é(ƒ\[ƒg)
+	int		flag;						// éŸ³è‰²ä½¿ç”¨/æœªä½¿ç”¨ãƒ•ãƒ©ã‚°
+	int		index;						// å®Ÿéš›ã«ãƒ•ã‚¡ã‚¤ãƒ«ã«æ›¸ãè¾¼ã¾ã‚Œã‚‹ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ç•ªå·
+										// ã‚³ã‚³ãŒ-1ä»¥å¤–ã®æ™‚ã¯filenameã¯ç„¡è¦–ã•ã‚Œã¦indexç•ªå·ã®DPCMã‚’ä½¿ç”¨ã™ã‚‹(ã‚½ãƒ¼ãƒˆæ™‚)
 	char	*fname;
 	int		freq;
 	int		start_adr;

@@ -5,5 +5,5 @@
 
 cd nesasm ; make -f Makefile.unx CC=i386-mingw32-gcc EXESFX=.exe $*
 cd ../ppmckc ; make -f Makefile.UNIX \
- CC=i386-mingw32-gcc STRIPER=i386-mingw32-strip EXESFX=.exe $*
+ CC=i386-mingw32-gcc STRIPER=i386-mingw32-strip CDEFS="-DUNICODE -D_UNICODE" EXESFX=.exe $*
 
