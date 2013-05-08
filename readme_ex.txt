@@ -1,30 +1,30 @@
 ppmck release 9a ex5 by BKC
 
-**** ���̃t�@�C���ɂ���
+**** このファイルについて
 
-�@ppmck release9a�����ς������̂ł��B
+　ppmck release9aを改変したものです。
 
-�@ppmck�̋@�\�ƈȉ��̋@�\�����p�\�ł��B
+　ppmckの機能と以下の機能が利用可能です。
 
-�E��`�f�[�^�̃o���N�؂�ւ�
-�E�X���[�@�\(�g���b�NABC & N106 & VRC6 & VRC7 & MMC5)
-�E�������̃g���K�[�������኱�}����@�\(�g���b�NABC)
-�E�|���^�����g(�g���b�NABC)
-�E�n�[�h�E�F�A�G���x���[�v�@�\�i�g���b�NABF & �m�C�Y & MMC5 �j
+・定義データのバンク切り替え
+・スラー機能(トラックABC & N106 & VRC6 & VRC7 & MMC5)
+・発音時のトリガー発生を若干抑える機能(トラックABC)
+・ポルタメント(トラックABC)
+・ハードウェアエンベロープ機能（トラックABF & ノイズ & MMC5 ）
 
-*** ��`�f�[�^�̃o���N�؂�ւ�
-�@��`�f�[�^�����ȏ゠��ꍇ�A��`�f�[�^�p�ɐV�����o���N��p�ӂ��܂��B
-�����I�ɃT�C�Y���v�Z���A�{�����[���G���x���[�v�ƃs�b�`�G���x���[�v�ȂǁA
-��`���Ƀo���N������U��܂��B
+*** 定義データのバンク切り替え
+　定義データが一定以上ある場合、定義データ用に新しいバンクを用意します。
+自動的にサイズを計算し、ボリュームエンベロープとピッチエンベロープなど、
+定義毎にバンクを割り振ります。
 
-**** �X���[�ɂ���
-�@ex�łł̃X���[�́A�L�[�I�t�A�G�t�F�N�g�e�[�u���̏������������ɁA
-���̃m�[�g�ɐi�ދ@�\�ł��B�������g���݂̂��ύX����܂��B
+**** スラーについて
+　ex版でのスラーは、キーオフ、エフェクトテーブルの初期化をせずに、
+次のノートに進む機能です。発音周波数のみが変更されます。
 
-**** �g����
+**** 使い方
 
-    1. ppmck release 9a�����̃p�b�P�[�W�ɂ���t�@�C���Œu��������
-    2. mml�ŃX���[(&)���g���Ċy���ށB
+    1. ppmck release 9aをこのパッケージにあるファイルで置き換える
+    2. mmlでスラー(&)を使って楽しむ。
 
 
  @v0 = { 15,14,13,10,6,5 }
@@ -32,103 +32,105 @@ ppmck release 9a ex5 by BKC
  A c c&g g
 
 
-�Ƃ���ƌ��ʂ��m�F�ł��܂��B
+とすると効果を確認できます。
 
-�܂��A
+また、
 
  A SM cdefg SMOF
 
-�Ƃ���ƁASM����SMOF�܂ł��X���[�X�Ȕ����ɂȂ�܂��B
+とすると、SMからSMOFまでがスムースな発音になります。
 
 
-    3.�|���^�����g���ǂ����g��
+    3.ポルタメントもどきを使う
 
   A c PS g PS c
 
-�ȂǂƂ���ƁA�s�b�`�̏㉺���y���ނ��Ƃ��ł��܂��B
-�������APS�R�}���h��̉����͐��m�ł͂���܂���̂ŁA
-���m�ȉ�����]�ނɂ̓m�[�g�ɂ��Ĕ������K�v�ɂȂ�܂��B
+などとすると、ピッチの上下を楽しむことができます。
+ただし、PSコマンド後の音程は正確ではありませんので、
+正確な音程を望むにはノートによる再発音が必要になります。
 
 
-    4.�n�[�h�E�F�A�G���x���[�v
+    4.ハードウェアエンベロープ
 
-EH�R�}���h
-�w��̌�A�K��duty�ݒ���s�����Ɓi�L���ɂȂ�Ȃ�)
-�{�����[���ݒ�ŃG���x���[�v�̃f�B�P�C���[�g���w��ł���
+EHコマンド
+指定の後、必ずduty設定を行うこと（有効にならない)
+ボリューム設定でエンベロープのディケイレートを指定できる
 EHx,y
 
-x : 1�ŃG���x���[�v��L����
-y : 0�ŃG���x���[�v�̃��[�v
+x : 1でエンベロープを有効に
+y : 0でエンベロープのループ
 
-��:
+例:
 
  A EH1,1 @4 cdefgab>c
 
 
 
-**** ����
+**** 履歴
 
 2007/05/02 release 9+
 
 2007/05/03 release 9++ 
 
-�X���[�̉��߂��ԈႦ�Ă����Ƃ��������C���i���{�I�j
+スラーの解釈を間違えていたという問題を修正（根本的）
 
 2007/05/04 release 9 ex
 
-�R���p�C����SM,SMOF�R�}���h�A�X���[�R�}���h��̃m�[�g�`�F�b�N��ǉ�
+コンパイラにSM,SMOFコマンド、スラーコマンド後のノートチェックを追加
 
 2007/05/12 release 9 ex2
 
-PS�R�}���h�̒ǉ�
+PSコマンドの追加
 
 2008/03/19 release 9 ex3
 
-2A03�n�[�h�E�F�A�G���x���[�v�̒ǉ�
+2A03ハードウェアエンベロープの追加
 
 2009/05/13 release 9 ex3.5
 
-���t�@�C��������
-DPCM�g���b�N�ŃX���[�R�}���h�𖳎�����悤�ɂ���
+当ファイルを改訂
+DPCMトラックでスラーコマンドを無視するようにした
 
 2009/05/13 release 9 ex4
 
-DPCM�ŃX���[�R�}���h��̍ŏ��̃m�[�g�𔭉����Ȃ��悤�ɂ���
-���t�@�C���̒����i�X���[�̗L���g���b�N���قȂ����j
-ppmckc�̃g���b�N�L���t���O�𒲐�
-MMC5�ɑ΂��ăX���[�R�}���h��L���ɂ���
+DPCMでスラーコマンド後の最初のノートを発音しないようにした
+当ファイルの訂正（スラーの有効トラックが異なった）
+ppmckcのトラック有効フラグを調節
+MMC5に対してスラーコマンドを有効にした
 
 2009/10/20 release 9 ex5
 
-�n�[�h�E�F�A�G���x���[�v(EH)���m�C�Y�g���b�N�AMMC5�ł����p�\�ɂ����B
+ハードウェアエンベロープ(EH)をノイズトラック、MMC5でも利用可能にした。
 
 2009/11/28 release 9 ex5.1
 
-nesasm�̃o�O�C���Bsrc�f�B���N�g����Makefile�̒��߁B
-sounddrv.h�̒��߂��郉�x����32�����ȓ��ɏC���B
+nesasmのバグ修正。srcディレクトリ内Makefileの調節。
+sounddrv.hの長過ぎるラベルを32文字以内に修正。
 
 2010/01/01 release 9a ex1
 
-release 9a�̎�ȕύX�_�ł���ppmck.asm���}�[�W�����B
+release 9aの主な変更点であるppmck.asmをマージした。
 
 2010/03/05 release 9a ex2
 
-mmc5�̃n�[�h�E�F�A�G���x���[�v�@�\���C���B
-�X���[�����Ή��̃g���b�N�ł̓^�C�ɂȂ�悤�C���B
+mmc5のハードウェアエンベロープ機能を修正。
+スラーが未対応のトラックではタイになるよう修正。
 
 2012/12/25 release 9a ex3
 
-���@�Đ��ׂ̈�FDS�������̒ǉ��B
+実機再生の為にFDS初期化の追加。
  
 2013/03/24 release 9a ex4
 
-��`�f�[�^�����ȏ゠��ꍇ(1024�o�C�g�ȏ�)�A�V�����o���O�𗘗p����悤�ɂ����B
+定義データが一定以上ある場合(1024バイト以上)、新しいバングを利用するようにした。
 
 2013/04/30 release 9a ex5
 
-VRC7���F��`��@OT��ǉ��B
-�t�H�[�}�b�g��MGSDRV�̉��F��`�ɏ����B
+VRC7音色定義に@OTを追加。
+フォーマットはMGSDRVの音色定義に準拠。
 
+2013/05/08 release 9a ex5.1
 
-
-
+コマンドライン系ソースコードと文章の文字コードをSJISからUTF-8に変更。
+（win32コンソール向けにはgccオプションで内部的にSJISに変換）
+nesasmのソースコードの調整。

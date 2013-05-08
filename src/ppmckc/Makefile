@@ -3,8 +3,8 @@
 ifndef DEBUG
 
   CC = gcc
-  CFLAGS = -O2 -Wall# -mno-cygwin
-  CDEFS = 
+  CFLAGS = -O2 -Wall # -mno-cygwin
+  CDEFS =
   LDFLAGS=-mno-cygwin
   STRIP = strip
 
@@ -17,6 +17,8 @@ else
   STRIP =
 
 endif
+
+CFLAGS += --input-charset=utf-8 --exec-charset=cp932
 
 OBJS = datamake.o file.o mckc.o strings.o 
 EXESFX=.exe

@@ -549,7 +549,7 @@ pce_incbat(int *ip)
 	/* get args */
 	if (!pcx_get_args(ip))
 		return;
-	if (!pcx_parse_args(1, pcx_nb_args - 1, &x, &y, &w, &h, 8))
+	if (!pcx_parse_args(1, pcx_nb_args - 1, (int *)&x, (int *)&y, (int *)&w, (int *)&h, 8))
 		return;
 
 	/* build the BAT */
@@ -682,7 +682,7 @@ pce_incspr(int *ip)
 	/* get args */
 	if (!pcx_get_args(ip))
 		return;
-	if (!pcx_parse_args(0, pcx_nb_args, &x, &y, &w, &h, 16))
+	if (!pcx_parse_args(0, pcx_nb_args, (int *)&x, (int *)&y, (int *)&w, (int *)&h, 16))
 		return;
 
 	/* pack sprites */
@@ -731,7 +731,7 @@ pce_inctile(int *ip)
 	/* get args */
 	if (!pcx_get_args(ip))
 		return;
-	if (!pcx_parse_args(0, pcx_nb_args, &x, &y, &w, &h, 16))
+	if (!pcx_parse_args(0, pcx_nb_args, (int *)&x, (int *)&y, (int *)&w, (int *)&h, 16))
 		return;
 
 	/* pack tiles */
@@ -790,7 +790,7 @@ pce_incmap(int *ip)
 	/* get args */
 	if (!pcx_get_args(ip))
 		return;
-	if (!pcx_parse_args(0, pcx_nb_args - 1, &x, &y, &w, &h, 16))
+	if (!pcx_parse_args(0, pcx_nb_args - 1, (int *)&x, (int *)&y, (int *)&w, (int *)&h, 16))
 		return;
 
 	/* pack map */

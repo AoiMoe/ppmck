@@ -44,7 +44,7 @@ nes.o    : nes.h
 #
 
 $(TARGPCE) : $(OBJS)
-	$(CC) -o $(TARGPCE) -s $(OBJS)
+	$(CC) -o $(TARGPCE) $(OBJS)
 $(TARGNES) : $(OBJS)
-	$(CC) -o $(TARGNES) -s $(OBJS)
+	$(CC) -o $(TARGNES) $(OBJS)
 

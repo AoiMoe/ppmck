@@ -36,7 +36,7 @@ evaluate(int *ip, char last_char)
 	func_idx = 0;
 
 	/* array index to pointer */
-	expr = &prlnbuf[*ip];
+	expr = (unsigned char *)&prlnbuf[*ip];
 
 	/* skip spaces */
 cont:
@@ -55,7 +55,7 @@ cont:
 			/* output */
 			if (!continued_line) {
 				/* replace '\' with three dots */
-				strcpy(expr, "...");
+				strcpy((char *)expr, "...");
 
 				/* store the current line */
 				strcpy(tmplnbuf, prlnbuf);
@@ -69,7 +69,7 @@ cont:
 				return (0);
 
 			/* rewind line pointer and continue */
-			expr = &prlnbuf[SFIELD];
+			expr = (unsigned char *)&prlnbuf[SFIELD];
 			goto cont;
 		}
 	}
@@ -112,7 +112,7 @@ cont:
 				}
 				arg = c - '1';
 				expr_stack[func_idx++] = expr;
-				expr = func_arg[func_idx - 2][arg];
+				expr = (unsigned char *)func_arg[func_idx - 2][arg];
 				break;
 
 			/* hexa prefix */
@@ -350,7 +350,7 @@ cont:
 	}
 
 	/* convert back the pointer to an array index */
-   *ip = (int)expr - (int)prlnbuf;
+   *ip = (int)((void *)expr - (void *)prlnbuf);
 
 	/* ok */
 	return (1);
@@ -411,7 +411,7 @@ push_val(int type)
 				return (0);
 
 			expr_stack[func_idx++] = expr;
-			expr = func_ptr->line;
+			expr = (unsigned char *)func_ptr->line;
 			return (1);
 		}
 
@@ -643,7 +643,7 @@ push_op(int op)
 int
 do_op(void)
 {
-	int val[2];
+	int val[2] = {0, 0};
 	int op;
 
 	/* operator */

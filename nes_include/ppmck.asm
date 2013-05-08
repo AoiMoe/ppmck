@@ -61,6 +61,7 @@ __N106	=	%00010000
 __FME7	=	%00100000
 	db	SOUND_GENERATOR
 	db	0,0,0,0
+
 LOAD:
 INIT:
 	jsr	sound_init

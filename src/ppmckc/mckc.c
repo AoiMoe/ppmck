@@ -44,18 +44,6 @@ extern	int		message_flag;			// 表示メッセージの出力設定( 0:Jp 1:En )
 void dispHelpMessage( void )
 {
 	if( message_flag == 0 ) {
-#ifdef __MINGW32__
-		puts(	"使用方法:ppmckc [switch] InputFile.mml [OutputFile.h]\n"
-			"もしくは:ppmckc [switch] -u InputFile1.mml InputFile2.mml ... \n"
-				"\t[switch]\n"
-				"\t-h -?   : ヘルプを表示\n"
-				"\t-i      : 音色/エンベロープファイルに曲データを追加する\n"
-				"\t-m<num> : エラー/ワーニング表\示の選択(0:Jpn 1:Eng)\n"
-				"\t-o<str> : 音色/エンベロープファイルのファイル名を<str>にする\n"
-				"\t-w      : Warningメッセージを表示しません\n"
-				"\t-u      : 複数曲登録NSF作成\n"
-	    );
-#else
 		puts(	"使用方法:ppmckc [switch] InputFile.mml [OutputFile.h]\n"
 			"もしくは:ppmckc [switch] -u InputFile1.mml InputFile2.mml ... \n"
 				"\t[switch]\n"
@@ -66,8 +54,6 @@ void dispHelpMessage( void )
 				"\t-w      : Warningメッセージを表示しません\n"
 				"\t-u      : 複数曲登録NSF作成\n"
 	    );
-#endif
-
 	} else {
 		puts(	"Usage:ppmckc [switch] InputFile.mml [OutputFile.h]\n"
 			"  or :ppmckc [switch] -u InputFile1.mml InputFile2.mml ... \n"
@@ -108,8 +94,8 @@ int ENTRY( int argc , char *argv[] )
 	printf( "MML to MCK Data Converter Ver %d.%02d by Manbow-J\n",
 			(VersionNo/100), (VersionNo%100) );
 	//printf("patches by [OK] and 2ch mck thread people\n");
-	printf(patchstr);
-	printf(hogereleasestr);
+	printf("%s",patchstr);
+	printf("%s",hogereleasestr);
 // コマンドライン解析
 	if( argc == 1 ) {
 		dispHelpMessage();

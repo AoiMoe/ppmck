@@ -46,7 +46,7 @@ pce_load_map(char *fname, int mode)
 			(header[6] <<  8) +
 			 header[7] - 4;
 
-	if (strncmp(header, "FORM", 4) || strncmp(&header[8], "FMAP", 4)) {
+	if (strncmp((char *)header, "FORM", 4) || strncmp((char *)&header[8], "FMAP", 4)) {
 		/* incorrect header */
 		if (mode)
 			fatal_error("Invalid FMP format!");
@@ -74,7 +74,7 @@ pce_load_map(char *fname, int mode)
 			break;
 
 		/* BODY chunk */
-		if (strncmp(header, "BODY", 4) == 0) {
+		if (strncmp((char *)header, "BODY", 4) == 0) {
 			/* add size */
 			cnt += (size >> 1);
 

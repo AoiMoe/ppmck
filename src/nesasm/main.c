@@ -65,6 +65,20 @@ int   xlist;		/* listing file main flag */
 int   list_level;	/* output level */
 int   asm_opt[8];	/* assembler options */
 
+
+// definition
+void assemble_init(void);
+void code_init(void);
+void func_init(void);
+void input_init(void);
+void macro_init(void);
+void map_init(void);
+void nes_init(void);
+void pce_init(void);
+void pcx_init(void);
+void proc_init(void);
+
+
 void main_init()
 {
 	/* vars.h */

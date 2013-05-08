@@ -1039,7 +1039,7 @@ do_incchr(int *ip)
 	/* get args */
 	if (!pcx_get_args(ip))
 		return;
-	if (!pcx_parse_args(0, pcx_nb_args, &x, &y, &w, &h, 8))
+	if (!pcx_parse_args(0, pcx_nb_args, (int *)&x, (int *)&y, (int *)&w, (int *)&h, 8))
 		return;
 
 	/* pack data */
