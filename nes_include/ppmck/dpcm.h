@@ -1,6 +1,6 @@
 sound_dpcm:
 	ldx	<channel_selx2
-	dec	sound_counter,x		;ƒJƒEƒ“ƒ^‚¢‚Á‚±Œ¸‚ç‚µ
+	dec	sound_counter,x		;ã‚«ã‚¦ãƒ³ã‚¿ã„ã£ã“æ¸›ã‚‰ã—
 	bne	.dpcm_end
 	jsr	sound_dpcm_play
 .dpcm_end
@@ -14,20 +14,20 @@ sound_dpcm_play:
 
 	lda	[sound_add_low,x]
 ;----------
-;ƒ‹[ƒvˆ—1
+;ãƒ«ãƒ¼ãƒ—å‡¦ç†1
 	cmp	#$a0
 	bne	dmc_loop_program2
 	jsr	loop_sub
 	jmp	sound_dpcm_play
 ;----------
-;ƒ‹[ƒvˆ—2(•ªŠò)
+;ãƒ«ãƒ¼ãƒ—å‡¦ç†2(åˆ†å²)
 dmc_loop_program2
 	cmp	#$a1
 	bne	dmc_bank_command
 	jsr	loop_sub2
 	jmp	sound_dpcm_play
 ;----------
-;ƒoƒ“ƒNØ‚è‘Ö‚¦
+;ãƒãƒ³ã‚¯åˆ‡ã‚Šæ›¿ãˆ
 dmc_bank_command
 	cmp	#$ee
 	bne	slur_dpcm
@@ -40,7 +40,7 @@ dmc_bank_command
 ;	jsr	data_end_sub
 ;	jmp	sound_dpcm_play
 ;----------
-;ƒXƒ‰[ƒRƒ}ƒ“ƒhiDPCM‚Ìˆ×A”­‰¹ŽžŠÔ‚ðL‚Î‚·‚Ì‚Ý)
+;ã‚¹ãƒ©ãƒ¼ã‚³ãƒžãƒ³ãƒ‰ï¼ˆDPCMã®ç‚ºã€ç™ºéŸ³æ™‚é–“ã‚’ä¼¸ã°ã™ã®ã¿)
 slur_dpcm:
 	cmp	#$e9
 	bne	no_dpcm
@@ -56,12 +56,12 @@ no_dpcm:
 	cmp	#$fc
 	bne	dmc_y_command_set
 	.if	DPCM_RESTSTOP
-	lda	#$0F		;‚±‚Ì2s‚ð—LŒø‚É‚·‚é‚Æ
-	sta	$4015		;r‚ÅDPCM’âŽ~
+	lda	#$0F		;ã“ã®2è¡Œã‚’æœ‰åŠ¹ã«ã™ã‚‹ã¨
+	sta	$4015		;rã§DPCMåœæ­¢
 	.endif
 	jmp	ontyou2
 ;----------
-;‚™ƒRƒ}ƒ“ƒhÝ’è
+;ï½™ã‚³ãƒžãƒ³ãƒ‰è¨­å®š
 dmc_y_command_set:
 	cmp	#$f5
 	bne	wait_set2
@@ -77,24 +77,24 @@ wait_set2:
 dpcm_set:
 	pha
 
-	lda	effect2_flags,x		;ƒXƒ‰[ƒtƒ‰ƒO‚Ìƒ`ƒFƒbƒN
+	lda	effect2_flags,x		;ã‚¹ãƒ©ãƒ¼ãƒ•ãƒ©ã‚°ã®ãƒã‚§ãƒƒã‚¯
 	and	#%00000001
 	beq	no_slur_dpcm
 
 	lda	effect2_flags,x
 	and	#%11111110
-	sta	effect2_flags,x		;ƒXƒ‰[ƒtƒ‰ƒO‚ÌƒNƒŠƒA
+	sta	effect2_flags,x		;ã‚¹ãƒ©ãƒ¼ãƒ•ãƒ©ã‚°ã®ã‚¯ãƒªã‚¢
 
 	pla
-	jmp	ontyou2			;ƒJƒEƒ“ƒ^‚Ì‚Ý•ÏX
+	jmp	ontyou2			;ã‚«ã‚¦ãƒ³ã‚¿ã®ã¿å¤‰æ›´
 
 no_slur_dpcm:
 
 	lda	#$0F
 	sta	$4015		;DPCM stop
-;;;;;;;;;; –³—–î—‰ü‘¢ "MCK virtual keyboard" by Norix
-;	lda	#$FF		; –Â‚ç‚·‚ºI
-;	sta	$07A0+4*2	; ‹x•„ƒtƒ‰ƒOŽg‚Á‚¿‚á‚¤‚æ[
+;;;;;;;;;; ç„¡ç†çŸ¢ç†æ”¹é€  "MCK virtual keyboard" by Norix
+;	lda	#$FF		; é³´ã‚‰ã™ãœï¼
+;	sta	$07A0+4*2	; ä¼‘ç¬¦ãƒ•ãƒ©ã‚°ä½¿ã£ã¡ã‚ƒã†ã‚ˆãƒ¼
 ;;;;;;;;;;
 	pla
 

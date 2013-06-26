@@ -109,7 +109,7 @@ NMI:
 	bit	wantinit
 	bmi	song_init_1
 	bit	nmi_flag
-	bmi	do_rti		; ˆ——Ž‚¿
+	bmi	do_rti		; å‡¦ç†è½ã¡
 	dec	nmi_flag
 IRQ:
 do_rti:
@@ -122,7 +122,7 @@ song_init_1:
 	jmp	song_init
 
 
-RESET:				; ‚±‚Ì‚ ‚½‚è‚ÌXƒŒƒWƒXƒ^‚ÌŽg‚¢•û‚ÍQuietust‚³‚ñ‚Ì•û–@‚ðŽQl‚É‚µ‚Ü‚µ‚½
+RESET:				; ã“ã®ã‚ãŸã‚Šã®Xãƒ¬ã‚¸ã‚¹ã‚¿ã®ä½¿ã„æ–¹ã¯Quietustã•ã‚“ã®æ–¹æ³•ã‚’å‚è€ƒã«ã—ã¾ã—ãŸ
 	sei
 	cld
 	ldx	#$00
@@ -175,7 +175,7 @@ mainloop:
 	
 main_routine:
 
-read_pad:			;NESAudioRipping.TXT‚ðŽQl‚É‚µ‚Ü‚µ‚½
+read_pad:			;NESAudioRipping.TXTã‚’å‚è€ƒã«ã—ã¾ã—ãŸ
 	lda	pad_press
 	sta	pad_click
 	ldy	#$08
@@ -192,9 +192,9 @@ read_pad:			;NESAudioRipping.TXT‚ðŽQl‚É‚µ‚Ü‚µ‚½
 	dey
 	bne	.nextbit
 	sta	pad_press
-	eor	pad_click		;‚±‚Ì‚ ‚½‚è‚Íkz-s‚³‚ñ‚Ìsnddrv3‚ðŽQl‚É‚µ‚Ü‚µ‚½
+	eor	pad_click		;ã“ã®ã‚ãŸã‚Šã¯kz-sã•ã‚“ã®snddrv3ã‚’å‚è€ƒã«ã—ã¾ã—ãŸ
 	and	pad_press
-	sta	pad_click		;¡‰Ÿ‚³‚ê‚½ƒ{ƒ^ƒ“
+	sta	pad_click		;ä»ŠæŠ¼ã•ã‚ŒãŸãƒœã‚¿ãƒ³
 
 check_pad:
 	lda	pad_click

@@ -4727,6 +4727,14 @@ int double2int(double d)
 	return (int)(d + 0.5);
 }
 
+/* ノートを得る */
+int getNote(CMD *cmd)
+{
+	if (cmd->cmd == _KEY)
+		return cmd->param[0] & 0xFFFF;
+	
+	return cmd->cmd;
+}
 
 /*******************************************************
  *
@@ -4754,7 +4762,14 @@ int double2int(double d)
 	CMD *cmd; この関数内でcmdを読み進めたので、新しいcmd位置を返す
 --------------------------------------------------------------*/
 CMD *getDeltaTime(CMD *cmd, int *delta, int allow_slur) {
+
+	int lastnote;
+
 	*delta = 0;
+
+	// 現在のノート
+	lastnote = getNote(cmd);
+	
 	while( 1 ) {
 		if( loop_flag == 0 ) {
 			*delta += ((cmd+1)->frm - cmd->frm);
@@ -4762,9 +4777,13 @@ CMD *getDeltaTime(CMD *cmd, int *delta, int allow_slur) {
 			*delta += ((cmd+1)->lfrm - cmd->lfrm);
 		}
 		cmd++;
-		/* if( cmd->cmd == _SLAR && allow_slur) {
+		
+		// スラーでも同一ノートの場合は処理を続ける
+		if (cmd->cmd == _SLAR && lastnote == getNote(cmd+1))
+		{
 			cmd++;
-		} else */
+			continue;
+		}
 		if( cmd->cmd != _TIE ) {
 			break;
 		}
@@ -5105,8 +5124,9 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 					} else if( cmd->cmd == _REPEAT_ESC2 ) {
 						repeat_esc_flag = 1;
 						repeat_esc2_cmd_ptr = cmd;
-					} else if( cmd->cmd <= MAX_NOTE || cmd->cmd == _REST || cmd->cmd == _TIE
-							|| cmd->cmd == _KEY || cmd->cmd == _NOTE || cmd->cmd == _WAIT || cmd->cmd == _KEY_OFF ) {
+					} else if( cmd->cmd <= MAX_NOTE || cmd->cmd == _REST ||
+							  cmd->cmd == _TIE ||
+							  cmd->cmd == _KEY || cmd->cmd == _NOTE || cmd->cmd == _WAIT || cmd->cmd == _KEY_OFF ) {
 						count_t += cmd->len;
 						rcount_t += cmd->len;
 						frame_p = rframe;
@@ -5142,8 +5162,9 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 					}
 					cmd++;
 				}
-			} else if( cmd->cmd <= MAX_NOTE || cmd->cmd == _REST || cmd->cmd == _TIE
-					|| cmd->cmd == _KEY || cmd->cmd == _NOTE || cmd->cmd == _WAIT || cmd->cmd == _KEY_OFF ) {
+			} else if( cmd->cmd <= MAX_NOTE || cmd->cmd == _REST ||
+					  cmd->cmd == _TIE ||
+					  cmd->cmd == _KEY || cmd->cmd == _NOTE || cmd->cmd == _WAIT || cmd->cmd == _KEY_OFF ) {
 				count_t += cmd->len;
 				frame_p = frame;
 				frame = double2int(count_t * tbase);
@@ -5245,11 +5266,6 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 				cmd++;
 			  break;
 			  case _PITCH_SHIFT:
-				if (!slar_flag)
-				{
-					slar_flag = 1;
-					slar_cmdcnt=0;
-				}
 				putAsm( fp, MCK_PITCH_SHIFT );
 				cmd++;
 			  break;
@@ -5585,7 +5601,7 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 					{
 						GATE_Q temp_gate;
 
-						temp_gate.rate = 8;
+						temp_gate.rate = ps.gate_q.rate;
 						temp_gate.adjust = ps.gate_q.adjust;
 						gate_time = calcGateTime(delta_time, &temp_gate);
 					}
