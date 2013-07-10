@@ -62,13 +62,96 @@ __FME7	=	%00100000
 	db	SOUND_GENERATOR
 	db	0,0,0,0
 
+nsf_nmi = $0100
+nsf_error = $0101
+nsf_count = $0102
+nsf_beep_vol = $0103
+
+
+
 LOAD:
 INIT:
 	jsr	sound_init
+	ldx	#$00
+	stx	nsf_nmi
+	stx nsf_error
+	
 	rts
+
 PLAY:
+	lda nsf_nmi
+	.if	(OVERLOAD_DETECT)
+	bne ERROR_BEEP ; エラー音を再生する
+	lda nsf_error
+	bne	ERROR_BEEP ; エラーを継続する
+	.else
+	bne	PLAY_END ; 多重に呼び出さない
+	.endif
+	
+
+	inc	nsf_nmi
 	jsr	sound_driver_start
+	dec	nsf_nmi
+PLAY_END:
 	rts
+
+;
+; オーバーロード検出
+;
+	.if (OVERLOAD_DETECT)
+	
+ERROR_BEEP:
+	lda	nsf_error
+	beq ERROR_BEEP_INIT ; 初期化
+	inc nsf_count
+	lda	nsf_count
+	cmp #30
+	bmi ERROR_BEEP_END
+
+	lda #$00
+	sta	nsf_count
+	
+	lda nsf_beep_vol
+	eor #%00001111
+	sta	nsf_beep_vol
+	sta	$4000
+ERROR_BEEP_END:
+	rts
+
+ERROR_BEEP_INIT:
+	inc nsf_error
+
+	; Volume / Duty
+	lda #%100
+	sta	$4000
+
+	; Freq Envelope
+	lda #$00
+	sta	$4000
+
+	; Low
+	lda #$00
+	sta	$4002
+	
+	; Hi
+	lda #$02
+	sta	$4003
+
+	; Volume / Duty
+	lda #%10001111
+	ora #%00110000
+	sta	nsf_beep_vol
+	sta	$4000
+
+	lda #$00
+	sta nsf_count
+
+	rts
+
+
+	.endif
+
+
 ;-------------------------------------------------------------------------------
 	.include	"ppmck/sounddrv.h"
 	.include	"ppmck/internal.h"

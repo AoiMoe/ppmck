@@ -60,6 +60,9 @@ typedef struct st_line {
 #define _GATE_DENOM	19
 #define _AUTO_BANKSWITCH	20
 #define _PITCH_CORRECTION		21
+#define _OVERLOAD		22
+
+
 
 #define	_SET_EFFECT		0x20
 #define	_SET_TONE		0x21

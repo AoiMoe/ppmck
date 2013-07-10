@@ -117,6 +117,8 @@ char *putasm_fn = "";
 int putasm_ln = 0;
 int putasm_frame = 0;
 
+// 負荷検出
+int overload_detect = 0;
 
 const	char	str_track[] = _TRACK_STR;
 
@@ -255,6 +257,7 @@ const	char	*WarningMessage[] = {
 
 /*--------------------------------------------------------------
 	グローバル変数初期化
+ ルーチンとして数回呼び出す場合に必要なので変数はここでも初期化する
  Input:
 	
  Output:
@@ -338,6 +341,8 @@ void datamake_init()
 	putasm_fn = "";
 	putasm_ln = 0;
 	putasm_frame = 0;
+	
+	overload_detect = 0;
 
 }
 
@@ -603,6 +608,7 @@ on_error:
 void getLineStatus(LINE *lptr, int inc_nest )
 {
 	const HEAD head[] = {
+		{ "#OVERLOAD_DETECT",_OVERLOAD       },
 		{ "#TITLE",          _TITLE          },
 		{ "#COMPOSER",       _COMPOSER       },
 		{ "#MAKER",          _MAKER          },
@@ -991,6 +997,11 @@ void getLineStatus(LINE *lptr, int inc_nest )
 			  case _EFFECT_INCLUDE:
 				include_flag = 1;
 				break;
+			/* 負荷検出 */
+			  case _OVERLOAD:
+				overload_detect = 1;
+			break;
+
 			/* タイトル */
 			  case _TITLE:
 				temp = skipSpaceOld( lptr[line].str );
@@ -6110,7 +6121,8 @@ int data_make( void )
 	fclose( fp );
 	
 	{
-
+		/* define.incの書き出し 
+		 ここに定義を書き出す */
 		fp = fopen( inc_name, "wt" );
 		if( fp == NULL ) {
 			if( message_flag == 0 ) {
@@ -6170,6 +6182,9 @@ int data_make( void )
 			}
 			fprintf(fp, "\t.endm\n");
 		}
+		
+		// オーバーロード検出
+		fprintf( fp, "OVERLOAD_DETECT\t\tequ\t%d\n", overload_detect);
 		
 		/* 出力ファイルにタイトル/作曲者/打ち込み者の情報をマクロとして書き込み */
 		writeSongInfoMacro(fp);
