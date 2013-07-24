@@ -9,6 +9,11 @@
 # def_full : make a compiler and tools for host(default environtment)
 #
 
+ifdef OSX
+SYSROOT = --sysroot=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.6.sdk/
+DEF_CC = CC="gcc $(SYSROOT)"
+DEF_CC += CXX="g++ $(SYSROOT)"
+endif
 
 #
 # defines
@@ -22,9 +27,9 @@ MAKE_W32C = make -f Makefile.UNIX \
  CC=$(W32PFX)gcc STRIPER=$(W32PFX)strip \
  CDEFS="--input-charset=utf-8 --exec-charset=cp932" EXESFX=.exe
 
-MAKE_DEFB = make -f Makefile.unx
+MAKE_DEFB = make $(DEF_CC) -f Makefile.unx
 
-MAKE_DEFC = make -f Makefile.UNIX
+MAKE_DEFC = make $(DEF_CC) -f Makefile.UNIX
 
 
 #
