@@ -1,18 +1,14 @@
 #
 # Makefile for bintools/compiler
 #
-# Usage : make [cross] [cross_full] [def_full]
+# Usage : make <current|compilers|fullset|current_full|clean_full>
 #
-# cross : make a compiler for win32 and host 
-# cross_full : make a compiler and tools for win32 and host
-#
-# def_full : make a compiler and tools for host(default environtment)
 #
 
 ifdef OSX
-SYSROOT = --sysroot=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.6.sdk/
-DEF_CC = CC="gcc $(SYSROOT)"
-DEF_CC += CXX="g++ $(SYSROOT)"
+# SYSROOT = --sysroot=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.6.sdk/
+OPTS = -mmacosx-version-min=10.6 -m32
+DEF_CC = CC="gcc $(OPTS) $(SYSROOT)"
 endif
 
 #
@@ -36,17 +32,24 @@ MAKE_DEFC = make $(DEF_CC) -f Makefile.UNIX
 # basic sets
 #
 
-all : def_compiler 
+all : 
+	@echo "Usage : make <current|compilers|fullset|current_full|clean_full>"
+	@echo " current : make current compiler binaries"
+	@echo " compilers : make cross and current compiler binaries"
+	@echo " fullset : make all binaries for cross and current"
+	@echo " current_full : make all binaries for cross and current"
+	@echo " OSX=1 : set OS X flags for compiling"
 
-clean : def_clean_c
 
+current : def_compiler
 
+compilers : clean_w32_start w32_compiler w32_clean def_compiler def_clean
 
-cross : clean_w32_start w32_compiler w32_clean def_compiler def_clean
+fullset : clean_w32_start w32_tools w32_clean  def_tools def_clean
 
-cross_full : clean_w32_start w32_tools w32_clean  def_tools def_clean
+current_full : clean_def_start def_tools def_clean
 
-def_full : clean_def_start def_tools def_clean
+clean : def_clean
 
 clean_full : def_clean w32_clean
 
