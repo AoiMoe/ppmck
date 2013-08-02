@@ -85,15 +85,21 @@ PLAY:
 	lda nsf_error
 	bne	ERROR_BEEP ; エラーを継続する
 	.else
-	bne	PLAY_END ; 多重に呼び出さない
+	bne	OVERLOAD_END ; 多重に呼び出さない
 	.endif
-	
 
+PLAY_LOOP:
 	inc	nsf_nmi
 	jsr	sound_driver_start
 	dec	nsf_nmi
-PLAY_END:
+	bne PLAY_LOOP
 	rts
+
+; オーバーロードの為、処理を後に回す
+OVERLOAD_END:
+	inc	nsf_nmi
+	rts
+
 
 ;
 ; オーバーロード検出
