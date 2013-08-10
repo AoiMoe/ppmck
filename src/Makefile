@@ -5,11 +5,25 @@
 #
 #
 
-ifdef OSX
+OSX = 1
+DEBUG = 0
+
+ifeq ($(DEBUG),1)
+CC = gcc -g
+else
+CC = gcc
+endif
+
+
+ifeq ($(OSX),1)
+
 # SYSROOT = --sysroot=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.6.sdk/
 OPTS = -mmacosx-version-min=10.6 -m32
-DEF_CC = CC="gcc $(OPTS) $(SYSROOT)"
+DEF_CC = CC="$(CC) $(OPTS) $(SYSROOT)"
+
 endif
+
+
 
 #
 # defines
@@ -17,10 +31,10 @@ endif
 
 W32PFX = i586-mingw32-
 
-MAKE_W32B = make -f Makefile.unx CC=$(W32PFX)gcc EXESFX=.exe
+MAKE_W32B = make -f Makefile.unx CC=$(W32PFX)$(CC) EXESFX=.exe
 
 MAKE_W32C = make -f Makefile.UNIX \
- CC=$(W32PFX)gcc STRIPER=$(W32PFX)strip \
+ CC=$(W32PFX)$(CC) STRIPER=$(W32PFX)strip \
  CDEFS="--input-charset=utf-8 --exec-charset=cp932" EXESFX=.exe
 
 MAKE_DEFB = make $(DEF_CC) -f Makefile.unx
@@ -38,7 +52,7 @@ all :
 	@echo " compilers : make cross and current compiler binaries"
 	@echo " fullset : make all binaries for cross and current"
 	@echo " current_full : make all binaries for cross and current"
-	@echo " OSX=1 : set OS X flags for compiling"
+	@echo " OSX=0 : no use OS X flags for compiling"
 
 
 current : def_compiler

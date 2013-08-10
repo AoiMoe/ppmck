@@ -624,6 +624,7 @@ void getLineStatus(LINE *lptr, int inc_nest )
 		{ "#EX-MMC5",		 _EX_MMC5		 },
 		{ "#NO-BANKSWITCH",    _NO_BANKSWITCH    },
 		{ "#AUTO-BANKSWITCH",    _AUTO_BANKSWITCH    },
+		{ "#EFFECT-BANKSWITCH",    _EFF_BANKSWITCH    },
 		{ "#PITCH-CORRECTION",       _PITCH_CORRECTION    },
 		{ "#BANK-CHANGE",    _BANK_CHANGE    },
 		{ "#SETBANK",    	 _SET_SBANK	     },
@@ -1001,7 +1002,10 @@ void getLineStatus(LINE *lptr, int inc_nest )
 			  case _OVERLOAD:
 				overload_detect = 1;
 			break;
-
+			/* エフェクトバンク切り替え */
+			  case _EFF_BANKSWITCH:
+			  	effect_bankswitch = 1;
+			break;
 			/* タイトル */
 			  case _TITLE:
 				temp = skipSpaceOld( lptr[line].str );
@@ -5869,22 +5873,21 @@ int data_make( void )
 	hard_effect_max = getMaxHardEffect( hard_effect_tbl, _HARD_EFFECT_MAX );
 	effect_wave_max = getMaxEffectWave( effect_wave_tbl, _EFFECT_WAVE_MAX );
 	
-	total_effect_size +=
-		tone_max * TBLPTRSIZE +
-		envelope_max * TBLPTRSIZE +
-		pitch_env_max * TBLPTRSIZE +
-		pitch_mod_max * TBLPTRSIZE +
-		arpeggio_max * TBLPTRSIZE +
-		dpcm_max * TBLPTRSIZE +
-		fm_tone_max * TBLPTRSIZE +
-		n106_tone_max * TBLPTRSIZE +
-		vrc7_tone_max * TBLPTRSIZE +
-		hard_effect_max * TBLPTRSIZE +
-		effect_wave_max * TBLPTRSIZE;
+	total_effect_size += tone_max * TBLPTRSIZE;
+    total_effect_size += envelope_max * TBLPTRSIZE;
+    total_effect_size += pitch_env_max * TBLPTRSIZE;
+    total_effect_size += pitch_mod_max * TBLPTRSIZE;
+    total_effect_size += arpeggio_max * TBLPTRSIZE;
+    total_effect_size += dpcm_max * TBLPTRSIZE;
+    total_effect_size += fm_tone_max * TBLPTRSIZE;
+    total_effect_size += n106_tone_max * TBLPTRSIZE;
+    total_effect_size += vrc7_tone_max * TBLPTRSIZE;
+    total_effect_size += hard_effect_max * TBLPTRSIZE;
+    total_effect_size += effect_wave_max * TBLPTRSIZE;
 
 	
 #if DEBUG
-	printf("Effect_size = %d\n", total_effect_size);
+	printf("EFFECT_SIZE = %d\n", total_effect_size);
 	PRNVAL(tone_len);
 	PRNVAL(env_len);
 	PRNVAL(penv_len);
@@ -5899,16 +5902,16 @@ int data_make( void )
 #endif
 
 
-	if (allow_bankswitching && total_effect_size > 1024)
+	if (allow_bankswitching && 
+	(effect_bankswitch || total_effect_size > 1024))
 	{
 		effect_bankswitch = 1;
 		effect_bank = bank_maximum + 1;
 		effect_usage = 0;
 		bank_usage[effect_bank] = 8192;
 		
-		printf("Use effect bank (size = %d)\n", total_effect_size);
+		printf("ENABLE EFFECT_BANKSWITCH (size : %d)\n", total_effect_size);
 	}
-	
 	
 	sortDPCM( dpcm_tbl );					// 音色のダブりを削除
 	dpcm_size = checkDPCMSize( dpcm_tbl );
