@@ -2037,8 +2037,8 @@ int getVRC7HRTone( LINE *lptr )
 
 						vrc7_tone_tbl[no][4] =
 							  ((data[KL2] & 0x03) << 6) |
-							  ((data[DT1] & 0x01) << 4) |
-							  ((data[DT2] & 0x01) << 3) |
+							  ((data[DT2] & 0x01) << 4) |
+							  ((data[DT1] & 0x01) << 3) |
 							  ((data[FB] & 0x07) );
 						
 						vrc7_tone_tbl[no][5] =
