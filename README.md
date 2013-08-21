@@ -28,6 +28,9 @@ ppmck ex版のリポジトリです。
 https://github.com/BouKiCHi/ppmck/archive/master.zip
 
 更新情報(サマリー):
+https://github.com/BouKiCHi/ppmck/blob/master/changelog.txt
+
+利用方法:
 https://github.com/BouKiCHi/ppmck/blob/master/readme_ex.txt
 
 更新情報:
