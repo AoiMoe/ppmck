@@ -11,6 +11,16 @@ FOUT=$FBASE
 
 EXEDIR=`dirname $0`
 
+# check DEBUG flag
+#
+if [ $# -gt 1 ];
+then
+    MODE=$2
+fi
+
+#
+# export
+#
 export NES_INCLUDE="$EXEDIR/../nes_include"
 
 $EXEDIR/../bin/ppmckc -m1 -i $FIN.mml
@@ -18,6 +28,14 @@ $EXEDIR/../bin/ppmckc -m1 -i $FIN.mml
 if [ ! -s effect.h ];
 then
 	exit
+fi
+
+#
+# add .list
+#
+if [ "x$MODE" != "xDEBUG" ];
+then
+    echo "    .list" >> define.inc
 fi
 
 $EXEDIR/../bin/nesasm -raw ppmck.asm
@@ -28,11 +46,6 @@ then
 fi
 
 mv ppmck.nes $FOUT.nsf
-
-if [ $# -gt 1 ];
-then
-	MODE=$2
-fi
 
 if [ "x$MODE" != "xDEBUG" ];
 then
