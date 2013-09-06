@@ -1,13 +1,14 @@
 #!/bin/sh
+#
+# build NSF file from MML
 
 #
 # Usage : ./mknsf.sh songfile.mml [DEBUG]
 #
 
-FBASE=`basename $1 .mml`
-FDIR=`dirname $1`
-FIN=$FDIR/$FBASE
-FOUT=$FBASE
+SONGBASE=`basename $1 .mml`
+SONGDIR=`dirname $1`
+SONGOUT=$SONGBASE
 
 EXEDIR=`dirname $0`
 
@@ -19,38 +20,50 @@ then
 fi
 
 #
-# export
+# set include directory
 #
 export NES_INCLUDE="$EXEDIR/../nes_include"
 
-$EXEDIR/../bin/ppmckc -m1 -i $FIN.mml
+#
+# move to song directory
+#
+cd $SONGDIR
 
-if [ ! -s effect.h ];
+#
+# compile
+#
+$EXEDIR/../bin/ppmckc -m1 -i $SONGBASE.mml
+
+if [ ! -s effect.h ]
 then
-	exit
+    echo "effect.h is not found."
+    exit 1
 fi
 
 #
 # add .list
 #
-if [ "x$MODE" != "xDEBUG" ];
+if [ "x$MODE" == "xDEBUG" ]
 then
     echo "    .list" >> define.inc
 fi
 
 $EXEDIR/../bin/nesasm -raw ppmck.asm
 
-if [ ! -s ppmck.nes ];
+if [ ! -s ppmck.nes ]
 then
-	exit
+    echo "ppmck.nes is not found."
+    exit 1
 fi
 
-mv ppmck.nes $FOUT.nsf
+mv ppmck.nes $SONGOUT.nsf
 
-if [ "x$MODE" != "xDEBUG" ];
+if [ "x$MODE" != "xDEBUG" ]
 then
-	rm $FIN.h
-	rm define.inc
-	rm effect.h
+    rm $SONGBASE.h
+    rm define.inc
+    rm effect.h
 fi
+
+exit 0
 

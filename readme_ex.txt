@@ -1,4 +1,4 @@
-ppmck release 9a ex6.2 by BKC
+ppmck release 9a ex6.3 by BKC
 
 **** このファイルについて
 

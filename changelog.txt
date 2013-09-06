@@ -1,3 +1,6 @@
+2013/09/06 release 9a ex 6.3
+
+mknsf.sh/mknes.shの挙動を修正。
 
 2013/08/21 release 9a ex 6.2
 
