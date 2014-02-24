@@ -108,7 +108,7 @@ int ENTRY( int argc , char *argv[] )
 		if ( (argv[i][0] == '-') || (argv[i][0] == '/') ) {
 #else
 		// パスセパレータの問題(WIN32以外)
-		if ( (argv[i][0] == '-') ) {
+		if (argv[i][0] == '-') {
 #endif
 			switch( toupper( argv[i][1] ) ) {
 			  case 'H':

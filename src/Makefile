@@ -53,6 +53,7 @@ all :
 	@echo " fullset : make all binaries for cross and current"
 	@echo " current_full : make all binaries for cross and current"
 	@echo " OSX=0 : no use OS X flags for compiling"
+	@echo " DEBUG=1 : make debuggable binary"
 
 
 current : def_compiler

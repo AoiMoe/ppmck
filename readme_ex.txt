@@ -1,7 +1,6 @@
-ppmck release 9a ex6.3 by BKC
+ppmck release 9a ex7 by BouKiCHi
 
 **** このファイルについて
-
 　ppmck release9aを改変したものです。
 
 　ppmckの機能と以下の機能が利用可能です。
@@ -14,6 +13,14 @@ ppmck release 9a ex6.3 by BKC
 ・ハードウェアエンベロープ機能（トラックABF & ノイズ & MMC5 ）
 ・過負荷処理・検出
 ・VRC7音色定義 @OT
+・タイムシフト機能(9a ex7)
+
+***** タイムシフト機能(9a ex7)
+ひとつのトラックの場所に!!を挿入すると
+すべてのトラックがその時間(カウント数)からの再生になります。
+
+例:
+A cde !! fgab
 
 **** @OT音色定義
 

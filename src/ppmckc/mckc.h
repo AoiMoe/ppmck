@@ -226,6 +226,8 @@ enum {
 	_SUN5B_NOISE_FREQ,
 	_SHIFT_AMOUNT,
 
+    _TIME_SHIFT,
+    
 	_REST		= 0xfc,
 	_NOP		= 0xfe,
 	_TRACK_END	= 0xff

@@ -120,6 +120,10 @@ int putasm_frame = 0;
 // 負荷検出
 int overload_detect = 0;
 
+// タイムシフト
+int use_timeshift = 0;
+int timeshift_count = 0;
+
 const	char	str_track[] = _TRACK_STR;
 
 // エラー番号
@@ -343,6 +347,9 @@ void datamake_init()
 	putasm_frame = 0;
 	
 	overload_detect = 0;
+    
+    use_timeshift = 0;
+    timeshift_count = 0;
 
 }
 
@@ -3761,6 +3768,7 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 		{ "q", _QUONTIZE,		(ALLTRACK) },
 		{ "r", _REST,			(ALLTRACK) },
 		{ "^", _TIE,			(ALLTRACK) },
+		{ "!!", _TIME_SHIFT,	(ALLTRACK) },
 		{ "!", _DATA_BREAK,		(ALLTRACK) },
 		{ "",  _TRACK_END,		(ALLTRACK) },
 	};
@@ -4311,6 +4319,14 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
 					}
 					break;
+				  case _TIME_SHIFT:	/* タイムシフト */
+                        use_timeshift = 1;
+                        setCommandBuf( 0, cmd, _TIME_SHIFT, ptr, line, mml[i].enable&(1<<trk) );
+                        if( (mml[i].enable&(1<<trk)) == 0 ) {
+                            dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+                        }
+                        break;
+
 				  case _DATA_BREAK:		/* データ変換中止 */
 					setCommandBuf( 0, cmd, _TRACK_END, ptr, line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) == 0 ) {
@@ -4883,6 +4899,37 @@ typedef struct {
 	int	last_note[SELF_DELAY_MAX+1];		// 最後に書いたノート(@nは無視で)
 	int	last_note_keep[SELF_DELAY_MAX+1];	// \コマンド使用時のlast_note状態
 	int	self_delay;		// いくつ前のノートを使用するか？（負ならセルフディレイしない）
+    
+    
+    int smooth;
+    int lfo;
+    int detune;
+    int hwsweep;
+    int pe;
+    int ne;
+    int mh;
+    int sa;
+    int sun5b_hs;
+    int sun5b_nf;
+    int hwenv;
+    int sun5b_hwenv;
+
+    
+    int last_smooth;
+    int last_lfo;
+    int last_detune;
+    int last_hwsweep;
+    int last_pe;
+    int last_ne;
+    int last_mh;
+    int last_sa;
+    int last_sun5b_hs;
+    int last_sun5b_nf;
+    int last_hwenv;
+    int last_sun5b_hwenv;
+
+    
+    
 } PLAYSTATE;
 
 void defaultPlayState(PLAYSTATE *ps)
@@ -4902,6 +4949,21 @@ void defaultPlayState(PLAYSTATE *ps)
 		ps->last_note_keep[i] = -1;
 	}
 	ps->self_delay = -1;
+    
+    ps->smooth = ps->last_smooth = -1;
+    ps->lfo = ps->last_lfo = -1;
+    ps->detune = ps->last_detune = -1;
+    ps->hwsweep = ps->last_hwsweep = -1;
+    ps->pe = ps->last_pe = -1;
+    ps->ne = ps->last_ne = -1;
+    ps->mh = ps->last_mh = -1;
+    ps->sa = ps->last_sa = -1;
+    ps->sun5b_hs = ps->last_sun5b_hs = -1;
+    ps->sun5b_nf = ps->last_sun5b_nf = -1;
+    
+    ps->hwenv = ps->last_hwenv = -1;
+    ps->sun5b_hwenv = ps->last_sun5b_hwenv = -1;
+    
 }
 
 /*--------------------------------------------------------------
@@ -5007,6 +5069,210 @@ int isNextSlar(CMD *cmd)
 }
 
 
+/*--------------------------------------------------------------
+ 
+ Input:
+ 
+ Output:
+ 無し
+ --------------------------------------------------------------*/
+void checkCommandsForAllTrack( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
+{
+    tbase = 0.625;
+	length = 48;
+	volume_flag = -1;
+    
+	{
+		/* テンポラリワークを作成 */
+		CMD *cmd = cmdtop;
+		CMD *temp = malloc( sizeof(CMD)*32*1024 );
+		CMD *const tempback = temp;
+		int i, j;
+		for( i = 0; i < 32*1024; i++ ) {
+			temp->cmd = 0;
+			temp->cnt = 0;
+			temp->frm = 0;
+			temp->line = 0;
+			for( j = 0; j < 8; j++ ) {
+				temp->param[0] = 0;
+			}
+			temp++;
+		}
+		temp = tempback;
+		/* チャンネルデータの頭からコマンドを解析、バッファにためる */
+		temp = analyzeData( trk, temp, lptr );
+		setCommandBuf( 0, temp, _TRACK_END, NULL, 0, 1 );
+		temp = tempback;
+		//shuffleQuontize(temp);
+		nest = 0;
+		translateData( &cmd, temp );
+		cmd = cmdtop;
+		free( tempback );
+	}
+    
+	tbase = 0.625;
+    
+    // タイムシフトのトラックである場合は音長を計算する
+    if (!use_timeshift)
+        return;
+
+	{
+		CMD *cmd = cmdtop;
+		double	count, lcount, count_t;
+		int		frame, lframe, frame_p, frame_d;
+		double	tbase_p;
+        
+		/* カウントからフレームに変換 */
+		/* なるべくキリのいい時点を起点にする */
+		loop_flag = 0;
+		
+		count = 0; //トラック開始時点からの経過カウント数
+		frame = 0; //トラック開始時点からの経過フレーム数
+		lcount = 0; //ループ開始時点からの経過カウント数
+		lframe = 0; //ループ開始時点からの経過フレーム数
+		/*
+         カウントはテンポ関係なく加算していく
+         フレームは
+         A t120 l4 c  d   e   f  t240   g   a   b   c   !
+         count:          0 48  96 144  192  192 240 288 336 384
+         frame:          0 30  60  90  120  120 135 150 165 180
+         tbase:      0.625           0.3125
+         count_t:        0 48  96 144  192  384 432 480 528 576
+         B t240 l4 cc dd ee ff          g   a   b   c   !
+         */
+		count_t = 0; //最初から今まで現在のテンポだったと仮定した時、現在の状態と同じ時間を経過させるためのカウント数
+		do {
+			cmd->cnt = count;
+			cmd->frm = frame;
+			cmd->lcnt = lcount;
+			cmd->lfrm = lframe;
+            
+            //		printf("%s:%d:%4x %f %d %f\n", cmd->filename, cmd->line, cmd->cmd, cmd->cnt, cmd->frm, cmd->len);
+
+			if( cmd->cmd == _TIME_SHIFT ) {
+				timeshift_count = count;
+			}
+			
+			if( cmd->cmd == _REPEAT_ST2 ) {
+				double	rcount = 0;
+				double	rcount_esc = 0;		// \の手前まで
+				double	rcount_t = 0;
+				double	rcount_esc_t = 0;
+				int	rframe = 0;
+				int	rframe_esc = 0;
+				int	rframe_err;
+				int	repeat_esc_flag = 0;
+				CMD	*repeat_esc2_cmd_ptr = NULL;
+				
+				cmd++;
+				while( 1 ) {
+					cmd->cnt = count;
+					cmd->frm = frame;
+					cmd->lcnt = lcount;
+					cmd->lfrm = lframe;
+
+                    
+					if( cmd->cmd == _REPEAT_END2 ) {
+						count_t += rcount_t*(cmd->param[0]-2)+rcount_esc_t;
+						count += rcount*(cmd->param[0]-2)+rcount_esc;
+						frame += rframe*(cmd->param[0]-2)+rframe_esc;
+						if( loop_flag != 0 ) {
+							lcount += rcount*(cmd->param[0]-2)+rcount_esc;
+							lframe += rframe*(cmd->param[0]-2)+rframe_esc;
+						}
+						/* フレーム補正 */
+						rframe_err = double2int(count_t * tbase) - frame;
+						//printf( "frame-error: %d frame\n", rframe_err );
+						if (rframe_err > 0) {
+							//printf( "frame-correct: %d frame\n", rframe_err );
+							if (rframe_err >= 3)
+							{
+								dispWarning(REPEAT2_FRAME_ERROR_OVER_3, cmd->filename, cmd->line);
+							}
+							/* 2004.09.02 やっぱりやめる
+                             cmd->param[1] = rframe_err;
+                             frame += rframe_err;
+                             if( loop_flag != 0 ) {
+                             lframe += rframe_err;
+                             }
+                             */
+						} else {
+							cmd->param[1] = 0;
+						}
+						if (repeat_esc_flag) {
+							// 繰り返し回数を対応する\\コマンドにも
+							repeat_esc2_cmd_ptr->param[0] = cmd->param[0];
+						}
+						break;
+						
+					} else if( cmd->cmd == _REPEAT_ESC2 ) {
+						repeat_esc_flag = 1;
+						repeat_esc2_cmd_ptr = cmd;
+					} else if( cmd->cmd <= MAX_NOTE || cmd->cmd == _REST ||
+							  cmd->cmd == _TIE ||
+							  cmd->cmd == _KEY || cmd->cmd == _NOTE || cmd->cmd == _WAIT || cmd->cmd == _KEY_OFF ) {
+						count_t += cmd->len;
+						rcount_t += cmd->len;
+						frame_p = rframe;
+						rframe = double2int(rcount_t * tbase);
+						frame_d = rframe - frame_p;
+						count += cmd->len;
+						frame += frame_d;
+                        /* 対ループずれ対策 */
+						if( loop_flag != 0 ) {
+							lcount += cmd->len;
+							lframe += frame_d;
+						}
+						rcount += cmd->len;
+						if( repeat_esc_flag == 0 ) {
+							rcount_esc_t += cmd->len;
+							rcount_esc += cmd->len;
+							rframe_esc += frame_d;
+						}
+					} else if( cmd->cmd == _TEMPO ) {
+						tbase_p = tbase;
+						tbase = (double)_BASETEMPO / (double)cmd->param[0];
+						count_t = count_t * tbase / tbase_p;
+						rcount_t = rcount_t * tbase / tbase_p;
+						rcount_esc_t = rcount_esc_t * tbase / tbase_p;
+					} else if( cmd->cmd == _TEMPO2 ) {
+						tbase_p = tbase;
+						tbase = (double)cmd->param[0] * (double)cmd->param[1] / _BASE;
+						count_t = count_t * tbase / tbase_p;
+						rcount_t = rcount_t * tbase / tbase_p;
+						rcount_esc_t = rcount_esc_t * tbase / tbase_p;
+					} else if( cmd->cmd == _SONG_LOOP ) {
+						loop_flag = 1;
+					}
+					cmd++;
+				}
+			} else if( cmd->cmd <= MAX_NOTE || cmd->cmd == _REST ||
+					  cmd->cmd == _TIE ||
+					  cmd->cmd == _KEY || cmd->cmd == _NOTE || cmd->cmd == _WAIT || cmd->cmd == _KEY_OFF ) {
+				count_t += cmd->len;
+				frame_p = frame;
+				frame = double2int(count_t * tbase);
+				frame_d = frame - frame_p;
+				count += cmd->len;
+                /* 対ループずれ対策 */
+				if( loop_flag != 0 ) {
+					lcount += cmd->len;
+					lframe += frame_d;
+				}
+			} else if( cmd->cmd == _TEMPO ) {
+				tbase_p = tbase;
+				tbase = (double)_BASETEMPO / (double)cmd->param[0];
+				count_t = count_t * tbase_p / tbase;
+			} else if( cmd->cmd == _TEMPO2 ) {
+				tbase_p = tbase;
+				tbase = (double)cmd->param[0] * (double)cmd->param[1] / _BASE;
+				count_t = count_t * tbase_p / tbase;
+			} else if( cmd->cmd == _SONG_LOOP ) {
+				loop_flag = 1;
+			}
+		} while( cmd++->cmd != _TRACK_END );
+	}
+}
 
 
 
@@ -5237,7 +5503,7 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 			putAsm( fp, 0x8f );
 		}		
 		
-		
+		int timeshift_flag = use_timeshift;
 		
 		do {
 			const CMD cmdtemp = *cmd; //各switch内でcmdポインタが進む可能性があるので一旦保存
@@ -5259,6 +5525,177 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 					doNewBank( fp, trk, &nbcmd );
 				}
 			}
+            
+            // タイムシフトなのでスキップする
+            if (timeshift_flag)
+            {
+                while(cmd->cmd != _TRACK_END && cmd->cnt < timeshift_count)
+                {
+                    switch (cmd->cmd)
+                    {
+                        case _TRACK_END:
+                            break;
+                        case _SMOOTH_ON:
+                            ps.smooth = 1;
+                            cmd++;
+                            break;
+                        case _SMOOTH_OFF:
+                            ps.smooth = 0;
+                            cmd++;
+                            break;
+    
+                        case _ENVELOPE:
+                            ps.env = cmd->param[0]&0x7f;
+                            cmd++;
+                            break;
+                        case _REL_ENV:
+                            if( cmd->param[0] == 255 ) {
+                                ps.rel_env = -1;
+                            } else {
+                                ps.rel_env = cmd->param[0] & 0x7f;
+                            }
+                            cmd++;
+                            break;
+                        case _VOLUME:
+                            if( trk == BFMTRACK || trk == BVRC6SAWTRACK) {
+                                ps.env = (cmd->param[0]&0x3f)|0x80;
+                            } else {
+                                ps.env = (cmd->param[0]&0x0f)|0x80;
+                            }
+                            cmd++;
+                            break;
+                        case _HARD_ENVELOPE:
+                            if ((trk == BTRACK(0)) || (trk == BTRACK(1) ))
+                                ps.hwenv = ( ((cmd->param[0]&1)<<4)|((cmd->param[1]&1)<<5) );
+                            else
+                                ps.hwenv = ((cmd->param[0]&1)<<6)|(cmd->param[1]&0x3f);
+                            cmd++;
+                            break;
+                        case _TONE:
+                            ps.tone = cmd->param[0]|0x80;
+                            cmd++;
+                            break;
+                        case _ORG_TONE:
+                            ps.tone = cmd->param[0]&0x7f;
+                            cmd++;
+                            break;
+                        case _REL_ORG_TONE:
+                            if( cmd->param[0] == 255 ) { 
+                                ps.rel_tone = -1;
+                            } else {
+                                ps.rel_tone = cmd->param[0]&0x7f;
+                            }
+                            cmd++;
+                            break;
+                        case _QUONTIZE:
+                            ps.gate_q.rate = cmd->param[0];
+                            ps.gate_q.adjust = cmd->param[1];
+                            cmd++;
+                            break;
+                        case _QUONTIZE2:
+                            ps.gate_q.rate = gate_denom;
+                            ps.gate_q.adjust = - cmd->param[0];
+                            cmd++;
+                            break;
+                            
+                        case _LFO_ON:
+                            if( (cmd->param[0]&0xff) == 0xff ) {
+                                ps.lfo = 0xff;
+                            } else {
+                                ps.lfo = cmd->param[0]&0x7f;
+                            }
+                            cmd++;
+                            break;
+                        case _LFO_OFF:
+                            ps.lfo = 0xff;
+                            cmd++;
+                            break;
+                        case _DETUNE:
+                            if( cmd->param[0] >= 0 ) {
+                                ps.detune = (cmd->param[0] & 0x7f) | 0x80;
+                            } else {
+                                ps.detune = (-cmd->param[0]) & 0x7f;
+                            }
+                            cmd++;
+                            break;
+                        case _SWEEP:
+                            ps.hwsweep = ((cmd->param[0]&0xf)<<4)+(cmd->param[1]&0xf);
+                            cmd++;
+                            break;
+                        case _EP_ON:
+                            ps.pe = cmd->param[0] & 0xff;
+                            cmd++;
+                            break;
+                        case _EP_OFF:
+                            ps.pe = 0xff;
+                            cmd++;
+                            break;
+                        case _EN_ON:
+                            ps.ne = cmd->param[0]&0xff;
+                            cmd++;
+                            break;
+                        case _EN_OFF:
+                            ps.ne = 0xff;
+                            cmd++;
+                            break;
+                        case _MH_ON:
+                            ps.mh = cmd->param[0]&0xff;
+                            cmd++;
+                            break;
+                        case _MH_OFF:
+                            ps.mh = 0xff;
+                            cmd++;
+                            break;
+                        case _VRC7_TONE:
+                            ps.tone = cmd->param[0]|0x40;
+                            cmd++;
+                            break;
+                        case _SUN5B_HARD_SPEED:
+                            ps.sun5b_hs = cmd->param[0];
+                            cmd++;
+                            break;
+                        case _SUN5B_HARD_ENV:
+                            ps.sun5b_hwenv = (cmd->param[0]&0x0f)|0x10|0x80;
+                            cmd++;
+                            break;
+                        case _SUN5B_NOISE_FREQ:
+                            ps.sun5b_nf = cmd->param[0] & 0x1f;
+                            cmd++;
+                            break;
+                            
+                        case _SELF_DELAY_ON:
+                            if( cmd->param[0] == 255 ) {
+                                ps.self_delay = -1;
+                            } else {
+                                ps.self_delay = cmd->param[0];
+                            }
+                            cmd++;
+                            break;
+                        case _SELF_DELAY_OFF:
+                            ps.self_delay = -1;
+                            cmd++;
+                            break;
+                        case _SELF_DELAY_QUEUE_RESET:
+                            for (i = 0; i < arraysizeof(ps.last_note); i++) {
+                                ps.last_note[i] = -1;
+                                ps.last_note_keep[i] = -1;
+                            }
+                            cmd++;
+                            break;
+                        case _SHIFT_AMOUNT:
+                            ps.sa = cmd->param[0] & 0xff;
+                            cmd++;
+                            break;
+                        default:
+                            cmd++;
+					}
+                }
+				
+				// タイムシフトの処理完了
+                timeshift_flag = 0;
+                continue;
+            }
+            
 			
 			switch (cmdtemp.cmd) {
 			  case _NOP:
@@ -5269,6 +5706,7 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 			  case _OCT_DW:
 			  case _LENGTH:
 			  case _TRANSPOSE:
+			  case _TIME_SHIFT:
 				cmd++;
 				break;
 			  case _SLAR:
@@ -5285,51 +5723,53 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 				cmd++;
 			  break;
 			  case _SMOOTH_ON:
+                ps.smooth = 1;
 				putAsm( fp, MCK_SMOOTH );
-				putAsm( fp, 0x01 );
+				putAsm( fp, ps.smooth  );
+                ps.last_smooth = ps.smooth;
 				cmd++;
 			  break;
 			  case _SMOOTH_OFF:
-				putAsm( fp, MCK_SMOOTH );
-				putAsm( fp, 0x00 );
-				cmd++;
+                ps.smooth = 0;
+                putAsm( fp, MCK_SMOOTH );
+                putAsm( fp, ps.smooth  );
+                ps.last_smooth = ps.smooth;
+                cmd++;
 			  break;
 			  case _ENVELOPE:
-				putAsm( fp, MCK_SET_VOL );
-				ps.env = cmd->param[0]&0x7f; 
+				ps.env = cmd->param[0] & 0x7f;
+                putAsm( fp, MCK_SET_VOL );
+				putAsm( fp, ps.env );
 				ps.last_written_env = ps.env;
-				putAsm( fp, ps.env ); 
-				ps.last_written_env = ps.env;
-				cmd++; 
+				cmd++;
 				break; 
 			  case _REL_ENV: 
 				if( cmd->param[0] == 255 ) { 
 					ps.rel_env = -1;
 				} else { 
-					ps.rel_env = cmd->param[0]&0x7f; 
+					ps.rel_env = cmd->param[0] & 0x7f;
 				}
 				cmd++;
 				break;
 			  case _VOLUME:
-				putAsm( fp, MCK_SET_VOL );
-				if( trk == BFMTRACK || trk == BVRC6SAWTRACK) {
+				if(trk == BFMTRACK || trk == BVRC6SAWTRACK) {
 					ps.env = (cmd->param[0]&0x3f)|0x80;
 				} else {
 					ps.env = (cmd->param[0]&0x0f)|0x80;
 				}
+                putAsm( fp, MCK_SET_VOL );
 				putAsm( fp, ps.env );
 				ps.last_written_env = ps.env;
 				cmd++;
 				break;
 			  case _HARD_ENVELOPE:
-				putAsm( fp, MCK_SET_FDS_HWENV );
-
 				if ((trk == BTRACK(0)) || (trk == BTRACK(1) ))
-					ps.env = ( ((cmd->param[0]&1)<<4)|((cmd->param[1]&1)<<5) );
+					ps.hwenv = ( ((cmd->param[0]&1)<<4)|((cmd->param[1]&1)<<5) );
 					else
-					ps.env = ((cmd->param[0]&1)<<6)|(cmd->param[1]&0x3f);
-				putAsm( fp, (ps.env & 0xff) ); 
-				ps.last_written_env = ps.env;
+					ps.hwenv = ((cmd->param[0]&1)<<6)|(cmd->param[1]&0x3f);
+                putAsm( fp, MCK_SET_FDS_HWENV );
+				putAsm( fp, (ps.hwenv & 0xff) );
+				ps.last_hwenv = ps.hwenv;
 				cmd++;
 				break;
 			  case _TONE:
@@ -5409,83 +5849,104 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 				}
 				break;
 			  case _LFO_ON:
-				putAsm( fp, MCK_SET_LFO );
 				if( (cmd->param[0]&0xff) == 0xff ) {
-					putAsm( fp, 0xff );
+                    ps.lfo = 0xff;
 				} else {
-					putAsm( fp, cmd->param[0]&0x7f );
+                    ps.lfo = cmd->param[0]&0x7f;
 				}
+                    
+                putAsm( fp, MCK_SET_LFO );
+                putAsm( fp, ps.lfo );
+                ps.last_lfo = ps.lfo;
 				cmd++;
 				break;
 			  case _LFO_OFF:
+                ps.lfo = 0xff;
+
 				putAsm( fp, MCK_SET_LFO );
-				putAsm( fp, 0xff );
+				putAsm( fp, ps.lfo );
+                ps.last_lfo = ps.lfo;
+
 				cmd++;
 				break;
 			  case _DETUNE:
-				putAsm( fp, MCK_SET_DETUNE );
 				if( cmd->param[0] >= 0 ) {
-					putAsm( fp, ( cmd->param[0]&0x7f)|0x80 );
+					ps.detune = (cmd->param[0] & 0x7f) | 0x80;
 				} else {
-					putAsm( fp, (-cmd->param[0])&0x7f );
+					ps.detune = (-cmd->param[0]) & 0x7f;
 				}
+                putAsm( fp, MCK_SET_DETUNE );
+                putAsm( fp, ps.detune );
+                ps.last_detune = ps.detune;
 				cmd++;
 				break;
 			  case _SWEEP:
-				putAsm( fp, MCK_SET_HWSWEEP );
-				putAsm( fp, ((cmd->param[0]&0xf)<<4)+(cmd->param[1]&0xf) );
+                ps.hwsweep = ((cmd->param[0]&0xf)<<4)+(cmd->param[1]&0xf);
+                putAsm( fp, MCK_SET_HWSWEEP );
+				putAsm( fp, ps.hwsweep );
+                ps.last_hwsweep = ps.hwsweep;
 				cmd++;
 				break;
 			  case _EP_ON:
 				putAsm( fp, MCK_SET_PITCHENV );
 				putAsm( fp, cmd->param[0]&0xff );
+                ps.last_pe = ps.pe = cmd->param[0] & 0xff;
 				cmd++;
 				break;
 			  case _EP_OFF:
 				putAsm( fp, MCK_SET_PITCHENV );
 				putAsm( fp, 0xff );
-				cmd++;
+                ps.last_pe = ps.pe = 0xff;
+                cmd++;
 				break;
 			  case _EN_ON:
 				putAsm( fp, MCK_SET_NOTEENV );
 				putAsm( fp, cmd->param[0]&0xff );
+                ps.last_ne = ps.ne = cmd->param[0]&0xff;
 				cmd++;
 				break;
 			  case _EN_OFF:
 				putAsm( fp, MCK_SET_NOTEENV );
 				putAsm( fp, 0xff );
-				cmd++;
+                ps.last_ne = ps.ne = 0xff;
+                cmd++;
 				break;
 			  case _MH_ON:
 				putAsm( fp, MCK_SET_FDS_HWEFFECT );
 				putAsm( fp, cmd->param[0]&0xff );
+                ps.last_mh = ps.mh = cmd->param[0]&0xff;
 				cmd++;
 				break;
 			  case _MH_OFF:
 				putAsm( fp, MCK_SET_FDS_HWEFFECT );
 				putAsm( fp, 0xff );
+                ps.last_mh = ps.mh = 0xff;
 				cmd++;
 				break;
 			  case _VRC7_TONE:
 				putAsm( fp, MCK_SET_TONE );
 				putAsm( fp, cmd->param[0]|0x40 );
-				cmd++;
+                ps.last_written_tone = ps.tone = cmd->param[0]|0x40;
+                cmd++;
 				break;
 			  case _SUN5B_HARD_SPEED:
 				putAsm( fp, MCK_SET_SUN5B_HARD_SPEED );
 				putAsm( fp, cmd->param[0]&0xff );
 				putAsm( fp, (cmd->param[0]>>8)&0xff );
+                ps.last_sun5b_hs = ps.sun5b_hs = cmd->param[0];
 				cmd++;
 				break;
 			  case _SUN5B_HARD_ENV:
+                ps.sun5b_hwenv = (cmd->param[0]&0x0f)|0x10|0x80;
 				putAsm( fp, MCK_SUN5B_HARD_ENV );
-				ps.env = (cmd->param[0]&0x0f)|0x10|0x80;
-				putAsm( fp,  ps.env );
+				putAsm( fp,  ps.sun5b_hwenv );
+                ps.last_sun5b_hwenv = ps.sun5b_hwenv;
 				cmd++;
 				break;
 			  case _SUN5B_NOISE_FREQ:
 				putAsm( fp, MCK_SET_SUN5B_NOISE_FREQ );
 				putAsm( fp, cmd->param[0]&0x1f );
+                ps.last_sun5b_nf = ps.sun5b_nf = cmd->param[0] & 0x1f;
 				cmd++;
 				break;
 			  case _NEW_BANK:
@@ -5583,6 +6044,7 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 			  case _SHIFT_AMOUNT:
 				putAsm( fp, MCK_SET_SHIFT_AMOUNT );
 				putAsm( fp, cmd->param[0] & 0xff );
+                ps.last_sa = ps.sa = cmd->param[0] & 0xff;
 				cmd++;
 				break;
 			  case _TRACK_END:
@@ -5642,19 +6104,110 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 						break;
 					}
 					slar_flag = 0;
-					
-					if( ps.last_written_env != ps.env ) {		// 最後に書き込んだエンべロープor音量と、現在の通常のエンベロープor音量が違う
-						if ( (trk == BFMTRACK) && (ps.env > 0xFF) ) {
-							putAsm( fp, MCK_SET_FDS_HWENV );	// ハードエンベ出力
-							putAsm( fp, (ps.env & 0xff) );
-						} else {
-							putAsm( fp, MCK_SET_VOL );	// エンベロープ出力
-							putAsm( fp, ps.env );
-						}
+
+                    // SMOOTH
+                    if (ps.last_smooth != ps.smooth)
+                    {
+                        putAsm( fp, MCK_SMOOTH );
+                        putAsm( fp, ps.smooth  );
+                        ps.last_smooth = ps.smooth;
+                    }
+                    
+                    // LFO
+                    if (ps.last_lfo != ps.lfo)
+                    {
+                        putAsm( fp, MCK_SET_LFO );
+                        putAsm( fp, ps.lfo );
+                        ps.last_lfo = ps.lfo;
+                    }
+                    // DETUNE
+                    if (ps.last_detune != ps.detune)
+                    {
+                        putAsm( fp, MCK_SET_DETUNE );
+                        putAsm( fp, ps.detune );
+                        ps.last_detune = ps.detune;
+                    }
+                    
+                    // HWSWEEP
+                    if (ps.last_hwsweep != ps.hwsweep)
+                    {
+                        putAsm( fp, MCK_SET_HWSWEEP );
+                        putAsm( fp, ps.hwsweep );
+                        ps.last_hwsweep = ps.hwsweep;
+                        cmd++;
+                    }
+                    
+                    // PE
+                    if (ps.last_pe != ps.pe)
+                    {
+                        putAsm( fp, MCK_SET_PITCHENV );
+                        putAsm( fp, ps.pe );
+                        ps.last_pe = ps.pe;
+                    }
+                    // NE
+                    if (ps.last_ne != ps.ne)
+                    {
+                        putAsm( fp, MCK_SET_NOTEENV );
+                        putAsm( fp, ps.ne );
+                        ps.last_ne = ps.ne = cmd->param[0]&0xff;
+                    }
+                    // MH
+                    if (ps.last_mh != ps.mh)
+                    {
+                        putAsm( fp, MCK_SET_FDS_HWEFFECT );
+                        putAsm( fp, ps.mh );
+                        ps.last_mh = ps.mh = cmd->param[0]&0xff;
+                    }
+                    // SA
+                    if (ps.last_sa != ps.sa)
+                    {
+                        putAsm( fp, MCK_SET_SHIFT_AMOUNT );
+                        putAsm( fp, ps.sa );
+                        ps.last_sa = ps.sa;
+                    }
+                    // SUN5B_HS
+                    if (ps.last_sun5b_hs != ps.sun5b_hs)
+                    {
+                        putAsm( fp, MCK_SET_SUN5B_HARD_SPEED );
+                        putAsm( fp, ps.sun5b_hs & 0xff );
+                        putAsm( fp, (ps.sun5b_hs>>8) & 0xff );
+                        ps.last_sun5b_hs = ps.sun5b_hs;
+                    }
+                    
+                    // SUN5B_NF
+                    if (ps.last_sun5b_nf != ps.sun5b_nf)
+                    {
+                        putAsm( fp, MCK_SET_SUN5B_NOISE_FREQ );
+                        putAsm( fp, ps.sun5b_nf );
+                        ps.last_sun5b_nf = ps.sun5b_nf;
+					}
+                    // SUN5B_HWENV
+                    if (ps.last_sun5b_hwenv != ps.hwenv)
+                    {
+                        putAsm( fp, MCK_SUN5B_HARD_ENV );
+                        putAsm( fp,  ps.sun5b_hwenv );
+                        ps.last_sun5b_hwenv = ps.sun5b_hwenv;
+                    }
+
+                    // HWENV
+                    if (ps.last_hwenv != ps.hwenv)
+                    {
+                        putAsm( fp, MCK_SET_FDS_HWENV );	// ハードエンベ出力
+                        putAsm( fp, (ps.hwenv & 0xff) );
+                        ps.last_hwenv = ps.hwenv;
+                    }
+                    
+                    // ENV
+					if(ps.last_written_env != ps.env)
+                    {
+                        putAsm( fp, MCK_SET_VOL );	// エンベロープ出力
+                        putAsm( fp, ps.env );
 						ps.last_written_env = ps.env;
 					}
 					
-					if( ps.last_written_tone != ps.tone ) {	// 最後に書き込んだ音色と、現在の通常の音色が違う
+                    // TONE
+                    // 最後に書き込んだ音色と、現在の通常の音色が違う
+					if( ps.last_written_tone != ps.tone ) {
 						putAsm( fp, MCK_SET_TONE );	// 音色出力
 						putAsm( fp, ps.tone );
 						ps.last_written_tone = ps.tone;
@@ -6095,6 +6648,18 @@ int data_make( void )
 	/* 全てのMMLについて */
 	for (mml_idx = 0; mml_idx < mml_num; mml_idx++) {
 		setSongLabel();
+        
+		/* タイムシフト等全体コマンド調査 */
+		for( i = 0; i < _TRACK_MAX; i++ )
+        {
+            if (trk_flag[i])
+            {
+                cmd_buf = malloc( sizeof(CMD)*32*1024 );
+                checkCommandsForAllTrack( fp, i, cmd_buf, line_ptr[mml_idx] );
+                free( cmd_buf );
+            }
+        }
+
 		/* トラック単位でデータ変換 */
 		for( i = 0; i < _TRACK_MAX; i++ ) {
 			if ( bank_sel[i] != -1 && !auto_bankswitch) {
@@ -6113,6 +6678,7 @@ int data_make( void )
 					putBankOrigin(fp, bank_sel[i]);
 				}
 			}
+            
 			
 			if (trk_flag[i]) {
 				cmd_buf = malloc( sizeof(CMD)*32*1024 );
@@ -6197,6 +6763,10 @@ int data_make( void )
 	}
 
 	if( error_flag == 0 ) {
+		
+		if (use_timeshift)
+			printf("TIMESHIFT : %d\n",timeshift_count);
+
 		
 		/* 全てのMMLについて */
 		for (mml_idx = 0; mml_idx < mml_num; mml_idx++) {
