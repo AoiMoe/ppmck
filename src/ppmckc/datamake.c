@@ -122,7 +122,7 @@ int overload_detect = 0;
 
 // タイムシフト
 int use_timeshift = 0;
-int timeshift_count = 0;
+int timeshift_count = -1;
 
 const	char	str_track[] = _TRACK_STR;
 
@@ -349,7 +349,7 @@ void datamake_init()
 	overload_detect = 0;
     
     use_timeshift = 0;
-    timeshift_count = 0;
+    timeshift_count = -1;
 
 }
 
@@ -5150,7 +5150,9 @@ void checkCommandsForAllTrack( FILE *fp, const int trk, CMD *const cmdtop, LINE 
             //		printf("%s:%d:%4x %f %d %f\n", cmd->filename, cmd->line, cmd->cmd, cmd->cnt, cmd->frm, cmd->len);
 
 			if( cmd->cmd == _TIME_SHIFT ) {
-				timeshift_count = count;
+                // 一番最初のコマンドをベースに算出
+                if (timeshift_count < 0)
+                    timeshift_count = count;
 			}
 			
 			if( cmd->cmd == _REPEAT_ST2 ) {
@@ -5815,6 +5817,8 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 			  case _REST:
 				{
 					int delta_time = 0;
+                    
+                    slar_flag = 0; // スラー解除
 					cmd = getDeltaTime(cmd, &delta_time, 0);
 					if( delta_time == 0 ) {
 						dispWarning( FRAME_LENGTH_IS_0, cmdtemp.filename, cmdtemp.line );
@@ -5828,7 +5832,9 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 			  case _WAIT:
 				{
 					int delta_time = 0;
-					cmd = getDeltaTime(cmd, &delta_time, 0);
+                    
+                    slar_flag = 0; // wコマンドはスラーで一つにする
+					cmd = getDeltaTime(cmd, &delta_time, 1);
 					if( delta_time == 0 ) {
 						dispWarning( FRAME_LENGTH_IS_0, cmdtemp.filename, cmdtemp.line );
 						break;
@@ -5840,6 +5846,8 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 			  case _KEY_OFF: /* 長さつきキーオフ */ 
 				{
 					int delta_time = 0;
+                    
+                    slar_flag = 0; // スラー解除
 					cmd = getDeltaTime(cmd, &delta_time, 0);
 					if( delta_time == 0 ) {
 						/* 音長0を許す */
@@ -6057,6 +6065,7 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 					int gate_time; /* 発音からキーオフまでのフレーム数 */
 					int left_time; /* キーオフから次のイベントまでの残りフレーム数 */
 					
+                    // ノートを得る
 					if (cmdtemp.cmd == _KEY) {
 						note = cmd->param[0]&0xffff;
 					} else {
@@ -6069,26 +6078,26 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 					}
 
 
-					
-					
+					// デルタタイムを得る
 					delta_time = 0;
 					cmd = getDeltaTime(cmd, &delta_time, 1);
 
+
+                    // 次はスラー？
 					if (isNextSlar(cmd)) 
 					{
+                        // 次はスラーなのでクオンタイズ無効
 						GATE_Q temp_gate;
 
-						temp_gate.rate = ps.gate_q.rate;
-						temp_gate.adjust = ps.gate_q.adjust;
+						temp_gate.rate = gate_denom;
+						temp_gate.adjust = 0;
 						gate_time = calcGateTime(delta_time, &temp_gate);
 					}
 					else
 						gate_time = calcGateTime(delta_time, &(ps.gate_q));
 
-					
-//					gate_time = calcGateTime(delta_time, &(ps.gate_q));
 
-
+                    // 残り時間の算出
 					left_time = delta_time - gate_time;
 					
 					if( delta_time == 0 ) {
@@ -6096,7 +6105,7 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 						break;
 					}
 					
-
+                    // スラーで接続できないコマンドがあった場合はエラーを出す
 					if (slar_flag && slar_cmdcnt > 1)
 					{
 						dispError( ABNORMAL_NOTE_AFTER_COMMAND, cmd->filename, cmd->line );
@@ -6105,6 +6114,7 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 					}
 					slar_flag = 0;
 
+                    // 変更後に書き出されていないコマンドの書き出し
                     // SMOOTH
                     if (ps.last_smooth != ps.smooth)
                     {
