@@ -959,7 +959,7 @@ void getLineStatus(LINE *lptr, int inc_nest )
 				
 				if ((temp2 = strchr(str_track, *temp)) != NULL) {
 					/* ABC..によるトラック指定 */
-					param = (temp2 - str_track) + 1;
+					param = (int)((temp2 - str_track) + 1);
 					temp++;
 				} else {
 					/* 数字によるトラック指定 */
@@ -1669,7 +1669,7 @@ void getDPCM( LINE *lptr )
 							end_flag = 1;
 						} else {
 							fseek( fp, 0, SEEK_END );
-							tbl->size = ftell( fp );
+							tbl->size = (int)ftell( fp );
 							fseek( fp, 0, SEEK_SET );
 							fclose( fp );
 						}
@@ -6399,6 +6399,7 @@ int data_make( void )
 		if( line_ptr[mml_idx] == NULL ) return -1;
 		getLineStatus(line_ptr[mml_idx], 0 );
 #if DEBUG
+		int line_max = line_ptr[0]->line;
 		for( i = 1; i < line_max; i++ ) {
 			printf( "%4d : %04x\n", i, line_ptr[mml_idx][i].status );
 		}

@@ -4,7 +4,9 @@
 
 #define	VersionNo		27
 
+#ifndef DEBUG
 #define	DEBUG			0
+#endif
 
 #define	MML_MAX			128
 

@@ -99,7 +99,7 @@ int getFileSize( char *ptr )
 	if( fp == NULL ) return 0;
 
 	fseek( fp, 0L, SEEK_END );
-	size = ftell( fp );
+	size = (int)ftell( fp );
 	fseek( fp, 0L, SEEK_SET );
 	fclose( fp );
 
@@ -134,7 +134,7 @@ char *readTextFile( char *filename )
 	}
 	/* サイズを取得 */
 	fseek(fp, 0L, SEEK_END);
-	sizeb = ftell(fp);
+	sizeb = (int)ftell(fp);
 	fseek(fp, 0L, SEEK_SET);
 	/*
 	if (sizeb == 0) {
@@ -218,7 +218,7 @@ char *readTextFile( char *filename )
 		}
 	}
 	fclose(fp);
-	size = (p - top) / sizeof(c);
+	size = (int)(p - top) / sizeof(c);
 	/*
 	printf("read %d byte -> store %d byte (\\0 を含む) \n", sizeb, size);
 	printf("read %d line\n", line_idx);
@@ -258,9 +258,9 @@ static void initDmcPath(void)
 		pl = strchr(p, ';');
 
 		if (pl == NULL)
-			l = strlen(p);
+			l = (int)strlen(p);
 		else
-			l = pl-p;
+			l = (int)(pl-p);
 
 		if (l == 0) {
 			dmcpath[i][0] = '\0';
