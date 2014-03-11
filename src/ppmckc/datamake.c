@@ -124,6 +124,9 @@ int overload_detect = 0;
 int use_timeshift = 0;
 int timeshift_count = -1;
 
+// マルチスラー
+int multi_slar = 0;
+
 const	char	str_track[] = _TRACK_STR;
 
 // エラー番号
@@ -179,6 +182,8 @@ enum {
 	CANT_USE_BANK_2_OR_3_WITH_DPCMBANKSWITCH,
 	CANT_USE_SHIFT_AMOUNT_WITHOUT_PITCH_CORRECTION,
 	UNUSE_COMMAND_IN_THIS_TRACK,
+	CANT_SLAR_NEST,
+	SLAR_NOT_STARTED,
 };
 
 // エラー文字列
@@ -234,6 +239,8 @@ const	char	*ErrorlMessage[] = {
 	"DPCMサイズが0x4000を超える場合はバンク2と3は使用できません",		"Cannot use bank 2 or 3 if DPCM size is greater than 0x4000",
 	"#PITCH-CORRECTIONを指定しない限りピッチシフト量コマンドは使用できません",		"Cannot use SA<num> without #PITCH-CORRECTION",
 	"このトラックでは使用できないコマンドです",				"Unuse command in this track",
+	"スラーはネストできません",				"Cannot nest slar command",
+	"スラーが開始されていません",				"Slar not started",
 };
 
 
@@ -350,7 +357,8 @@ void datamake_init()
     
     use_timeshift = 0;
     timeshift_count = -1;
-
+	
+	multi_slar = 0;
 }
 
 /*--------------------------------------------------------------
@@ -3763,6 +3771,8 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 		{ "[", _REPEAT_ST,		(ALLTRACK) },
 		{ "]", _REPEAT_END,		(ALLTRACK) },
 		{ "|", _REPEAT_ESC,		(ALLTRACK) },
+		{ "(", _SLAR_ST,		(ALLTRACK) },
+		{ ")", _SLAR_ED,		(ALLTRACK) },
 		{ "{", _CONT_NOTE,		(ALLTRACK) },
 		{ "}", _CONT_END,		(ALLTRACK) },
 		{ "q", _QUONTIZE,		(ALLTRACK) },
@@ -3878,6 +3888,8 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 				  case _SONG_LOOP:			/* 曲ループ */
 				  case _REPEAT_ST:		/* リピート(現状では展開する) */
 				  case _REPEAT_ESC:		/* リピート途中抜け */
+				  case _SLAR_ST: /* 複数スラー開始 */
+				  case _SLAR_ED: /* 複数スラー終了 */
 				  case _CONT_NOTE:		/* 連符開始 */
 				  case _LFO_OFF:
 				  case _EP_OFF:
@@ -4493,15 +4505,49 @@ CMD *translateData( CMD **cmd, CMD *ptr )
 {
 	CMD		*top,*end,*temp;
 	int		cnt ,i, loop;
+	int		flags = 0;
 	double	len, gate;
 
 	loop = 0;
 	gate = 0;
 	top = ptr;
 	end = NULL;
+	
+	if ( multi_slar )
+		flags |= CMD_FLAG_SLAR;
 
 	while( 1 ) {
 		switch( ptr->cmd ) {
+			case _SLAR_ST:
+				ptr++;
+				// スラーはネスト不可
+				if( multi_slar )
+				{
+					dispError( CANT_SLAR_NEST, ptr->filename, ptr->line );
+					ptr->cmd = _NOP;
+					ptr++;
+					break;
+				}
+				multi_slar = 1;
+				flags |= CMD_FLAG_SLAR;
+
+				break;
+			case _SLAR_ED:
+				ptr++;
+				// スラーが開始されてない
+				if( !multi_slar )
+				{
+					dispError( SLAR_NOT_STARTED, ptr->filename, ptr->line );
+					ptr->cmd = _NOP;
+					ptr++;
+					break;
+				}
+				
+				multi_slar = 0;
+				flags &= ~(CMD_FLAG_SLAR);
+				break;
+				
+				
 		  case _REPEAT_ST:
 			ptr++;
 			nest++;
@@ -4577,6 +4623,7 @@ CMD *translateData( CMD **cmd, CMD *ptr )
 					} else if( ptr->cmd <= MAX_NOTE || ptr->cmd == _REST || ptr->cmd == _KEY
 						|| ptr->cmd == _NOTE || ptr->cmd == _WAIT || temp->cmd == _KEY_OFF ) {
 						gate += len;
+						(*cmd)->flags    = flags;
 						(*cmd)->filename = ptr->filename;
 						(*cmd)->cnt      = ptr->cnt;
 						(*cmd)->frm      = ptr->frm;
@@ -4596,6 +4643,7 @@ CMD *translateData( CMD **cmd, CMD *ptr )
 						(*cmd)->cmd      = _NOP;
 						(*cmd)->len      = 0;
 					} else {
+						(*cmd)->flags    = flags;
 						(*cmd)->filename = ptr->filename;
 						(*cmd)->cnt      = ptr->cnt;
 						(*cmd)->frm      = ptr->frm;
@@ -4629,6 +4677,7 @@ CMD *translateData( CMD **cmd, CMD *ptr )
 			}
 			return NULL;
 		  default:
+			(*cmd)->flags    = flags;
 			(*cmd)->filename = ptr->filename;
 			(*cmd)->cnt      = ptr->cnt;
 			(*cmd)->frm      = ptr->frm;
@@ -5062,7 +5111,7 @@ int isNextSlar(CMD *cmd)
   while(cmd->cmd != _TRACK_END
 	&& isCmdNotOutput(cmd)) cmd++;
 
-  if (cmd->cmd == _SLAR)
+  if ((cmd->flags & CMD_FLAG_SLAR) || cmd->cmd == _SLAR)
 	return 1;
 
   return 0;
@@ -5298,6 +5347,7 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 		CMD *const tempback = temp;
 		int i, j;
 		for( i = 0; i < 32*1024; i++ ) {
+			temp->flags = 0;
 			temp->cmd = 0;
 			temp->cnt = 0;
 			temp->frm = 0;
@@ -6060,6 +6110,7 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 			  case _KEY:
 			  default:
 				{
+					int slar_output = 0;
 					int note;
 					int delta_time; /* 発音から次のイベントまでのフレーム数 */
 					int gate_time; /* 発音からキーオフまでのフレーム数 */
@@ -6076,6 +6127,10 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 							break;
 						}
 					}
+					
+					// スラーフラグ確認
+					if (cmdtemp.flags & CMD_FLAG_SLAR)
+						slar_output = 1;
 
 
 					// デルタタイムを得る
@@ -6093,8 +6148,10 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 						temp_gate.adjust = 0;
 						gate_time = calcGateTime(delta_time, &temp_gate);
 					}
-					else
+					else {
 						gate_time = calcGateTime(delta_time, &(ps.gate_q));
+						slar_output = 0;
+					}
 
 
                     // 残り時間の算出
@@ -6265,6 +6322,13 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 					if ( left_time != 0 ) {
 						putReleaseEffect(fp, left_time, &cmdtemp, &ps);
 						ps.key_pressed = 0;
+					}
+					
+					// スラーセット
+					if ( slar_output )
+					{
+						putAsm( fp, MCK_SLAR );
+						slar_output = 0;
 					}
 				}
 				break;

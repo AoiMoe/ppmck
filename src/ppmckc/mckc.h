@@ -140,7 +140,11 @@ typedef struct {
 	int	cmd;	
 	double	len;	//単位:count
 	int	param[PARAM_MAX];
+	int flags; // 特殊フラグ
 } CMD;
+
+#define CMD_FLAG_SLAR 0x0001
+
 
 #define PARAM_OMITTED	0x80000000
 
@@ -229,6 +233,9 @@ enum {
 	_SHIFT_AMOUNT,
 
     _TIME_SHIFT,
+	
+	_SLAR_ST,
+	_SLAR_ED,
     
 	_REST		= 0xfc,
 	_NOP		= 0xfe,
