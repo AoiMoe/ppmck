@@ -1,4 +1,4 @@
-ppmck release 9a ex7.1 by BouKiCHi
+ppmck release 9a ex7.2 by BouKiCHi
 
 **** このファイルについて
 　ppmck release9aを改変したものです。
@@ -14,6 +14,13 @@ ppmck release 9a ex7.1 by BouKiCHi
 ・過負荷処理・検出
 ・VRC7音色定義 @OT
 ・タイムシフト機能(9a ex7)
+・マルチスラー機能(9a ex7.2)
+
+***** マルチスラー機能(9a ex7.2)
+スラーを複数繋げます。
+例:
+; A c&d&eと等価
+A (cde)
 
 ***** タイムシフト機能(9a ex7)
 ひとつのトラックの場所に!!を挿入すると
