@@ -49,7 +49,7 @@ MAKE_DEFC = make $(DEF_CC) -f Makefile.UNIX
 all : 
 	@echo "Usage : make <current|compilers|fullset|current_full|clean_full>"
 	@echo " current : make current compiler binaries"
-	@echo " compilers : make cross and current compiler binaries"
+	@echo " compilers : make cross and current MML compiler binaries"
 	@echo " fullset : make all binaries for cross and current"
 	@echo " current_full : make all binaries for cross and current"
 	@echo " OSX=0 : no use OS X flags for compiling"

@@ -6201,7 +6201,6 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
                         putAsm( fp, MCK_SET_HWSWEEP );
                         putAsm( fp, ps.hwsweep );
                         ps.last_hwsweep = ps.hwsweep;
-                        cmd++;
                     }
                     
                     // PE
