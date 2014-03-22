@@ -3725,7 +3725,8 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 		{ "SMOF", _SMOOTH_OFF,		(TRACK(0)|TRACK(1)|TRACK(2)) },
 		{ "SM", _SMOOTH_ON,		(TRACK(0)|TRACK(1)|TRACK(2)) },
 
-		{ "PS", _PITCH_SHIFT,		(TRACK(0)|TRACK(1)|TRACK(2)) },
+		{ "PS", _PITCH_SHIFT,	(TRACK(0)|TRACK(1)|TRACK(2)) },
+		{ "_", _PORTAMENT,		(TRACK(0)|TRACK(1)|TRACK(2)) },
 
 		{ "EH",	_HARD_ENVELOPE,		(TRACK(0)|TRACK(1)|NOISETRACK|FMTRACK|MMC5TRACK) },
 		{ "MHOF", _MH_OFF,		(FMTRACK) },
@@ -3884,6 +3885,7 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 					break;
 				/* コマンドパラメータが0個の物 */
 				  case _PITCH_SHIFT:		/* ピッチシフト */
+				  case _PORTAMENT:		/* ポルタメント */
 				  case _SLAR:			/* スラー */
 				  case _SONG_LOOP:			/* 曲ループ */
 				  case _REPEAT_ST:		/* リピート(現状では展開する) */
@@ -4104,7 +4106,7 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 					}
 					break;
 				  case _QUONTIZE2:		/* クオンタイズ(length-n) */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 2, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) == 0 ) {
 						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
 					}
@@ -4888,6 +4890,10 @@ int calcGateTime(int delta_time, const GATE_Q *gate_q) {
 	} else if (gate < 0) {
 		gate = 0;
 	}
+	// 最低発音時間
+	if (gate < gate_q->min)
+		gate = gate_q->min;
+	
 	if ( delta_time != 0 && gate <= 0 ) {
 		gate = 1;
 	}
@@ -4986,6 +4992,8 @@ void defaultPlayState(PLAYSTATE *ps)
 	int i;
 	ps->gate_q.rate = gate_denom;
 	ps->gate_q.adjust = 0;
+	ps->gate_q.min = 0;
+	
 	ps->env = -1;
 	ps->rel_env = -1;
 	ps->last_written_env = -1;
@@ -5642,11 +5650,16 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
                         case _QUONTIZE:
                             ps.gate_q.rate = cmd->param[0];
                             ps.gate_q.adjust = cmd->param[1];
+							ps.gate_q.min = 0;
                             cmd++;
                             break;
                         case _QUONTIZE2:
                             ps.gate_q.rate = gate_denom;
                             ps.gate_q.adjust = - cmd->param[0];
+							if (cmd->param[1]== PARAM_OMITTED)
+								ps.gate_q.min = 0;
+							else
+								ps.gate_q.min = cmd->param[1];
                             cmd++;
                             break;
                             
@@ -5770,6 +5783,10 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 				putAsm( fp, MCK_SLAR );
 				cmd++;
 			  break;
+			  case _PORTAMENT:
+				putAsm( fp, MCK_PITCH_SHIFT );
+				cmd++;
+			  break;
 			  case _PITCH_SHIFT:
 				putAsm( fp, MCK_PITCH_SHIFT );
 				cmd++;
@@ -5857,11 +5874,16 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 			  case _QUONTIZE:
 				ps.gate_q.rate = cmd->param[0];
 				ps.gate_q.adjust = cmd->param[1];
+					ps.gate_q.min = 0;
 				cmd++;
 				break;
 			  case _QUONTIZE2:
 				ps.gate_q.rate = gate_denom;
 				ps.gate_q.adjust = - cmd->param[0];
+				if (cmd->param[1]== PARAM_OMITTED)
+					ps.gate_q.min = 0;
+				else
+					ps.gate_q.min = cmd->param[1];
 				cmd++;
 				break;
 			  case _REST:
@@ -6146,6 +6168,7 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 
 						temp_gate.rate = gate_denom;
 						temp_gate.adjust = 0;
+						temp_gate.min = 0;
 						gate_time = calcGateTime(delta_time, &temp_gate);
 					}
 					else {

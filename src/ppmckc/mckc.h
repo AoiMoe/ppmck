@@ -22,7 +22,9 @@ typedef	struct {
 typedef struct {
 	int rate;
 	int adjust;
+	int min;
 	// gate length = delta * rate/gate_denom + adjust
+	// if (gate < min) gate = min
 } GATE_Q;
 
 /* */
@@ -236,6 +238,8 @@ enum {
 	
 	_SLAR_ST,
 	_SLAR_ED,
+	
+	_PORTAMENT,
     
 	_REST		= 0xfc,
 	_NOP		= 0xfe,
