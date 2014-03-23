@@ -88,8 +88,10 @@ PLAY:
 	bne	OVERLOAD_END ; 多重に呼び出さない
 	.endif
 
-PLAY_LOOP:
+    ; 再生開始
 	inc	nsf_nmi
+
+PLAY_LOOP:
 	jsr	sound_driver_start
 	dec	nsf_nmi
 	bne PLAY_LOOP

@@ -5793,23 +5793,14 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 			  break;
 			  case _SMOOTH_ON:
                 ps.smooth = 1;
-				putAsm( fp, MCK_SMOOTH );
-				putAsm( fp, ps.smooth  );
-                ps.last_smooth = ps.smooth;
 				cmd++;
 			  break;
 			  case _SMOOTH_OFF:
                 ps.smooth = 0;
-                putAsm( fp, MCK_SMOOTH );
-                putAsm( fp, ps.smooth  );
-                ps.last_smooth = ps.smooth;
                 cmd++;
 			  break;
 			  case _ENVELOPE:
 				ps.env = cmd->param[0] & 0x7f;
-                putAsm( fp, MCK_SET_VOL );
-				putAsm( fp, ps.env );
-				ps.last_written_env = ps.env;
 				cmd++;
 				break; 
 			  case _REL_ENV: 
@@ -5826,9 +5817,6 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 				} else {
 					ps.env = (cmd->param[0]&0x0f)|0x80;
 				}
-                putAsm( fp, MCK_SET_VOL );
-				putAsm( fp, ps.env );
-				ps.last_written_env = ps.env;
 				cmd++;
 				break;
 			  case _HARD_ENVELOPE:
@@ -5836,23 +5824,14 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 					ps.hwenv = ( ((cmd->param[0]&1)<<4)|((cmd->param[1]&1)<<5) );
 					else
 					ps.hwenv = ((cmd->param[0]&1)<<6)|(cmd->param[1]&0x3f);
-                putAsm( fp, MCK_SET_FDS_HWENV );
-				putAsm( fp, (ps.hwenv & 0xff) );
-				ps.last_hwenv = ps.hwenv;
 				cmd++;
 				break;
 			  case _TONE:
 				ps.tone = cmd->param[0]|0x80;
-				putAsm( fp, MCK_SET_TONE );
-				putAsm( fp, ps.tone );
-				ps.last_written_tone = ps.tone;
 				cmd++;
 				break;
 			  case _ORG_TONE:
 				ps.tone = cmd->param[0]&0x7f;
-				putAsm( fp, MCK_SET_TONE );
-				putAsm( fp, ps.tone );
-				ps.last_written_tone = ps.tone;
 				cmd++;
 				break;
 			  case _REL_ORG_TONE:
@@ -5934,19 +5913,10 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 				} else {
                     ps.lfo = cmd->param[0]&0x7f;
 				}
-                    
-                putAsm( fp, MCK_SET_LFO );
-                putAsm( fp, ps.lfo );
-                ps.last_lfo = ps.lfo;
 				cmd++;
 				break;
 			  case _LFO_OFF:
                 ps.lfo = 0xff;
-
-				putAsm( fp, MCK_SET_LFO );
-				putAsm( fp, ps.lfo );
-                ps.last_lfo = ps.lfo;
-
 				cmd++;
 				break;
 			  case _DETUNE:
@@ -5955,78 +5925,50 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 				} else {
 					ps.detune = (-cmd->param[0]) & 0x7f;
 				}
-                putAsm( fp, MCK_SET_DETUNE );
-                putAsm( fp, ps.detune );
-                ps.last_detune = ps.detune;
 				cmd++;
 				break;
 			  case _SWEEP:
                 ps.hwsweep = ((cmd->param[0]&0xf)<<4)+(cmd->param[1]&0xf);
-                putAsm( fp, MCK_SET_HWSWEEP );
-				putAsm( fp, ps.hwsweep );
-                ps.last_hwsweep = ps.hwsweep;
 				cmd++;
 				break;
 			  case _EP_ON:
-				putAsm( fp, MCK_SET_PITCHENV );
-				putAsm( fp, cmd->param[0]&0xff );
-                ps.last_pe = ps.pe = cmd->param[0] & 0xff;
+				ps.pe = cmd->param[0] & 0xff;
 				cmd++;
 				break;
 			  case _EP_OFF:
-				putAsm( fp, MCK_SET_PITCHENV );
-				putAsm( fp, 0xff );
-                ps.last_pe = ps.pe = 0xff;
+				ps.pe = 0xff;
                 cmd++;
 				break;
 			  case _EN_ON:
-				putAsm( fp, MCK_SET_NOTEENV );
-				putAsm( fp, cmd->param[0]&0xff );
-                ps.last_ne = ps.ne = cmd->param[0]&0xff;
+				ps.ne = cmd->param[0]&0xff;
 				cmd++;
 				break;
 			  case _EN_OFF:
-				putAsm( fp, MCK_SET_NOTEENV );
-				putAsm( fp, 0xff );
-                ps.last_ne = ps.ne = 0xff;
+				ps.ne = 0xff;
                 cmd++;
 				break;
 			  case _MH_ON:
-				putAsm( fp, MCK_SET_FDS_HWEFFECT );
-				putAsm( fp, cmd->param[0]&0xff );
-                ps.last_mh = ps.mh = cmd->param[0]&0xff;
+				ps.mh = cmd->param[0]&0xff;
 				cmd++;
 				break;
 			  case _MH_OFF:
-				putAsm( fp, MCK_SET_FDS_HWEFFECT );
-				putAsm( fp, 0xff );
-                ps.last_mh = ps.mh = 0xff;
+				ps.mh = 0xff;
 				cmd++;
 				break;
 			  case _VRC7_TONE:
-				putAsm( fp, MCK_SET_TONE );
-				putAsm( fp, cmd->param[0]|0x40 );
-                ps.last_written_tone = ps.tone = cmd->param[0]|0x40;
+				ps.tone = cmd->param[0]|0x40;
                 cmd++;
 				break;
 			  case _SUN5B_HARD_SPEED:
-				putAsm( fp, MCK_SET_SUN5B_HARD_SPEED );
-				putAsm( fp, cmd->param[0]&0xff );
-				putAsm( fp, (cmd->param[0]>>8)&0xff );
-                ps.last_sun5b_hs = ps.sun5b_hs = cmd->param[0];
+				ps.sun5b_hs = cmd->param[0];
 				cmd++;
 				break;
 			  case _SUN5B_HARD_ENV:
                 ps.sun5b_hwenv = (cmd->param[0]&0x0f)|0x10|0x80;
-				putAsm( fp, MCK_SUN5B_HARD_ENV );
-				putAsm( fp,  ps.sun5b_hwenv );
-                ps.last_sun5b_hwenv = ps.sun5b_hwenv;
 				cmd++;
 				break;
 			  case _SUN5B_NOISE_FREQ:
-				putAsm( fp, MCK_SET_SUN5B_NOISE_FREQ );
-				putAsm( fp, cmd->param[0]&0x1f );
-                ps.last_sun5b_nf = ps.sun5b_nf = cmd->param[0] & 0x1f;
+				ps.sun5b_nf = cmd->param[0] & 0x1f;
 				cmd++;
 				break;
 			  case _NEW_BANK:
@@ -6122,9 +6064,7 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 				cmd++;
 				break;
 			  case _SHIFT_AMOUNT:
-				putAsm( fp, MCK_SET_SHIFT_AMOUNT );
-				putAsm( fp, cmd->param[0] & 0xff );
-                ps.last_sa = ps.sa = cmd->param[0] & 0xff;
+				ps.sa = cmd->param[0] & 0xff;
 				cmd++;
 				break;
 			  case _TRACK_END:
@@ -6238,14 +6178,14 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
                     {
                         putAsm( fp, MCK_SET_NOTEENV );
                         putAsm( fp, ps.ne );
-                        ps.last_ne = ps.ne = cmd->param[0]&0xff;
+                        ps.last_ne = ps.ne;
                     }
                     // MH
                     if (ps.last_mh != ps.mh)
                     {
                         putAsm( fp, MCK_SET_FDS_HWEFFECT );
                         putAsm( fp, ps.mh );
-                        ps.last_mh = ps.mh = cmd->param[0]&0xff;
+                        ps.last_mh = ps.mh;
                     }
                     // SA
                     if (ps.last_sa != ps.sa)
@@ -6286,10 +6226,11 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
                         ps.last_hwenv = ps.hwenv;
                     }
                     
-                    // ENV
+                    // ENV or VOL
 					if(ps.last_written_env != ps.env)
                     {
-                        putAsm( fp, MCK_SET_VOL );	// エンベロープ出力
+						// ボリュームかエンベロープの出力
+                        putAsm( fp, MCK_SET_VOL );
                         putAsm( fp, ps.env );
 						ps.last_written_env = ps.env;
 					}
