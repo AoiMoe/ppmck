@@ -1754,11 +1754,14 @@ void getDPCM( LINE *lptr )
 					ptr++;
 				}
 			}
-			if( tbl->size > (0xff)*16+1 ) {
-				dispError( DPCM_FILE_SIZE_OVER, lptr[line+offset].filename, line );
-				tbl->flag = 0;
-			} else if ((tbl->size % 16) != 1) {
-				dispWarning( DPCM_FILE_SIZE_ERROR, lptr[line+offset].filename, line );
+			if ( error_flag == 0 )
+			{
+				if( tbl->size > (0xff)*16+1 ) {
+					dispError( DPCM_FILE_SIZE_OVER, lptr[line+offset].filename, line );
+					tbl->flag = 0;
+				} else if ((tbl->size % 16) != 1) {
+					dispWarning( DPCM_FILE_SIZE_ERROR, lptr[line+offset].filename, line );
+				}
 			}
 		// DPCM定義だけど_SAME_LINEの時はエラー
 		} else if( lptr[line].status == (_SET_DPCM_DATA|_SAME_LINE) ) {
