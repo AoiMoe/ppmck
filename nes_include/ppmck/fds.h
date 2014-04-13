@@ -376,7 +376,7 @@ fds_hard_lfo_data_set:
 ;ハードウェアボリュームエンベロープ
 fds_hwenv_set:
 	cmp	#$f0
-	bne	fds_oto_set
+	bne	fds_modfreq_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
 
@@ -389,6 +389,24 @@ fds_hwenv_set:
 	sta	effect_flag,x		;ソフトエンベ無効指定
 	jsr	sound_data_address
 	jmp	sound_fds_read
+;----------
+;MOD周波数設定
+fds_modfreq_set:
+    cmp	#$e6
+    bne	fds_oto_set
+
+    jsr	sound_data_address
+    lda	[sound_add_low,x]
+    sta	$4086 ; MOD freq low
+
+    jsr	sound_data_address
+    lda	[sound_add_low,x]
+	and	#%00001111
+    sta	$4087 ; MOD freq high
+
+    jsr	sound_data_address
+    jmp	sound_fds_read
+
 ;----------
 fds_oto_set:
 	sta	sound_sel,x		;処理はまた後で

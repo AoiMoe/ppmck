@@ -105,11 +105,19 @@ unsigned char	*dpcm_data;	// DPCM展開データ
 int	dpcm_size = 0;
 int	dpcm_reststop = 0;
 
-char	song_name[1024] = "Song Name\0";
-char	composer[1024] = "Artist\0";
-char	maker[1024] = "Maker\0";
-char	programer_buf[1024] = "";
+#define MAX_DEF 64
+#define SBUF_LEN 1024
+
+char	song_name[SBUF_LEN] = "Song Name\0";
+char	composer[SBUF_LEN] = "Artist\0";
+char	maker[SBUF_LEN] = "Maker\0";
+char	programer_buf[SBUF_LEN] = "";
 char	*programer = NULL;
+
+
+int		define_count = 0;
+char	define_list[MAX_DEF][SBUF_LEN];
+
 
 int bank_org_written_flag[128] = {1};
 
@@ -184,6 +192,8 @@ enum {
 	UNUSE_COMMAND_IN_THIS_TRACK,
 	CANT_SLAR_NEST,
 	SLAR_NOT_STARTED,
+	TOO_MUCH_DEFINE,
+	ABNORMAL_MOD_FREQ,
 };
 
 // エラー文字列
@@ -241,8 +251,9 @@ const	char	*ErrorlMessage[] = {
 	"このトラックでは使用できないコマンドです",				"Unuse command in this track",
 	"スラーはネストできません",				"Cannot nest slar command",
 	"スラーが開始されていません",				"Slar not started",
+	"#DEFINEが多すぎます",				"Too much use #DEFINE",
+	"MOD周波数の値が異常です",			"Abnormal MOD frequency value",
 };
-
 
 
 enum {
@@ -359,6 +370,9 @@ void datamake_init()
     timeshift_count = -1;
 	
 	multi_slar = 0;
+	
+	define_count = 0;
+	MEMCLR(define_list);
 }
 
 /*--------------------------------------------------------------
@@ -628,6 +642,7 @@ void getLineStatus(LINE *lptr, int inc_nest )
 		{ "#COMPOSER",       _COMPOSER       },
 		{ "#MAKER",          _MAKER          },
 		{ "#PROGRAMER",      _PROGRAMER      },
+		{ "#DEFINE",		_DEFINE			 },
 		{ "#OCTAVE-REV",     _OCTAVE_REV     },
 		{ "#GATE-DENOM",        _GATE_DENOM  },
 		{ "#INCLUDE",        _INCLUDE        },
@@ -1035,6 +1050,19 @@ void getLineStatus(LINE *lptr, int inc_nest )
 			  case _MAKER:
 				temp = skipSpaceOld( lptr[line].str );
 				strncpy( maker, temp, 1023 );
+				break;
+			/* define */
+			  case _DEFINE:
+				if (define_count + 1 >= MAX_DEF)
+				{
+					dispError( TOO_MUCH_DEFINE, lptr[line].filename, line );
+					lptr[line].status = 0;
+				}
+				else
+				{
+					temp = skipSpaceOld( lptr[line].str );
+					strncpy( define_list[define_count++], temp, 1023 );
+				}
 				break;
 			/* 打ち込み者 */
 			  case _PROGRAMER:
@@ -2620,7 +2648,7 @@ void readDPCM( DPCMTBL dpcm_tbl[_DPCM_MAX] )
 			}
 		}
 	}
-#if DEBUG
+#if DEBUG_DPCM
 	for( i = 0; i < _DPCM_TOTAL_SIZE; i++ ) {
 		if( (i&0x0f) != 0x0f ) {
 			printf( "%02x,", dpcm_data[i] );
@@ -3734,6 +3762,7 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 		{ "EH",	_HARD_ENVELOPE,		(TRACK(0)|TRACK(1)|NOISETRACK|FMTRACK|MMC5TRACK) },
 		{ "MHOF", _MH_OFF,		(FMTRACK) },
 		{ "MH",	  _MH_ON,		(FMTRACK) },
+		{ "MF",	  _FDS_MODFREQ,	(FMTRACK) },
 		{ "OP",   _VRC7_TONE,		(VRC7TRACK) },
 		{ "SDQR", _SELF_DELAY_QUEUE_RESET,	(ALLTRACK&~TRACK(2)&~DPCMTRACK) },
 		{ "SDOF", _SELF_DELAY_OFF,	(ALLTRACK&~TRACK(2)&~DPCMTRACK) },
@@ -4185,6 +4214,20 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
 					}
 					break;
+					case _FDS_MODFREQ:	/* MOD周波数 */
+						ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+						if( (mml[i].enable&(1<<trk)) != 0 ) {
+							if( (cmd->param[0] < 0 || cmd->param[0] > 4095) ) {
+								dispError( ABNORMAL_MOD_FREQ, lptr[line].filename, line );
+								cmd->cmd = 0;
+								cmd->line = 0;
+							}
+						} else {
+							dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						}
+						break;
+						
+						
 				  case _DETUNE:			/* ディチューン */
 					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
@@ -5958,6 +6001,12 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 				ps.mh = 0xff;
 				cmd++;
 				break;
+			case _FDS_MODFREQ:
+				putAsm( fp, MCK_SET_FDS_MODFREQ );
+				putAsm( fp,  cmd->param[0]    &0xff );
+				putAsm( fp, (cmd->param[0]>>8)&0xff );
+				cmd++;
+				break;
 			  case _VRC7_TONE:
 				ps.tone = cmd->param[0]|0x40;
                 cmd++;
@@ -6681,9 +6730,6 @@ int data_make( void )
 		fprintf( fp, "\t.endif\n" );
 	}
 
-	
-
-
 	curr_bank = 0x00;
 
 	/* 全てのMMLについて */
@@ -6795,6 +6841,12 @@ int data_make( void )
 		
 		// オーバーロード検出
 		fprintf( fp, "OVERLOAD_DETECT\t\tequ\t%d\n", overload_detect);
+		
+		// 定義を出力する
+		for(i = 0; i < define_count; i++)
+		{
+			fprintf(fp, "%s\t\tequ\t1\n", define_list[i]);
+		}
 		
 		/* 出力ファイルにタイトル/作曲者/打ち込み者の情報をマクロとして書き込み */
 		writeSongInfoMacro(fp);

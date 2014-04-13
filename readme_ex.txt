@@ -1,4 +1,4 @@
-ppmck release 9a ex8.1 by BouKiCHi
+ppmck release 9a ex9 by BouKiCHi
 
 **** このファイルについて
 
@@ -16,8 +16,36 @@ ppmck release 9a ex8.1 by BouKiCHi
 ・VRC7音色定義 @OT
 ・タイムシフト機能(9a ex7)
 ・マルチスラー機能(9a ex7.2)
+
 ・新しいポルタメント記号(9a ex8)
 ・@qの拡張(9a ex8)
+
+・#DEFINEの追加(9a ex9)
+・FRAMEOVER_NOSKIPの追加(9a ex9)
+・FDS音源 MOD周波数の設定(9a ex9)
+
+***** #DEFINEの追加(9a ex9)
+
+ppmckのコンパイル時に任意の定義を伝えることで、
+機能を有効にできるようになります。（上級者向け機能）
+
+***** FRAMEOVER_NOSKIPの追加(9a ex9)
+
+フレームオーバーのバグを再現する謎機能です(上級者向け)
+
+#define FRAMEOVER_NOSKIP
+
+とします。
+
+
+***** FDS音源 MOD周波数の設定(9a ex9)
+
+モジュレータの周波数を設定します。
+
+MF<freq> : 0 <= freq < 4096
+
+例:
+F MF1000
 
 
 ***** @qの拡張(9a ex8)
@@ -135,6 +163,9 @@ y : 0でエンベロープのループ
  A EH1,1 @4 cdefgab>c
 
 **** 変更点
+2014-04-13 ex9
+#DEFINEを追加
+
 2014-03-24 ex8.1
 各効果コマンド書き出しタイミングをノート直前に変更
 オーバーロード時の処理を修正

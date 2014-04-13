@@ -79,6 +79,13 @@ INIT:
 	rts
 
 PLAY:
+    .ifdef FRAMEOVER_NOSKIP
+    ; バグを再現する
+
+    jsr sound_driver_start
+
+    .else
+
 	lda nsf_nmi
 	.if	(OVERLOAD_DETECT)
 	bne ERROR_BEEP ; エラー音を再生する
@@ -95,6 +102,8 @@ PLAY_LOOP:
 	jsr	sound_driver_start
 	dec	nsf_nmi
 	bne PLAY_LOOP
+
+    .endif
 	rts
 
 ; オーバーロードの為、処理を後に回す

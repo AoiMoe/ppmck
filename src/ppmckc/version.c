@@ -1,7 +1,7 @@
 char *patchstr = "patches FDS enable patch([OK]), 4-46, 4-356, 5-17, 5-95, 5-313, 5-658\n";
 char *hogereleasestr = (
 "ppmck release 9 by h7\n"
-"ppmck release 9 ex8.1 by BouKiCHi\n");
+"ppmck release 9 ex9 by BouKiCHi\n");
 
 #ifdef ENGLISH
 #define	LANGUAGE		1			// 0だとデフォルトで日本語 1だと英語

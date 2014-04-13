@@ -66,6 +66,7 @@ typedef struct st_line {
 #define _PITCH_CORRECTION		21
 #define _OVERLOAD		22
 #define _EFF_BANKSWITCH	23
+#define _DEFINE	24
 
 
 
@@ -240,7 +241,10 @@ enum {
 	_SLAR_ED,
 	
 	_PORTAMENT,
-    
+
+	_FDS_MODFREQ,
+
+	
 	_REST		= 0xfc,
 	_NOP		= 0xfe,
 	_TRACK_END	= 0xff
@@ -282,6 +286,7 @@ enum {
 enum {
 	MCK_REPEAT_END = 0xa0,
 	MCK_REPEAT_ESC = 0xa1,
+	MCK_SET_FDS_MODFREQ = 0xe6,
 	MCK_PITCH_SHIFT = 0xe7,
 	MCK_SMOOTH = 0xe8,
 	MCK_SLAR = 0xe9,
