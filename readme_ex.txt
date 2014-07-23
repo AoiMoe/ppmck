@@ -1,4 +1,4 @@
-ppmck release 9a ex9 by BouKiCHi
+ppmck release 9a ex10 by BouKiCHi
 
 **** このファイルについて
 
@@ -23,6 +23,12 @@ ppmck release 9a ex9 by BouKiCHi
 ・#DEFINEの追加(9a ex9)
 ・FRAMEOVER_NOSKIPの追加(9a ex9)
 ・FDS音源 MOD周波数の設定(9a ex9)
+
+・@@、@@rをFME7(S5B)で有効にした(9a ex10)
+
+***** @@、@@rをFME7(S5B)で有効にした(9a ex10)
+
+FME7でも@@を音色エンベロープとして有効にしました。
 
 ***** #DEFINEの追加(9a ex9)
 
@@ -161,20 +167,3 @@ y : 0でエンベロープのループ
 例:
 
  A EH1,1 @4 cdefgab>c
-
-**** 変更点
-2014-04-13 ex9
-#DEFINEを追加
-
-2014-03-24 ex8.1
-各効果コマンド書き出しタイミングをノート直前に変更
-オーバーロード時の処理を修正
-
-
-2014-03-22 ex8
-@qの拡張とポルタメント記号の追加
-
-
-2014-03-21 ex 7.3 
-ノートオン直前のコマンド書き出し時にポインタを進めていたバグ修正
-
