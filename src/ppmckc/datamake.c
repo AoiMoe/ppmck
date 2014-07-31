@@ -5380,6 +5380,126 @@ void checkCommandsForAllTrack( FILE *fp, const int trk, CMD *const cmdtop, LINE 
 }
 
 
+/*--------------------------------------------------------------
+ エフェクトを書き出す
+ Input:
+ 
+ Output:
+ 無し
+ --------------------------------------------------------------*/
+void flushEffects(FILE *fp, PLAYSTATE *pps)
+{
+	// 変更後に書き出されていないコマンドの書き出し
+	// SMOOTH
+	if (pps->last_smooth != pps->smooth)
+	{
+		putAsm( fp, MCK_SMOOTH );
+		putAsm( fp, pps->smooth  );
+		pps->last_smooth = pps->smooth;
+	}
+	
+	// LFO
+	if (pps->last_lfo != pps->lfo)
+	{
+		putAsm( fp, MCK_SET_LFO );
+		putAsm( fp, pps->lfo );
+		pps->last_lfo = pps->lfo;
+	}
+	// DETUNE
+	if (pps->last_detune != pps->detune)
+	{
+		putAsm( fp, MCK_SET_DETUNE );
+		putAsm( fp, pps->detune );
+		pps->last_detune = pps->detune;
+	}
+	
+	// HWSWEEP
+	if (pps->last_hwsweep != pps->hwsweep)
+	{
+		putAsm( fp, MCK_SET_HWSWEEP );
+		putAsm( fp, pps->hwsweep );
+		pps->last_hwsweep = pps->hwsweep;
+	}
+	
+	// PE
+	if (pps->last_pe != pps->pe)
+	{
+		putAsm( fp, MCK_SET_PITCHENV );
+		putAsm( fp, pps->pe );
+		pps->last_pe = pps->pe;
+	}
+	// NE
+	if (pps->last_ne != pps->ne)
+	{
+		putAsm( fp, MCK_SET_NOTEENV );
+		putAsm( fp, pps->ne );
+		pps->last_ne = pps->ne;
+	}
+	// MH
+	if (pps->last_mh != pps->mh)
+	{
+		putAsm( fp, MCK_SET_FDS_HWEFFECT );
+		putAsm( fp, pps->mh );
+		pps->last_mh = pps->mh;
+	}
+	// SA
+	if (pps->last_sa != pps->sa)
+	{
+		putAsm( fp, MCK_SET_SHIFT_AMOUNT );
+		putAsm( fp, pps->sa );
+		pps->last_sa = pps->sa;
+	}
+	// SUN5B_HS
+	if (pps->last_sun5b_hs != pps->sun5b_hs)
+	{
+		putAsm( fp, MCK_SET_SUN5B_HARD_SPEED );
+		putAsm( fp, pps->sun5b_hs & 0xff );
+		putAsm( fp, (pps->sun5b_hs>>8) & 0xff );
+		pps->last_sun5b_hs = pps->sun5b_hs;
+	}
+	
+	// SUN5B_NF
+	if (pps->last_sun5b_nf != pps->sun5b_nf)
+	{
+		putAsm( fp, MCK_SET_SUN5B_NOISE_FREQ );
+		putAsm( fp, pps->sun5b_nf );
+		pps->last_sun5b_nf = pps->sun5b_nf;
+	}
+	// SUN5B_HWENV
+	if (pps->last_sun5b_hwenv != pps->hwenv)
+	{
+		putAsm( fp, MCK_SUN5B_HARD_ENV );
+		putAsm( fp,  pps->sun5b_hwenv );
+		pps->last_sun5b_hwenv = pps->sun5b_hwenv;
+	}
+	
+	// HWENV
+	if (pps->last_hwenv != pps->hwenv)
+	{
+		putAsm( fp, MCK_SET_FDS_HWENV );	// ハードエンベ出力
+		putAsm( fp, (pps->hwenv & 0xff) );
+		pps->last_hwenv = pps->hwenv;
+	}
+	
+	// ENV or VOL
+	if(pps->last_written_env != pps->env)
+	{
+		// ボリュームかエンベロープの出力
+		putAsm( fp, MCK_SET_VOL );
+		putAsm( fp, pps->env );
+		pps->last_written_env = pps->env;
+	}
+	
+	// TONE
+	// 最後に書き込んだ音色と、現在の通常の音色が違う
+	if( pps->last_written_tone != pps->tone ) {
+		putAsm( fp, MCK_SET_TONE );	// 音色出力
+		putAsm( fp, pps->tone );
+		pps->last_written_tone = pps->tone;
+	}
+}
+
+
 
 /*--------------------------------------------------------------
 	
@@ -5936,6 +6056,9 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 						dispWarning( FRAME_LENGTH_IS_0, cmdtemp.filename, cmdtemp.line );
 						break;
 					}
+					
+					flushEffects(fp,&ps);
+					
 					putAsm(fp, MCK_WAIT);
 					putLengthAndWait(fp, MCK_WAIT, delta_time, &cmdtemp);
 				}
@@ -6186,114 +6309,8 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 					}
 					slar_flag = 0;
 
-                    // 変更後に書き出されていないコマンドの書き出し
-                    // SMOOTH
-                    if (ps.last_smooth != ps.smooth)
-                    {
-                        putAsm( fp, MCK_SMOOTH );
-                        putAsm( fp, ps.smooth  );
-                        ps.last_smooth = ps.smooth;
-                    }
-                    
-                    // LFO
-                    if (ps.last_lfo != ps.lfo)
-                    {
-                        putAsm( fp, MCK_SET_LFO );
-                        putAsm( fp, ps.lfo );
-                        ps.last_lfo = ps.lfo;
-                    }
-                    // DETUNE
-                    if (ps.last_detune != ps.detune)
-                    {
-                        putAsm( fp, MCK_SET_DETUNE );
-                        putAsm( fp, ps.detune );
-                        ps.last_detune = ps.detune;
-                    }
-                    
-                    // HWSWEEP
-                    if (ps.last_hwsweep != ps.hwsweep)
-                    {
-                        putAsm( fp, MCK_SET_HWSWEEP );
-                        putAsm( fp, ps.hwsweep );
-                        ps.last_hwsweep = ps.hwsweep;
-                    }
-                    
-                    // PE
-                    if (ps.last_pe != ps.pe)
-                    {
-                        putAsm( fp, MCK_SET_PITCHENV );
-                        putAsm( fp, ps.pe );
-                        ps.last_pe = ps.pe;
-                    }
-                    // NE
-                    if (ps.last_ne != ps.ne)
-                    {
-                        putAsm( fp, MCK_SET_NOTEENV );
-                        putAsm( fp, ps.ne );
-                        ps.last_ne = ps.ne;
-                    }
-                    // MH
-                    if (ps.last_mh != ps.mh)
-                    {
-                        putAsm( fp, MCK_SET_FDS_HWEFFECT );
-                        putAsm( fp, ps.mh );
-                        ps.last_mh = ps.mh;
-                    }
-                    // SA
-                    if (ps.last_sa != ps.sa)
-                    {
-                        putAsm( fp, MCK_SET_SHIFT_AMOUNT );
-                        putAsm( fp, ps.sa );
-                        ps.last_sa = ps.sa;
-                    }
-                    // SUN5B_HS
-                    if (ps.last_sun5b_hs != ps.sun5b_hs)
-                    {
-                        putAsm( fp, MCK_SET_SUN5B_HARD_SPEED );
-                        putAsm( fp, ps.sun5b_hs & 0xff );
-                        putAsm( fp, (ps.sun5b_hs>>8) & 0xff );
-                        ps.last_sun5b_hs = ps.sun5b_hs;
-                    }
-                    
-                    // SUN5B_NF
-                    if (ps.last_sun5b_nf != ps.sun5b_nf)
-                    {
-                        putAsm( fp, MCK_SET_SUN5B_NOISE_FREQ );
-                        putAsm( fp, ps.sun5b_nf );
-                        ps.last_sun5b_nf = ps.sun5b_nf;
-					}
-                    // SUN5B_HWENV
-                    if (ps.last_sun5b_hwenv != ps.hwenv)
-                    {
-                        putAsm( fp, MCK_SUN5B_HARD_ENV );
-                        putAsm( fp,  ps.sun5b_hwenv );
-                        ps.last_sun5b_hwenv = ps.sun5b_hwenv;
-                    }
-
-                    // HWENV
-                    if (ps.last_hwenv != ps.hwenv)
-                    {
-                        putAsm( fp, MCK_SET_FDS_HWENV );	// ハードエンベ出力
-                        putAsm( fp, (ps.hwenv & 0xff) );
-                        ps.last_hwenv = ps.hwenv;
-                    }
-                    
-                    // ENV or VOL
-					if(ps.last_written_env != ps.env)
-                    {
-						// ボリュームかエンベロープの出力
-                        putAsm( fp, MCK_SET_VOL );
-                        putAsm( fp, ps.env );
-						ps.last_written_env = ps.env;
-					}
-					
-                    // TONE
-                    // 最後に書き込んだ音色と、現在の通常の音色が違う
-					if( ps.last_written_tone != ps.tone ) {
-						putAsm( fp, MCK_SET_TONE );	// 音色出力
-						putAsm( fp, ps.tone );
-						ps.last_written_tone = ps.tone;
-					}
+					// 変更されたエフェクトの書き出し
+                    flushEffects(fp,&ps);
 
 					if( (ps.tone == -1) &&
 					    ((trk == BTRACK(0))  || (trk == BTRACK(1)) ||
