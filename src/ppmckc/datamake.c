@@ -6057,7 +6057,7 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 						break;
 					}
 					
-					flushEffects(fp,&ps);
+					flushEffects(fp, &ps);
 					
 					putAsm(fp, MCK_WAIT);
 					putLengthAndWait(fp, MCK_WAIT, delta_time, &cmdtemp);
@@ -6072,6 +6072,9 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 					if( delta_time == 0 ) {
 						/* 音長0を許す */
 					}
+					
+					flushEffects(fp, &ps);
+					
 					putReleaseEffect(fp, delta_time, &cmdtemp, &ps);
 					ps.key_pressed = 0;
 				}

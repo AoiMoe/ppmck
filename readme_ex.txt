@@ -1,4 +1,4 @@
-ppmck release 9a ex11 by BouKiCHi
+ppmck release 9a ex11.1 by BouKiCHi
 
 **** このファイルについて
 
