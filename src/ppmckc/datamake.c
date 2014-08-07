@@ -5379,6 +5379,30 @@ void checkCommandsForAllTrack( FILE *fp, const int trk, CMD *const cmdtop, LINE 
 	}
 }
 
+/*--------------------------------------------------------------
+ エフェクトをリセットする
+ Input:
+ 
+ Output:
+ 無し
+ --------------------------------------------------------------*/
+void resetEffects(PLAYSTATE *pps)
+{
+	pps->last_smooth = -1;
+	pps->last_lfo = -1;
+	pps->last_detune = -1;
+	pps->last_hwsweep = -1;
+	pps->last_pe = -1;
+	pps->last_ne = -1;
+	pps->last_mh = -1;
+	pps->last_sa = -1;
+	pps->last_sun5b_hs = -1;
+	pps->last_sun5b_nf = -1;
+	pps->last_hwenv = -1;
+	pps->last_written_env = -1;
+	pps->last_written_tone = -1;
+}
+
 
 /*--------------------------------------------------------------
  エフェクトを書き出す
@@ -6169,6 +6193,7 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 				cmd++;
 				break;
 			  case _REPEAT_ST2:
+				resetEffects(&ps);
 				fprintf( fp, "\n%s_%02d_lp_%04d:\n", songlabel, trk, repeat_index );
 				repeat_depth++;
 				putAsm_pos = 0;
@@ -6192,6 +6217,7 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 					
 					fprintf( fp, "%s_%02d_lp_exit_%04d:\n", songlabel, trk, repeat_index );
 					repeat_index++;
+					resetEffects(&ps);
 					putAsm_pos = 0;
 					/* 2004.09.02 やっぱりやめる
 					if ( cmd->param[1] > 0 ) {
