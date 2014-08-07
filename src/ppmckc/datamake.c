@@ -5481,13 +5481,16 @@ void flushEffects(FILE *fp, PLAYSTATE *pps)
 		pps->last_hwenv = pps->hwenv;
 	}
 	
-	// ENV or VOL
-	if(pps->last_written_env != pps->env)
+	if (pps->key_pressed)
 	{
-		// ボリュームかエンベロープの出力
-		putAsm( fp, MCK_SET_VOL );
-		putAsm( fp, pps->env );
-		pps->last_written_env = pps->env;
+		// ENV or VOL
+		if(pps->last_written_env != pps->env)
+		{
+			// ボリュームかエンベロープの出力
+			putAsm( fp, MCK_SET_VOL );
+			putAsm( fp, pps->env );
+			pps->last_written_env = pps->env;
+		}
 	}
 	
 	// TONE
@@ -6311,9 +6314,10 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 						break;
 					}
 					slar_flag = 0;
-
+					
 					// 変更されたエフェクトの書き出し
-                    flushEffects(fp,&ps);
+					ps.key_pressed = 1;
+                    flushEffects(fp, &ps);
 
 					if( (ps.tone == -1) &&
 					    ((trk == BTRACK(0))  || (trk == BTRACK(1)) ||
@@ -6351,7 +6355,6 @@ void developeData( FILE *fp, const int trk, CMD *const cmdtop, LINE *lptr )
 					
 					
 					putLengthAndWait(fp, MCK_WAIT, gate_time, &cmdtemp);
-					ps.key_pressed = 1;
 					
 					// クオンタイズ処理
 					if ( left_time != 0 ) {
