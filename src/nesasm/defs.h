@@ -8,6 +8,13 @@
 #define PATH_SEPARATOR_STRING "/"
 #endif
 
+/* input file params */
+#define MAX_FILENAME_LEN	115
+#define MAX_PATH_LEN		2047
+#define MAX_INCS			7
+#define MAX_INCDIRS			10
+#define INC_SEPARATOR		';'
+
 /* machine */
 #define MACHINE_PCE	0
 #define MACHINE_NES	1
@@ -150,7 +157,7 @@ typedef struct t_input_info {
 	FILE *fp;
 	int   lnum;
 	int   if_level;
-	char  name[116];
+	char  name[MAX_FILENAME_LEN+1];
 } t_input_info;
 
 typedef struct t_proc {
@@ -233,5 +240,6 @@ typedef struct t_machine {
 /* memset macro */
 #define MEMCLR(x) memset(x,0,sizeof(x))
 
-
-
+/* convert macro value to string literal */
+#define MACROVAL_TO_STR_(x)	#x
+#define MACROVAL_TO_STR(x)	MACROVAL_TO_STR_(x)

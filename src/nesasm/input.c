@@ -6,10 +6,10 @@
 #include "externs.h"
 #include "protos.h"
 
-int    infile_error;
-int    infile_num;
-struct t_input_info input_file[8];
-char   incpath[10][128];
+int infile_error;
+int infile_num;
+struct t_input_info input_file[MAX_INCS+1];
+static char incpath[MAX_INCDIRS][MAX_PATH_LEN+1];
 
 
 void input_init()
@@ -36,26 +36,31 @@ init_path(void)
 	if (p == NULL)
 		return;
 
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < MAX_INCDIRS; i++) {
 
-		pl = strchr(p, ';');
+		while (*p == INC_SEPARATOR) p++;
+
+		pl = strchr(p, INC_SEPARATOR);
 
 		if (pl == NULL)
 			l = strlen(p);
 		else
 			l = pl-p;
 
-		if (l == 0) {
-			incpath[i][0] = '\0';
-		} else {
-			strncpy(incpath[i],p,l);
-			p += l;
-			while (*p == ';') p++;
-		}
+		if (l == 0)
+		    break;
 
-		if (incpath[i][strlen(incpath[i])] != PATH_SEPARATOR) {
-			strcat(incpath[i], PATH_SEPARATOR_STRING);
+		if (l >= MAX_PATH_LEN-1) { /* -1 for PATH_SEPARATOR */
+			printf("Too long incpath: %.*s (ignored)\n", l, p);
+		} else if (l > 0) {
+			memcpy(incpath[i], p, l);
+			if (incpath[i][l-1] != PATH_SEPARATOR) {
+			    incpath[i][l] = PATH_SEPARATOR;
+			    incpath[i][l+1] = '\0';
+			} else
+			    incpath[i][l] = '\0';
 		}
+		p += l;
 	}
 }
 
@@ -219,7 +224,7 @@ start:
 /* ----
  * open_input()
  * ----
- * open input files - up to 7 levels.
+ * open input files - up to MAX_INCS levels.
  */
 
 int
@@ -227,12 +232,13 @@ open_input(char *name)
 {
 	FILE *fp;
 	char *p;
-	char  temp[128];
+	char  temp[MAX_FILENAME_LEN+1];
 	int   i;
 
-	/* only 7 nested input files */
-	if (infile_num == 7) {
-		error("Too many include levels, max. 7!");
+	/* only MAX_INCS nested input files */
+	if (infile_num == MAX_INCS) {
+		error("Too many include levels, max. "
+		      MACROVAL_TO_STR(MAX_INCS) "!");
 		return (1);
 	}
 
@@ -240,18 +246,22 @@ open_input(char *name)
 	if (infile_num) {
 		input_file[infile_num].lnum = slnum;
 		input_file[infile_num].fp = in_fp;
-	}				
+	}
 
 	/* get a copy of the file name */
+	if (strlen(name) > MAX_FILENAME_LEN) {
+	    error("Too long file name.");
+	    return (1);
+	}
 	strcpy(temp, name);
 
 	/* auto add the .asm file extension */
-	if ((p = strrchr(temp, '.')) != NULL) {
-		if (strchr(p, PATH_SEPARATOR))
-			strcat(temp, ".asm");
-	}
-	else {
-		strcat(temp, ".asm");
+	if ((p = strrchr(temp, '.')) == NULL || strchr(p, PATH_SEPARATOR)) {
+	    if (strlen(temp)+4 > MAX_FILENAME_LEN) {
+		error("Too long file name.");
+		return (1);
+	    }
+	    strcat(temp, ".asm");
 	}
 
 	/* check if this file is already opened */
@@ -262,7 +272,7 @@ open_input(char *name)
 				return (1);
 			}
 		}
-	}				
+	}
 
 	/* open the file */
 	if ((fp = open_file(temp, "r")) == NULL)
@@ -329,18 +339,24 @@ close_input(void)
 FILE *
 open_file(char *name, char *mode)
 {
-	FILE 	*fileptr;
-	char	testname[256];
+	FILE	*fileptr;
+	char	testname[MAX_PATH_LEN+1];
 	int	i;
+	size_t	dirlen, namelen;
 
 	fileptr = fopen(name, mode);
 	if (fileptr != NULL) return(fileptr);
 
+	namelen = strlen(name);
 	for (i = 0; i < 10; i++) {
-		if (strlen(incpath[i])) {
+		if ((dirlen = strlen(incpath[i]))) {
+			if (dirlen+namelen > MAX_PATH_LEN) {
+			    error("Too long path name.");
+			    return (NULL);
+			}
 			strcpy(testname, incpath[i]);
 			strcat(testname, name);
-	
+
 			fileptr = fopen(testname, mode);
 			if (fileptr != NULL) break;
 		}
