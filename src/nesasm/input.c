@@ -74,15 +74,15 @@ init_path(void)
 int
 readline(void)
 {
-	char *ptr, *arg, num[8];
+	char *ptr, *arg, num[16];
 	int j, n;
 	int	i;		/* pointer into prlnbuf */
-	int	c;		/* current character		*/
-	int	temp;	/* temp used for line number conversion */
+	int	c;		/* current character */
 
 start:
-	for (i = 0; i < LAST_CH_POS; i++)
-		prlnbuf[i] = ' ';
+	/* clear line buffer */
+	memset(prlnbuf, ' ', LINE_BUFFER_SIZE-1);
+	prlnbuf[LINE_BUFFER_SIZE-1] = '\0';
 
 	/* if 'expand_macro' is set get a line from macro buffer instead */
 	if (expand_macro) {
@@ -107,9 +107,13 @@ start:
 				c = *ptr++;
 				if (c == '\0')
 					break;
-				if (c != '\\')
-					prlnbuf[i++] = c;
-				else {
+				if (c != '\\') {
+					/* normal single character */
+					n = 1;
+					num[0] = c;
+					arg = num;
+				} else {
+					/* special commands with begining a backslash */
 					c = *ptr++;
 					prlnbuf[i] = '\0';
 
@@ -156,33 +160,28 @@ start:
 						error("Invalid macro argument index!");
 						return (-1);
 					}
-
-					/* check for line overflow */
-					if ((i + n) >= LAST_CH_POS - 1) {
-						error("Invalid line length!");
-						return (-1);
-					}
-
-					/* copy macro string */
-					strncpy(&prlnbuf[i], arg, n);
-					i += n;
 				}
-				if (i >= LAST_CH_POS - 1)
-					i  = LAST_CH_POS - 1;
+
+				/* check for line overflow */
+				if ((i + n) >= LINE_BUFFER_SIZE - 1) {
+					error("Invalid line length!");
+					return (-1);
+				}
+
+				/* put string */
+				memcpy(&prlnbuf[i], arg, n);
+				i += n;
 			}
 			prlnbuf[i] = '\0';
 			mlptr = mlptr->next;
 			return (0);
 		}
 	}
+	slnum++;
 
 	/* put source line number into prlnbuf */
-	i = 4;
-	temp = ++slnum;
-	while (temp != 0) {
-		prlnbuf[i--] = temp % 10 + '0';
-		temp /= 10;
-	}
+	sprintf(num, "%" MACROVAL_TO_STR(LFIELD_LEN) "d", slnum);
+	memcpy(prlnbuf+LFIELD, num, LFIELD_LEN);
 
 	/* get a line */
 	i = SFIELD;
@@ -194,6 +193,9 @@ start:
 	}
 	for (;;) {
 		/* check for the end of line */
+		if (c == '\n' || c == EOF)
+			break;
+
 		if (c == '\r') {
 			c = getc(in_fp);
 			if (c == '\n' || c == EOF)
@@ -201,17 +203,19 @@ start:
 			ungetc(c, in_fp);
 			break;
 		}
-		if (c == '\n' || c == EOF)
-			break;
 
-		/* store char in the line buffer */
-		prlnbuf[i] = c;
-		i += (i < LAST_CH_POS) ? 1 : 0;
+		/* check for line overflow */
+		if (i >= LINE_BUFFER_SIZE-1) {
+			error("Invalid line length!");
+			return (-1);
+		}
 
-		/* expand tab char to space */
 		if (c == '\t') {
-			prlnbuf[--i] = ' ';
+			/* expand tab char to space */
 			i += (8 - ((i - SFIELD) % 8));
+		} else {
+			/* store char in the line buffer */
+			prlnbuf[i++] = c;
 		}
 
 		/* get next char */

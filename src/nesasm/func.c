@@ -8,7 +8,7 @@
 
 struct t_func *func_tbl[256];
 struct t_func *func_ptr;
-char func_line[128];
+char func_line[MAX_LINE_CHARS+1];
 char func_arg[8][10][80];
 int  func_idx;
 

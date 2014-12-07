@@ -28,10 +28,28 @@
 #define CHUNKY_TILE		1
 #define PACKED_TILE		2
 
-/* line buffer length */
-#define LAST_CH_POS	158
-#define SFIELD	26
-#define SBOLSZ	32
+/*
+ * line buffer constraints
+ */
+/* max line length of source file */
+#define MAX_LINE_CHARS		135
+/* fine number field */
+#define LFIELD				0
+#define LFIELD_LEN			5
+/* address field */
+#define AFIELD				7
+#define AFIELD_LEN			7
+/* value field */
+#define VFIELD				16
+#define VFIELD_LEN			4
+/* source field */
+#define SFIELD				26
+#define SFIELD_LEN			MAX_LINE_CHARS
+/* line buffer size */
+#define LINE_BUFFER_SIZE	(SFIELD+SFIELD_LEN+1)
+
+/* symbol length */
+#define SBOLSZ			32
 
 /* macro argument types */
 #define NO_ARG			0
@@ -207,7 +225,7 @@ typedef struct t_macro {
 
 typedef struct t_func {
 	struct t_func *next;
-	char line[128];
+	char line[MAX_LINE_CHARS+1];
 	char name[SBOLSZ+1];
 } t_func;
 

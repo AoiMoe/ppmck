@@ -100,9 +100,9 @@ loadlc(int offset, int pos)
 	int	i;
 
 	if (pos)
-		i = 16;
+		i = VFIELD;
 	else
-		i = 7;
+		i = AFIELD;
 
 	if (pos == 0) {
 		if (bank >= RESERVED_BANK) {
@@ -387,7 +387,7 @@ warning(char *stptr)
 	int i, temp;
 
 	/* put the source line number into prlnbuf */
-	i = 4;
+	i = LFIELD_LEN-1;
 	temp = slnum;
 	while (temp != 0) {
 		prlnbuf[i--] = temp % 10 + '0';

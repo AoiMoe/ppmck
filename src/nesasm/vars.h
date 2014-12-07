@@ -34,8 +34,8 @@ int  opval;		/* instruction value */
 int  optype;	/* instruction type */
 char opext;		/* instruction extension (.l or .h) */
 int  pass;		/* pass counter */
-char prlnbuf[LAST_CH_POS+4];	/* input line buffer */
-char tmplnbuf[LAST_CH_POS+4];	/* temporary line buffer */
+char prlnbuf[LINE_BUFFER_SIZE];		/* input line buffer */
+char tmplnbuf[LINE_BUFFER_SIZE];	/* temporary line buffer */
 int  slnum;				/* source line number counter */
 char symbol[SBOLSZ+1];	/* temporary symbol storage */
 int undef;				/* undefined symbol in expression flg  */
