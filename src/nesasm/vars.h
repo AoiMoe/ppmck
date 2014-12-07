@@ -1,8 +1,8 @@
-unsigned char rom[128][8192];
-unsigned char map[128][8192];
-char bank_name[128][64];
-int  bank_loccnt[4][256];
-int  bank_page[4][256];
+unsigned char rom[MAX_REAL_BANKS][BANK_SIZE];
+unsigned char map[MAX_REAL_BANKS][BANK_SIZE];
+char bank_name[MAX_REAL_BANKS][MAX_BANK_NAME_LEN+1];
+int  bank_loccnt[NUM_SECTIONS][BANK_MAP_SIZE];
+int  bank_page[NUM_SECTIONS][BANK_MAP_SIZE];
 int max_zp;		/* higher used address in zero page */
 int max_bss;	/* higher used address in ram */
 int max_bank;	/* last bank used */
@@ -17,7 +17,7 @@ int bank_limit;	/* rom max. size in bytes */
 int page;	/* page */
 int rsbase;	/* .rs counter */
 int section;	/* current section: S_ZP, S_BSS, S_CODE or S_DATA */
-int section_bank[4];	/* current bank for each section */
+int section_bank[NUM_SECTIONS];	/* current bank for each section */
 int stop_pass;		/* stop the program; set by fatal_error() */
 int errcnt;			/* error counter */
 struct t_machine *machine;
@@ -26,7 +26,7 @@ struct t_symbol  *hash_tbl[256];	/* label hash table */
 struct t_symbol  *lablptr;	/* label pointer into symbol table */
 struct t_symbol  *glablptr;	/* pointer to the latest defined global label */
 struct t_symbol  *lastlabl;	/* last label we have seen */
-struct t_symbol  *bank_glabl[4][256];	/* latest global symbol for each bank */
+struct t_symbol  *bank_glabl[NUM_SECTIONS][BANK_MAP_SIZE];	/* latest global symbol for each bank */
 char hex[5];			/* hexadecimal character buffer */
 void (*opproc)(int *);	/* instruction gen proc */
 int  opflg;		/* instruction flags */

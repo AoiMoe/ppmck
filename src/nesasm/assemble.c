@@ -183,7 +183,7 @@ assemble(void)
 		/* output location counter */
 		if (pass == LAST_PASS) {
 			if (!asm_opt[OPT_MACRO])
-				loadlc((page << 13) + loccnt, 0);
+				loadlc(B2ADDR(page, loccnt), 0);
 		}
 
 		/* get macro args */

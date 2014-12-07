@@ -313,8 +313,8 @@ ENTRY(int argc, char **argv)
 	}
 
 	/* clear the ROM array */
-	memset(rom, 0xFF, 8192 * 128);
-	memset(map, 0xFF, 8192 * 128);
+	memset(rom, 0xFF, sizeof (rom));
+	memset(map, 0xFF, sizeof (map));
 
 	/* clear symbol hash tables */
 	for (i = 0; i < 256; i++) {
@@ -423,15 +423,15 @@ ENTRY(int argc, char **argv)
 		/* assemble */
 		while (readline() != -1) {
 			assemble();
-			if (loccnt > 0x2000) {
-				if (proc_ptr == NULL)
-					fatal_error("Bank overflow, offset > $1FFF!");
-				else {
-					char tmp[128];
-
-					sprintf(tmp, "Proc : '%s' is too large (code > 8KB)!", proc_ptr->name);
-					fatal_error(tmp);
+			if (loccnt > BANK_SIZE) {
+				char tmp[256];
+				if (proc_ptr == NULL) {
+					sprintf(tmp, "Bank overflow, offset > $%X!", BANK_SIZE-1);
+				} else {
+					sprintf(tmp, "Proc : '%s' is too large (code > %dKB)!",
+							proc_ptr->name, BANK_SIZE/1024);
 				}
+				fatal_error(tmp);
 				break;
 			}
 			if (stop_pass)
@@ -527,7 +527,7 @@ ENTRY(int argc, char **argv)
 			}
 		
 			/* write rom */
-			fwrite(rom, 8192, (max_bank + 1), fp);
+			fwrite(rom, BANK_SIZE, (max_bank + 1), fp);
 			fclose(fp);
 		}
 
@@ -538,7 +538,7 @@ ENTRY(int argc, char **argv)
 			/* save mx file */
 			if ((page + max_bank) < 7)
 				/* old format */
-				write_srec(out_fname, "mx", page << 13);
+				write_srec(out_fname, "mx", B2ADDR(page, 0));
 			else
 				/* new format */
 				write_srec(out_fname, "mx", 0xD0000);
@@ -569,7 +569,7 @@ ENTRY(int argc, char **argv)
 					machine->write_header(fp, max_bank + 1);
 		
 				/* write rom */
-				fwrite(rom, 8192, (max_bank + 1), fp);
+				fwrite(rom, BANK_SIZE, (max_bank + 1), fp);
 				fclose(fp);
 			}
 		}
@@ -706,22 +706,22 @@ show_seg_usage(void)
 		nb = 0;
 
 		/* count used and free bytes */
-		for (j = 0; j < 8192; j++)
+		for (j = 0; j < BANK_SIZE; j++)
 			if (map[i][j] != 0xFF)
 				nb++;
 
 		/* display bank infos */
 		if (nb)			
 			printf("BANK% 4i    %20s    %4i/%4i\n",
-					i, bank_name[i], nb, 8192 - nb);
+					i, bank_name[i], nb, BANK_SIZE - nb);
 		else {
-			printf("BANK% 4i    %20s       0/8192\n", i, bank_name[i]);
+			printf("BANK% 4i    %20s       0/%d\n", i, bank_name[i], BANK_SIZE);
 			continue;
 		}
 
 		/* update used/free counters */
 		rom_used += nb;
-		rom_free += 8192 - nb;
+		rom_free += BANK_SIZE - nb;
 
 		/* scan */
 		if (dump_seg == 1)
@@ -729,12 +729,12 @@ show_seg_usage(void)
 
 		for (;;) {
 			/* search section start */
-			for (; addr < 8192; addr++)
+			for (; addr < BANK_SIZE; addr++)
 				if (map[i][addr] != 0xFF)
 					break;
 
 			/* check for end of bank */
-			if (addr > 8191)
+			if (addr >= BANK_SIZE)
 				break;
 
 			/* get section type */
@@ -743,7 +743,7 @@ show_seg_usage(void)
 			start = addr;
 
 			/* search section end */
-			for (; addr < 8192; addr++)
+			for (; addr < BANK_SIZE; addr++)
 				if ((map[i][addr] & 0x0F) != section)
 					break;
 
@@ -756,7 +756,7 @@ show_seg_usage(void)
 		}
 	}
 
-	/* total */
+	/* total in KBytes */
 	rom_used = (rom_used + 1023) >> 10;
 	rom_free = (rom_free) >> 10;
 	printf("\t\t\t\t    ---- ----\n");

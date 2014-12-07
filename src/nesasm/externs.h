@@ -1,8 +1,8 @@
-extern unsigned char rom[128][8192];
-extern unsigned char map[128][8192];
-extern char bank_name[128][64];
-extern int  bank_loccnt[4][256];
-extern int  bank_page[4][256];
+extern unsigned char rom[MAX_REAL_BANKS][BANK_SIZE];
+extern unsigned char map[MAX_REAL_BANKS][BANK_SIZE];
+extern char bank_name[MAX_REAL_BANKS][MAX_BANK_NAME_LEN+1];
+extern int  bank_loccnt[NUM_SECTIONS][BANK_MAP_SIZE];
+extern int  bank_page[NUM_SECTIONS][BANK_MAP_SIZE];
 extern int max_zp;		/* higher used address in zero page */
 extern int max_bss;		/* higher used address in ram */
 extern int max_bank;	/* last bank used */
@@ -17,7 +17,7 @@ extern int rom_limit;	/* rom max. size in bytes */
 extern int page;	/* page */
 extern int rsbase;	/* .rs counter */
 extern int section;	/* current section: S_ZP, S_BSS, S_CODE or S_DATA */
-extern int section_bank[4];	/* current bank for each section */
+extern int section_bank[NUM_SECTIONS];	/* current bank for each section */
 extern int in_if;	/* true if in a '.if' statement */
 extern int if_expr;	/* set when parsing an .if expression */
 extern int if_level;	/* level of nested .if's */
@@ -61,7 +61,7 @@ extern struct t_symbol *hash_tbl[256];	/* label hash table */
 extern struct t_symbol *lablptr;	/* label pointer into symbol table */
 extern struct t_symbol *glablptr;	/* pointer to the latest defined global symbol */
 extern struct t_symbol *lastlabl;	/* last label we have seen */
-extern struct t_symbol *bank_glabl[4][256];	/* latest global label in each bank */
+extern struct t_symbol *bank_glabl[NUM_SECTIONS][BANK_MAP_SIZE];	/* latest global label in each bank */
 extern char hex[];		/* hexadecimal character buffer */
 extern int  stop_pass;	/* stop the program; set by fatal_error() */
 extern int  errcnt;		/* error counter */

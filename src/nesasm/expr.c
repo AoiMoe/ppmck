@@ -382,9 +382,9 @@ push_val(int type)
 	/* program counter */
 	case T_PC:
 		if (data_loccnt == -1)
-			val = (loccnt + (page << 13));
+			val = B2ADDR(page, loccnt);
 		else
-			val = (data_loccnt + (page << 13));
+			val = B2ADDR(page, data_loccnt);
 		expr++;
 		break;
 

@@ -227,7 +227,7 @@ labldef(int lval, int flag)
 
 	/* adjust symbol address */	
 	if (flag)
-		lval = (lval & 0x1FFF) | (page << 13);
+		lval = B2ADDR(page, lval);
 
 	/* first pass */
 	if (pass == FIRST_PASS) {

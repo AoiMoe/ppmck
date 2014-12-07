@@ -73,7 +73,7 @@ do_pseudo(int *ip)
 			case P_INCTILE:
 			case P_INCMAP:
 				if (bank != old_bank) {
-					size = ((bank - old_bank - 1) * 8192) + loccnt;
+					size = B2ADDR(bank - old_bank - 1, loccnt);
 					if (size) {
 						sprintf(str, "Warning, bank overflow by %i bytes!\n", size);
 						warning(str);
@@ -388,7 +388,7 @@ do_page(int *ip)
 
 	/* output line */
 	if (pass == LAST_PASS) {
-		loadlc(value << 13, 1);
+		loadlc(B2ADDR(value, 0), 1);
 		println();
 	}
 }
@@ -444,12 +444,12 @@ do_org(int *ip)
 			error("Invalid address!");
 			return;
 		}
-		page = (value >> 13) & 0x07;
+		page = ADDR2BNUM(value) & 0x07;
 		break;
 	}
 
 	/* set location counter */
-	loccnt = (value & 0x1FFF);
+	loccnt = ADDR2BOFS(value);
 
 	/* set label value if there was one */
 	labldef(loccnt, 1);
@@ -471,7 +471,7 @@ do_org(int *ip)
 void
 do_bank(int *ip)
 {
-	char name[128];
+	char name[MAX_BANK_NAME_LEN+1];
 
 	/* not allowed in procs */
 	if (proc_ptr) {
@@ -499,7 +499,7 @@ do_bank(int *ip)
 	case ',':
 		/* get name */
 		(*ip)++;
-		if (!getstring(ip, name, 63))
+		if (!getstring(ip, name, MAX_BANK_NAME_LEN))
 			return;
 
 		/* check name validity */
@@ -600,8 +600,8 @@ do_incbin(int *ip)
 	size = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
 
-	/* check if it will fit in the rom */
-	if (((bank << 13) + loccnt + size) > rom_limit) {
+	/* check if it will fit in the rom. */
+	if (B2ADDR(bank, loccnt)+size > rom_limit) {
 		fclose(fp);
 		error("ROM overflow!");
 		return;
@@ -620,8 +620,8 @@ do_incbin(int *ip)
 	fclose(fp);
 
 	/* update bank and location counters */
-	bank  += (loccnt + size) >> 13;
-	loccnt = (loccnt + size) & 0x1FFF;
+	bank  += ADDR2BNUM(loccnt + size);
+	loccnt = ADDR2BOFS(loccnt + size);
 	if (bank > max_bank) {
 		if (loccnt)
 			max_bank = bank;
@@ -733,8 +733,8 @@ do_mx(char *fname)
 					error("Invalid address!");
 					return;
 				}
-				page   = (addr >> 13) & 0x07;
-				loccnt = (addr & 0x1FFF);
+				page   = ADDR2BNUM(addr) & 0x07;
+				loccnt = ADDR2BOFS(addr);
 
 				/* define label */
 				if (flag == 0) {
@@ -913,7 +913,7 @@ do_ds(int *ip)
 	case S_CODE:
 	case S_DATA:
 		/* code and data sections */
-		limit = 0x2000;
+		limit = BANK_SIZE;
 		break;
 	}
 
@@ -1007,7 +1007,7 @@ do_section(int *ip)
 
 	/* output line */
 	if (pass == LAST_PASS) {
-		loadlc(loccnt + (page << 13), 1);
+		loadlc(B2ADDR(page, loccnt), 1);
 		println();
 	}
 }

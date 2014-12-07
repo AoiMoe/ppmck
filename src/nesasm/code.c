@@ -65,7 +65,7 @@ class2(int *ip)
 		putbyte(data_loccnt, opval);
 
 		/* calculate branch offset */
-		addr = value - (loccnt + (page << 13));
+		addr = value - B2ADDR(page, loccnt);
 
 		/* check range */
 		if (addr > 0x7F && addr < 0xFFFFFF80) {
@@ -269,7 +269,7 @@ class5(int *ip)
 		putbyte(data_loccnt+1, zp);
 
 		/* calculate branch offset */
-		addr = value - (loccnt + (page << 13));
+		addr = value - B2ADDR(page, loccnt);
 
 		/* check range */
 		if (addr > 0x7F && addr < 0xFFFFFF80) {
@@ -522,7 +522,7 @@ class10(int *ip)
 		putbyte(data_loccnt+1, zp);
 
 		/* calculate branch offset */
-		addr = value - (loccnt + (page << 13));
+		addr = value - B2ADDR(page, loccnt);
 
 		/* check range */
 		if (addr > 0x7F && addr < 0xFFFFFF80) {

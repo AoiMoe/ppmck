@@ -176,7 +176,7 @@ pcx_set_tile(struct t_symbol *ref, unsigned int offset)
 	/* get infos */
 	nb   = ref->nb - (start / ref->size);
 	size = ref->size;
-	data = &rom[ref->bank - bank_base][ref->value & 0x1FFF] + start;
+	data = &rom[ref->bank - bank_base][ref->value & BANK_SIZE_MASK] + start;
 
 	/* 256 tiles max */
 	if (nb > 256)

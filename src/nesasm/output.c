@@ -115,7 +115,7 @@ loadlc(int offset, int pos)
 			prlnbuf[i++] = hex[2];
 		}
 		prlnbuf[i++] = ':';
-		offset += page << 13;
+		offset += B2ADDR(page, 0);
 	}
 	hexcon(4, offset);
 	prlnbuf[i++] = hex[1];
@@ -154,7 +154,7 @@ putbyte(int offset, int data)
 {
 	if (bank >= RESERVED_BANK)
 		return;
-	if (offset < 0x2000) {
+	if (offset < BANK_SIZE) {
 		rom[bank][offset] = (data) & 0xFF;
 		map[bank][offset] = section + (page << 5);
 
@@ -176,7 +176,7 @@ putword(int offset, int data)
 {
 	if (bank >= RESERVED_BANK)
 		return;
-	if (offset < 0x1FFF) {
+	if (offset < BANK_SIZE-1) {
 		/* low byte */
 		rom[bank][offset] = (data) & 0xFF;
 		map[bank][offset] = section + (page << 5);
@@ -211,13 +211,14 @@ putbuffer(void *data, int size)
 	if (bank >= RESERVED_BANK) {
 		addr  = loccnt + size;
 
-		if (addr > 0x1FFF) {
+		if (addr >= BANK_SIZE) {
 			fatal_error("PROC overflow!");
 			return;
 		}
 	}
 	else {
-		addr  = loccnt + size + (bank << 13);
+		/* loccnt+size may be larger than bank size */
+		addr  = B2ADDR(bank, loccnt) + size;
 
 		if (addr > rom_limit) {
 			fatal_error("ROM overflow!");
@@ -238,8 +239,8 @@ putbuffer(void *data, int size)
 	}
 
 	/* update the location counter */
-	bank  += (loccnt + size) >> 13;
-	loccnt = (loccnt + size) & 0x1FFF;
+	bank  += ADDR2BNUM(loccnt + size);
+	loccnt = ADDR2BOFS(loccnt + size);
 
 	/* update rom size */
 	if (bank < RESERVED_BANK) {
@@ -292,7 +293,7 @@ write_srec(char *file, char *ext, int base)
 	pos  = 0;
 
 	for (i = 0; i <= max_bank; i++) {
-		for (j = 0; j < 8192; j++) {
+		for (j = 0; j < BANK_SIZE; j++) {
 			if (map[i][j] != 0xFF) {
 				/* data byte */
 				if (cnt == 0)
@@ -306,14 +307,14 @@ write_srec(char *file, char *ext, int base)
 				if (cnt)
 					dump = 1;
 			}
-			if (j == 8191)
+			if (j == BANK_SIZE-1)
 				if (cnt)
 					dump = 1;
 
 			/* dump */
 			if (dump) {
 				dump = 0;
-				addr = base + (i << 13) + pos;
+				addr = base + B2ADDR(i, pos);
 				chksum = cnt + ((addr >> 16) & 0xFF) +
 							   ((addr >> 8) & 0xFF) +
 							   ((addr) & 0xFF) +
@@ -337,7 +338,7 @@ write_srec(char *file, char *ext, int base)
 	}
 
 	/* starting address */
-	addr   = ((map[0][0] >> 5) << 13);
+	addr   = B2ADDR(map[0][0] >> 5, 0);
 	chksum = ((addr >> 8) & 0xFF) + (addr & 0xFF) + 4;
 	fprintf(fp, "S804%06X%02X", addr, (~chksum) & 0xFF);
 

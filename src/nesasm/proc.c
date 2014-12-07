@@ -222,7 +222,7 @@ do_proc(int *ip)
 
 	/* output */
 	if (pass == LAST_PASS) {
-		loadlc((page << 13) + loccnt, 0);
+		loadlc(B2ADDR(page, loccnt), 0);
 		println();
 	}
 }
@@ -299,7 +299,7 @@ proc_reloc(void)
 			tmp = addr + proc_ptr->size;
 	
 			/* bank change */
-			if (tmp > 0x2000) {
+			if (tmp > BANK_SIZE) {
 				bank++;
 				addr = 0;
 			}

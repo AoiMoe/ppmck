@@ -19,10 +19,26 @@
 #define MACHINE_PCE	0
 #define MACHINE_NES	1
 
-/* reserved bank index */
-#define RESERVED_BANK	0xF0
-#define PROC_BANK		0xF1
-#define GROUP_BANK		0xF2
+/* bank */
+#define BANK_SIZE_SHIFT		13
+#define BANK_SIZE			(1 << BANK_SIZE_SHIFT)
+#define BANK_SIZE_MASK		(BANK_SIZE-1)
+
+#define MAX_REAL_BANKS		128
+#define MAX_PSEUDO_BANKS	128
+#define BANK_MAP_SIZE		(MAX_REAL_BANKS+MAX_PSEUDO_BANKS)
+
+#define RESERVED_BANK		(MAX_REAL_BANKS+0)
+#define PROC_BANK			(MAX_REAL_BANKS+1)
+#define GROUP_BANK			(MAX_REAL_BANKS+2)
+
+
+#define MAX_BANK_NAME_LEN	63
+
+/* bank:offset to linear address */
+#define B2ADDR(b, o)		(((b)<<BANK_SIZE_SHIFT) + ((o)&BANK_SIZE_MASK))
+#define ADDR2BNUM(a)		((a)>>BANK_SIZE_SHIFT)
+#define ADDR2BOFS(a)		((a)&BANK_SIZE_MASK)
 
 /* tile format for encoder */
 #define CHUNKY_TILE		1
@@ -61,10 +77,11 @@
 #define ARG_LABEL		6
 
 /* section types */
-#define S_ZP	0
-#define S_BSS	1
-#define S_CODE	2
-#define S_DATA	3
+#define S_ZP			0
+#define S_BSS			1
+#define S_CODE			2
+#define S_DATA			3
+#define NUM_SECTIONS	4
 
 /* assembler options */
 #define OPT_LIST	 0
