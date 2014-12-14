@@ -37,7 +37,7 @@ int  pass;		/* pass counter */
 char prlnbuf[LINE_BUFFER_SIZE];		/* input line buffer */
 char tmplnbuf[LINE_BUFFER_SIZE];	/* temporary line buffer */
 int  slnum;				/* source line number counter */
-char symbol[SBOLSZ+1];	/* temporary symbol storage */
+char symbol[SBOLSZ+1];	/* temporary symbol storage.  symbol[0] contains the length of symbol. the actual symbol begins symbol[1] and this string is null-terminated.  thus the max length of symbols is SBOLSZ-1.  */
 int undef;				/* undefined symbol in expression flg  */
 unsigned int value;		/* operand field value */
 int  opvaltab[6][16] = {

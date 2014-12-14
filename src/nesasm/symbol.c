@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 #include "defs.h"
 #include "externs.h"
 #include "protos.h"
@@ -59,6 +60,9 @@ colsym(int *ip)
 		(*ip)++;
 	}
 
+#if SBOLSZ > CHAR_MAX
+# error SBOLSZ must be less than or equal to CHAR_MAX.
+#endif
 	symbol[0] = i;
 	symbol[i+1] = '\0';
 
@@ -190,7 +194,7 @@ struct t_symbol *stinstall(int hash, int type)
 	sym->reserved = 0;
 	sym->data_type = -1;
 	sym->data_size = 0;
-	strcpy(sym->name, symbol);
+	memcpy(sym->name, symbol, symbol[0]+2); /* 2 means symbol[0] and \0 */
 
 	/* add the symbol to the hash table */
 	if (type) {
@@ -319,8 +323,10 @@ lablset(char *name, int val)
 	lablptr = NULL;
 
 	if (len) {
+		if (len > SBOLSZ-1)
+			len = SBOLSZ-1;
 		symbol[0] = len;
-		strcpy(&symbol[1], name);
+		memcpy(&symbol[1], name, len+1);
 		lablptr = stlook(1);
 
 		if (lablptr) {

@@ -2,6 +2,7 @@
 #include <strings.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 #include "defs.h"
 #include "externs.h"
 #include "protos.h"
@@ -548,6 +549,9 @@ getsym(void)
 	}
 
 	/* store symbol length */	
+#if SBOLSZ > CHAR_MAX
+# error SBOLSZ must be less than or equal to CHAR_MAX.
+#endif
 	symbol[0] = i;
 	symbol[i+1] = '\0';
 	return (i);
@@ -565,25 +569,27 @@ check_keyword(void)
 {
 	int op = 0;
 
+#define IS_SAME(s1, s2)														\
+((s1)[0] == (s2)[0] && !strcasecmp(&(s1)[1], &(s2)[1]))
 	/* check if its an assembler function */
-	if (!strcasecmp(symbol, keyword[0]))
+	if (IS_SAME(symbol, keyword[0]))
 		op = OP_DEFINED;
-	else if (!strcasecmp(symbol, keyword[1]))
+	else if (IS_SAME(symbol, keyword[1]))
 		op = OP_HIGH;
-	else if (!strcasecmp(symbol, keyword[2]))
+	else if (IS_SAME(symbol, keyword[2]))
 		op = OP_LOW;
-	else if (!strcasecmp(symbol, keyword[3]))
+	else if (IS_SAME(symbol, keyword[3]))
 		op = OP_PAGE;
-	else if (!strcasecmp(symbol, keyword[4]))
+	else if (IS_SAME(symbol, keyword[4]))
 		op = OP_BANK;
-	else if (!strcasecmp(symbol, keyword[7]))
+	else if (IS_SAME(symbol, keyword[7]))
 		op = OP_SIZEOF;
 	else {
 		if (machine->type == MACHINE_PCE) {
 			/* PCE specific functions */
-			if (!strcasecmp(symbol, keyword[5]))
+			if (IS_SAME(symbol, keyword[5]))
 				op = OP_VRAM;
-			else if (!strcasecmp(symbol, keyword[6]))
+			else if (IS_SAME(symbol, keyword[6]))
 				op = OP_PAL;
 		}
 	}

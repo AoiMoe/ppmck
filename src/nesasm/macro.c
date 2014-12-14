@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 #include "defs.h"
 #include "externs.h"
 #include "protos.h"
@@ -418,7 +419,7 @@ macro_getargtype(char *arg)
 
 	default:
 		/* symbol */
-		for(i = 0; i < SBOLSZ; i++) {
+		for(i = 0; i < SBOLSZ-1; i++) {
 			c = arg[i];
 			if (isdigit(c) && (i == 0))
 				break;
@@ -432,7 +433,10 @@ macro_getargtype(char *arg)
 			if (c != '\0')
 				return (ARG_ABS);
 			else {
-				strncpy(&symbol[1], arg, i);
+				memcpy(&symbol[1], arg, i);
+#if SBOLSZ > CHAR_MAX
+# error SBOLSZ must be less than or equal to CHAR_MAX.
+#endif
 				symbol[0] = i;
 				symbol[i+1] = '\0';
 
