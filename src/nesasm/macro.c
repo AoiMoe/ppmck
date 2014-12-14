@@ -9,26 +9,28 @@
 int  mopt;
 int  in_macro;
 int  expand_macro;
-char marg[8][10][80];
+char marg[MAX_MACRO_DEPTHS][MAX_MACRO_ARGS][MAX_MACRO_ARG_LEN+1];
 int  midx;
 int  mcounter, mcntmax;
-int  mcntstack[8];
-struct t_line  *mstack[8];
+int  mcntstack[MAX_MACRO_DEPTHS];
+struct t_line  *mstack[MAX_MACRO_DEPTHS];
 struct t_line  *mlptr;
-struct t_macro *macro_tbl[256];
+struct t_macro *macro_tbl[MACRO_HASH_SIZE];
 struct t_macro *mptr;
 
 void macro_init()
 {
+	int i;
+
 	mopt = in_macro = expand_macro = 0;
 	MEMCLR(marg);
 	midx = mcounter = mcntmax = 0;
 	MEMCLR(mcntstack);
 	MEMCLR(mstack);
 	mlptr = NULL;
-	MEMCLR(macro_tbl);
+	for (i=0; i<MACRO_HASH_SIZE; i++)
+		macro_tbl[i] = NULL;
 	mptr = NULL;
-	
 }
 
 /* .macro pseudo */
@@ -98,7 +100,7 @@ do_endm(int *ip)
 struct t_macro *macro_look(int *ip)
 {
 	struct t_macro *ptr;
-	char name[32];
+	char name[MAX_MACRO_NAME_LEN+1];
 	char c;
 	int  hash;
 	int  l;
@@ -116,7 +118,7 @@ struct t_macro *macro_look(int *ip)
 			if (isdigit(c))
 				return (NULL);
 		}
-		if (l == 31)
+		if (l == MAX_MACRO_NAME_LEN)
 			return (NULL);
 		name[l++] = c;
 		hash += c;
@@ -124,7 +126,7 @@ struct t_macro *macro_look(int *ip)
 		(*ip)++;
 	}
 	name[l] = '\0';
-	hash &= 0xFF;
+	hash = MACRO_HASH_MOD(hash);
 
 	/* browse the hash table */
 	ptr = macro_tbl[hash];
@@ -149,7 +151,7 @@ macro_getargs(int ip)
 	int   level;
 
 	/* can not nest too much macros */
-	if (midx == 7) {
+	if (midx == MAX_MACRO_DEPTHS-1) {
 		error("Too many nested macro calls!");
 		return (0);
 	}
@@ -160,7 +162,7 @@ macro_getargs(int ip)
 	ptr = marg[midx][0];
 	arg = 0;
 
-	for (i = 0; i < 9; i++)
+	for (i = 0; i < MAX_MACRO_ARGS; i++)
 		marg[midx][i][0] = '\0';
 
 	/* extract args */
@@ -175,7 +177,7 @@ macro_getargs(int ip)
 		case ',':
 			arg++;
 			ptr = marg[midx][arg];
-			if (arg == 9) {
+			if (arg == MAX_MACRO_ARGS) {
 				error("Too many arguments for a macro!");
 				return (0);
 			}
@@ -194,8 +196,11 @@ macro_getargs(int ip)
 					error("Unterminated string!");
 					return (0);
 				}
-				if (i == 80) {
-					error("String too long, max. 80 characters!");
+				/* -1 for \" */
+				if (i == MAX_MACRO_ARG_LEN-1) {
+					error("String too long, max. "
+						  MACROVAL_TO_STR(MAX_MACRO_ARG_LEN)
+						  " characters!");
 					return (0);
 				}
 				if (t == c)
@@ -289,8 +294,10 @@ macro_getargs(int ip)
 				else {
 					ptr[i++] = c;
 				}
-				if (i == 80) {
-					error("Macro argument string too long, max. 80 characters!");
+				if (i == MAX_MACRO_ARG_LEN) {
+					error("Macro argument string too long, max. "
+						  MACROVAL_TO_STR(MAX_MACRO_ARG_LEN)
+						  " characters!");
 					return (0);
 				}
 				j++;
@@ -311,9 +318,11 @@ macro_getargs(int ip)
 						arg--;
 						ptr = marg[midx][arg];
 	
-						/* check string length */
-						if (strlen(ptr) > 75) {
-							error("Macro argument string too long, max. 80 characters!");
+						/* check string length. -4 for 'x++,' */
+						if (strlen(ptr) > MAX_MACRO_ARG_LEN-4) {
+							error("Macro argument string too long, max. "
+								  MACROVAL_TO_STR(MAX_MACRO_ARG_LEN)
+								  " characters!");
 							return (0);
 						}
 	
@@ -354,7 +363,7 @@ macro_install(void)
 		hash += c;
 		hash  = (hash << 3) + (hash >> 5) + c;
 	}
-	hash &= 0xFF;
+	hash = MACRO_HASH_MOD(hash);
 
 	/* allocate a macro struct */
 	mptr = (void *)malloc(sizeof(struct t_macro));

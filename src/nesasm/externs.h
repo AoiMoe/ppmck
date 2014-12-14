@@ -33,13 +33,12 @@ extern unsigned char *expr;	/* expression string pointer */
 extern int  mopt;
 extern int  in_macro;
 extern int  expand_macro;
-extern char marg[8][10][80];
+extern char marg[MAX_MACRO_DEPTHS][MAX_MACRO_ARGS][MAX_MACRO_ARG_LEN+1];
 extern int  midx;
 extern int  mcounter, mcntmax;
-extern int  mcntstack[8];
-extern struct t_line  *mstack[8];
+extern int  mcntstack[MAX_MACRO_DEPTHS];
+extern struct t_line  *mstack[MAX_MACRO_DEPTHS];
 extern struct t_line  *mlptr;
-extern struct t_macro *macro_tbl[256];
 extern struct t_macro *mptr;
 extern struct t_func  *func_tbl[256];
 extern struct t_func  *func_ptr;

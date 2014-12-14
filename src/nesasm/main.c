@@ -319,7 +319,6 @@ ENTRY(int argc, char **argv)
 	/* clear symbol hash tables */
 	for (i = 0; i < 256; i++) {
 		hash_tbl[i]  = NULL;
-		macro_tbl[i] = NULL;
 		func_tbl[i]  = NULL;
 		inst_tbl[i]  = NULL;
 	}

@@ -126,7 +126,7 @@ start:
 
 					/* \# */
 					else if (c == '#') {
-						for (j = 9; j > 0; j--)
+						for (j = MAX_MACRO_ARGS; j > 0; j--)
 							if (strlen(marg[midx][j - 1]))
 								break;
 						n = 1;
@@ -137,7 +137,10 @@ start:
 					/* \?1 - \?9 */
 					else if (c == '?') {
 						c = *ptr++;
-						if (c >= '1' && c <= '9') {
+						if (c >= '1' && c <= '1'+MAX_MACRO_ARGS-1) {
+#if MAX_MACRO_ARGS > 9
+# error MAX_MACRO_ARGS must be less than or equal to 9
+#endif
 							n = 1;
 							sprintf(num, "%i", macro_getargtype(marg[midx][c - '1']));
 							arg = num;
@@ -149,7 +152,7 @@ start:
 					}
 
 					/* \1 - \9 */
-					else if (c >= '1' && c <= '9') {
+					else if (c >= '1' && c <= '1'+MAX_MACRO_ARGS-1) {
 						j   = c - '1';
 						n   = strlen(marg[midx][j]);
 						arg = marg[midx][j];

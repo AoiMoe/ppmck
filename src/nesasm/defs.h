@@ -178,6 +178,14 @@
 #define FIRST_PASS	0
 #define LAST_PASS	1
 
+/* macro */
+#define MAX_MACRO_ARGS		9
+#define MAX_MACRO_DEPTHS	8
+#define MAX_MACRO_NAME_LEN	31
+#define MAX_MACRO_ARG_LEN	79
+#define MACRO_HASH_SIZE		256
+#define MACRO_HASH_MOD(v)	((v)&0xFF)
+
 /* structs */
 typedef struct t_opcode {
 	struct t_opcode *next;
