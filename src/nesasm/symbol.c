@@ -7,6 +7,39 @@
 #include "externs.h"
 #include "protos.h"
 
+struct t_symbol  *hash_tbl[COMMON_HASH_TABLE_SIZE];	/* label hash table */
+
+void
+symbol_init(void)
+{
+	int i;
+
+	for (i = 0; i < COMMON_HASH_TABLE_SIZE; i++)
+		hash_tbl[i]  = NULL;
+}
+
+/* ----
+ * common_hash_calc()
+ * ----
+ * calculate the common hash value of a string.
+ */
+int
+common_hash_calc(const char *buf, int len)
+{
+	int i;
+	char c;
+	int hash = 0;
+
+	/* hash value */
+	for (i = 0; i < len; i++) {
+		c = buf[i];
+		hash += c;
+		hash  = (hash << 3) + (hash >> 5) + c;
+	}
+
+	/* ok */
+	return COMMON_HASH_MOD(hash);
+}
 
 /* ----
  * symhash()
@@ -17,19 +50,7 @@
 int
 symhash(void)
 {
-	int i;
-	char c;
-	int hash = 0;
-
-	/* hash value */
-	for (i = 1; i <= symbol[0]; i++) {
-		c = symbol[i];
-		hash += c;
-		hash  = (hash << 3) + (hash >> 5) + c;
-	}
-
-	/* ok */
-	return (hash & 0xFF);
+	return common_hash_calc(&symbol[1], (int)(unsigned char)symbol[0]);
 }
 
 
@@ -354,7 +375,7 @@ lablremap(void)
 	int i;
 
 	/* browse the symbol table */
-	for (i = 0; i < 256; i++) {
+	for (i = 0; i < COMMON_HASH_TABLE_SIZE; i++) {
 		sym = hash_tbl[i];
 		while (sym) {
 			/* remap the bank */

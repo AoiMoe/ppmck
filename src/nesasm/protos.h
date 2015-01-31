@@ -123,6 +123,8 @@ void do_endp(int *ip);
 void proc_reloc(void);
 
 /* SYMBOL.C */
+void symbol_init(void);
+int  common_hash_calc(const char *buf, int len);
 int  symhash(void);
 int  colsym(int *ip);
 struct t_symbol *stlook(int flag);

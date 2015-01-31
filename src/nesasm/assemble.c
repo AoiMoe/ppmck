@@ -13,15 +13,21 @@ int if_state[256];	/* status when entering the .if */
 int if_flag[256];	/* .if/.else status */
 int skip_lines;		/* set when lines must be skipped */
 int continued_line;	/* set when a line is the continuation of another line */
+static struct t_opcode *inst_tbl[COMMON_HASH_TABLE_SIZE];	/* instructions hash table */
 
 
 void assemble_init()
 {
+	int i;
+
 	in_if = if_expr = if_level = 0;
 	skip_lines = continued_line = 0;
 
 	MEMCLR(if_state);
 	MEMCLR(if_flag);
+
+	for (i = 0; i < COMMON_HASH_TABLE_SIZE; i++)
+		inst_tbl[i]  = NULL;
 }
 
 /* ----
@@ -263,7 +269,6 @@ oplook(int *idx)
 	i = 0;
 	opext = 0;
 	flag = 0;
-	hash = 0;
 
 	for (;;) {
 		c = toupper(prlnbuf[*idx]);
@@ -292,8 +297,6 @@ oplook(int *idx)
 
 		/* store char */
 		name[i++] = c;
-		hash += c;
-		hash  = (hash << 3) + (hash >> 5) + c;
 		(*idx)++;
 
 		/* break if '=' directive */
@@ -315,7 +318,8 @@ oplook(int *idx)
 		return (-2);
 
 	/* search the instruction in the hash table */
-	ptr = inst_tbl[hash & 0xFF];
+	hash = common_hash_calc(name, i);
+	ptr = inst_tbl[hash];
 
 	while (ptr) {
 		if (!strcmp(name, ptr->name)) {
@@ -353,10 +357,6 @@ void
 addinst(struct t_opcode *optbl)
 {
 	int hash;
-	int len;
-	int i;
-	char *ptr;
-	char  c;
 
 	if (optbl == NULL)
 		return;
@@ -364,18 +364,8 @@ addinst(struct t_opcode *optbl)
 	/* parse list */
 	while (optbl->name) {
 		/* calculate instruction hash value */
-		hash = 0;
-		len  = strlen(optbl->name);
-		ptr  = optbl->name;
+		hash = common_hash_calc(optbl->name, strlen(optbl->name));
 
-		for (i = 0; i < len; i++) {
-			c = *ptr++;
-			hash += c;
-			hash  = (hash << 3) + (hash >> 5) + c;
-		}
-
-		hash &= 0xFF;
-		
 		/* insert the instruction in the hash table */
 		optbl->next = inst_tbl[hash];
 		inst_tbl[hash] = optbl;

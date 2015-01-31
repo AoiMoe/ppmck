@@ -329,7 +329,7 @@ proc_reloc(void)
 	}
 
 	/* remap proc symbols */
-	for (i = 0; i < 256; i++) {
+	for (i = 0; i < COMMON_HASH_TABLE_SIZE; i++) {
 		sym = hash_tbl[i];
 
 		while (sym) {

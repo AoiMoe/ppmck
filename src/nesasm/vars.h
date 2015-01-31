@@ -21,8 +21,6 @@ int section_bank[NUM_SECTIONS];	/* current bank for each section */
 int stop_pass;		/* stop the program; set by fatal_error() */
 int errcnt;			/* error counter */
 struct t_machine *machine;
-struct t_opcode  *inst_tbl[256];	/* instructions hash table */
-struct t_symbol  *hash_tbl[256];	/* label hash table */
 struct t_symbol  *lablptr;	/* label pointer into symbol table */
 struct t_symbol  *glablptr;	/* pointer to the latest defined global label */
 struct t_symbol  *lastlabl;	/* last label we have seen */

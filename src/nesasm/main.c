@@ -98,8 +98,6 @@ void main_init()
 	
 	machine = NULL;
 	
-	MEMCLR(inst_tbl);
-	MEMCLR(hash_tbl);
 	lablptr = glablptr = lastlabl = NULL;
 	MEMCLR(bank_glabl);
 	
@@ -197,6 +195,7 @@ ENTRY(int argc, char **argv)
 	pce_init();
 	pcx_init();
 	proc_init();
+	symbol_init();
 
 	/* display assembler version message */
     printf("%s\n\n", machine->asm_title);
@@ -315,13 +314,6 @@ ENTRY(int argc, char **argv)
 	/* clear the ROM array */
 	memset(rom, 0xFF, sizeof (rom));
 	memset(map, 0xFF, sizeof (map));
-
-	/* clear symbol hash tables */
-	for (i = 0; i < 256; i++) {
-		hash_tbl[i]  = NULL;
-		func_tbl[i]  = NULL;
-		inst_tbl[i]  = NULL;
-	}
 
 	/* fill the instruction hash table */
 	addinst(base_inst);

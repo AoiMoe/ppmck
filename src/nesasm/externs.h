@@ -40,7 +40,6 @@ extern int  mcntstack[MAX_MACRO_DEPTHS];
 extern struct t_line  *mstack[MAX_MACRO_DEPTHS];
 extern struct t_line  *mlptr;
 extern struct t_macro *mptr;
-extern struct t_func  *func_tbl[256];
 extern struct t_func  *func_ptr;
 extern struct t_proc  *proc_ptr;
 extern int   proc_nb;
@@ -55,8 +54,7 @@ extern struct t_input_info input_file[8];
 extern struct t_machine *machine;
 extern struct t_machine  nes;
 extern struct t_machine  pce;
-extern struct t_opcode *inst_tbl[256];	/* instructions hash table */
-extern struct t_symbol *hash_tbl[256];	/* label hash table */
+extern struct t_symbol *hash_tbl[COMMON_HASH_TABLE_SIZE];	/* label hash table */
 extern struct t_symbol *lablptr;	/* label pointer into symbol table */
 extern struct t_symbol *glablptr;	/* pointer to the latest defined global symbol */
 extern struct t_symbol *lastlabl;	/* last label we have seen */

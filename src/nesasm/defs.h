@@ -67,6 +67,10 @@
 /* symbol length */
 #define SBOLSZ			32
 
+/* common hash constraints */
+#define COMMON_HASH_TABLE_SIZE	256
+#define COMMON_HASH_MOD(v)	((v) & 0xFF)
+
 /* macro argument types */
 #define NO_ARG			0
 #define ARG_REG			1
@@ -183,8 +187,6 @@
 #define MAX_MACRO_DEPTHS	8
 #define MAX_MACRO_NAME_LEN	31
 #define MAX_MACRO_ARG_LEN	79
-#define MACRO_HASH_SIZE		256
-#define MACRO_HASH_MOD(v)	((v)&0xFF)
 
 /* structs */
 typedef struct t_opcode {

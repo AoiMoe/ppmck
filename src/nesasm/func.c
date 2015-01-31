@@ -6,7 +6,7 @@
 #include "externs.h"
 #include "protos.h"
 
-struct t_func *func_tbl[256];
+static struct t_func *func_tbl[COMMON_HASH_TABLE_SIZE];
 struct t_func *func_ptr;
 char func_line[MAX_LINE_CHARS+1];
 char func_arg[8][10][80];
@@ -15,13 +15,17 @@ int  func_idx;
 
 void func_init()
 {
+	int i;
+
 	func_ptr = NULL;
-	
-	MEMCLR(func_tbl);
+
 	MEMCLR(func_line);
 	MEMCLR(func_arg);
-	
+
 	func_idx = 0;
+
+	for (i=0; i<COMMON_HASH_TABLE_SIZE; i++)
+		func_tbl[i] = NULL;
 }
 
 /* ----

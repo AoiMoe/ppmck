@@ -16,7 +16,7 @@ int  mcounter, mcntmax;
 int  mcntstack[MAX_MACRO_DEPTHS];
 struct t_line  *mstack[MAX_MACRO_DEPTHS];
 struct t_line  *mlptr;
-struct t_macro *macro_tbl[MACRO_HASH_SIZE];
+struct t_macro *macro_tbl[COMMON_HASH_TABLE_SIZE];
 struct t_macro *mptr;
 
 void macro_init()
@@ -29,7 +29,7 @@ void macro_init()
 	MEMCLR(mcntstack);
 	MEMCLR(mstack);
 	mlptr = NULL;
-	for (i=0; i<MACRO_HASH_SIZE; i++)
+	for (i=0; i<COMMON_HASH_TABLE_SIZE; i++)
 		macro_tbl[i] = NULL;
 	mptr = NULL;
 }
@@ -108,7 +108,6 @@ struct t_macro *macro_look(int *ip)
 
 	/* calculate the symbol hash value and check syntax */
 	l = 0;
-	hash = 0;
 	for (;;) {
 		c = prlnbuf[*ip];
 		if (c == '\0' || c == ' ' || c == '\t' || c == ';')
@@ -122,12 +121,10 @@ struct t_macro *macro_look(int *ip)
 		if (l == MAX_MACRO_NAME_LEN)
 			return (NULL);
 		name[l++] = c;
-		hash += c;
-		hash  = (hash << 3) + (hash >> 5) + c;
 		(*ip)++;
 	}
 	name[l] = '\0';
-	hash = MACRO_HASH_MOD(hash);
+	hash = common_hash_calc(name, l);
 
 	/* browse the hash table */
 	ptr = macro_tbl[hash];
@@ -345,9 +342,7 @@ macro_getargs(int ip)
 int
 macro_install(void)
 {
-	char c;
-	int hash = 0;
-	int i;
+	int hash;
 
 	/* mark the macro name as reserved */
 	lablptr->type = MACRO;
@@ -359,12 +354,7 @@ macro_install(void)
 	}
 
 	/* calculate symbol hash value */
-	for (i = 1; i <= symbol[0]; i++) {
-		c = symbol[i];
-		hash += c;
-		hash  = (hash << 3) + (hash >> 5) + c;
-	}
-	hash = MACRO_HASH_MOD(hash);
+	hash = symhash();
 
 	/* allocate a macro struct */
 	mptr = (void *)malloc(sizeof(struct t_macro));
