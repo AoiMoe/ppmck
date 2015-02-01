@@ -188,6 +188,10 @@
 #define MAX_MACRO_NAME_LEN	31
 #define MAX_MACRO_ARG_LEN	79
 
+/* expr */
+#define NUM_OP_STACK_DEPTH	64
+#define NUM_VAL_STACK_DEPTH	64
+
 /* structs */
 typedef struct t_opcode {
 	struct t_opcode *next;
