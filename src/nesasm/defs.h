@@ -19,6 +19,9 @@
 #define MACHINE_PCE	0
 #define MACHINE_NES	1
 
+/* version string */
+#define VERSION_STRING		"v2.51am1"
+
 /* bank */
 #define BANK_SIZE_SHIFT		13
 #define BANK_SIZE			(1 << BANK_SIZE_SHIFT)
