@@ -34,7 +34,6 @@ clean:
 
 $(OBJS)  : defs.h externs.h protos.h
 main.o   : inst.h vars.h
-expr.o   : expr.h
 pce.o    : pce.h
 nes.o    : nes.h
 %.o : %.c
