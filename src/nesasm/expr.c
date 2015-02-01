@@ -74,8 +74,8 @@ static unsigned int val_stack[NUM_VAL_STACK_DEPTH];
 static int op_idx, val_idx;
 /* when set await an operator, else await a value */
 static int need_operator;
-/* expression stack */
-static unsigned char *expr_stack[16];
+/* expression stack. */
+static unsigned char *expr_stack[NUM_EXPR_STACK_DEPTH];
 /* predefined functions */
 static const char * const keyword[8] = {
 	"\7DEFINED",
@@ -180,6 +180,10 @@ cont:
 			case '\\':
 				if (func_idx == 0) {
 					error("Syntax error in expression!");
+					return (0);
+				}
+				if (func_idx >= NUM_EXPR_STACK_DEPTH) {
+					error("Function call too depth!");
 					return (0);
 				}
 				expr++;
@@ -487,7 +491,10 @@ push_val(int type)
 		if (func_look()) {
 			if (!func_getargs())
 				return (0);
-
+			if (func_idx >= NUM_EXPR_STACK_DEPTH) {
+				error("Function call too depth!");
+				return (0);
+			}
 			expr_stack[func_idx++] = expr;
 			expr = (unsigned char *)func_ptr->line;
 			return (1);

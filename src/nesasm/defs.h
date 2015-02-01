@@ -188,9 +188,13 @@
 #define MAX_MACRO_NAME_LEN	31
 #define MAX_MACRO_ARG_LEN	79
 
-/* expr */
-#define NUM_OP_STACK_DEPTH	64
-#define NUM_VAL_STACK_DEPTH	64
+/* expr and func */
+#define NUM_OP_STACK_DEPTH		64
+#define NUM_VAL_STACK_DEPTH		64
+#define NUM_FUNC_STACK_DEPTH	8
+#define NUM_EXPR_STACK_DEPTH	NUM_FUNC_STACK_DEPTH*2
+#define MAX_FUNC_ARGS			('9'-'1'+1)	/* assumes ASCII */
+#define MAX_FUNC_ARG_LEN		79
 
 /* structs */
 typedef struct t_opcode {

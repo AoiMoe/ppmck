@@ -43,7 +43,7 @@ extern struct t_macro *mptr;
 extern struct t_func  *func_ptr;
 extern struct t_proc  *proc_ptr;
 extern int   proc_nb;
-extern char  func_arg[8][10][80];
+extern char  func_arg[NUM_FUNC_STACK_DEPTH][MAX_FUNC_ARGS][MAX_FUNC_ARG_LEN+1];
 extern int   func_idx;
 extern int   infile_error;
 extern int   infile_num;

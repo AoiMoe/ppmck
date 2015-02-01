@@ -9,7 +9,7 @@
 static struct t_func *func_tbl[COMMON_HASH_TABLE_SIZE];
 struct t_func *func_ptr;
 char func_line[MAX_LINE_CHARS+1];
-char func_arg[8][10][80];
+char func_arg[NUM_FUNC_STACK_DEPTH][MAX_FUNC_ARGS][MAX_FUNC_ARG_LEN+1];
 int  func_idx;
 
 
@@ -196,7 +196,7 @@ func_getargs(void)
 	int i, x;
 
 	/* can not nest too much macros */
-	if (func_idx == 7) {
+	if (func_idx >= NUM_FUNC_STACK_DEPTH-1) {
 		error("Too many nested function calls!");
 		return (0);
 	}
@@ -214,7 +214,7 @@ func_getargs(void)
 	ptr  = func_arg[func_idx][0];
 	arg  = 0;
 
-	for (i = 0; i < 9; i++)
+	for (i = 0; i < MAX_FUNC_ARGS; i++)
 		func_arg[func_idx][i][0] = '\0';
 
 	/* get args one by one */
@@ -228,11 +228,11 @@ func_getargs(void)
 		/* empty arg */
 		case ',':
 			arg++;
-			ptr = func_arg[func_idx][arg];
-			if (arg == 9) {
+			if (arg >= MAX_FUNC_ARGS) {
 				error("Too many arguments for a function!");
 				return (0);
 			}
+			ptr = func_arg[func_idx][arg];
 			break;
 
 		/* end of line */	
@@ -306,7 +306,7 @@ func_getargs(void)
 				else {
 					ptr[i++] = c;
 				}
-				if (i == 80) {
+				if (i > MAX_FUNC_ARG_LEN) {
 					error("Invalid function argument length!");
 					return (0);
 				}
