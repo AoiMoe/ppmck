@@ -50,7 +50,7 @@ extern int   infile_num;
 extern FILE	*out_fp;	/* file pointers, output */
 extern FILE	*in_fp;		/* input */
 extern FILE	*lst_fp;	/* listing */
-extern struct t_input_info input_file[8];
+extern struct t_input_info input_file[MAX_INCS+1];
 extern struct t_machine *machine;
 extern struct t_machine  nes;
 extern struct t_machine  pce;
