@@ -101,7 +101,6 @@ void main_init()
 	lablptr = glablptr = lastlabl = NULL;
 	MEMCLR(bank_glabl);
 	
-	MEMCLR(hex);
 	opflg = opval = optype = 0;
 	opext = 0;
 	pass = 0;

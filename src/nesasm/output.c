@@ -5,6 +5,23 @@
 #include "protos.h"
 
 
+/*
+ * ---
+ * hexcon()
+ * ---
+ * convert integer to n digit hexadecimal, without null termination.
+ */
+static void
+hexcon(char *buf, int n, int val)
+{
+	/* assumes CHAR_BIT == 8 */
+	char tmp[sizeof (unsigned)*2+1];
+	int col;
+
+	col = sprintf(tmp, "%0*X", n, (unsigned)val);
+	memcpy(buf, tmp+col-n, n);
+}
+
 /* ----
  * println()
  * ----
@@ -51,9 +68,8 @@ println(void)
 					prlnbuf[17 + (3*cnt)] = '-';
 				}
 				else {
-					hexcon(2, rom[bank][data_loccnt]);
-					prlnbuf[16 + (3*cnt)] = hex[1];
-					prlnbuf[17 + (3*cnt)] = hex[2];
+					hexcon(&prlnbuf[16 + (3*cnt)],
+					       2, rom[bank][data_loccnt]);
 				}
 				data_loccnt++;
 				cnt++;
@@ -110,36 +126,13 @@ loadlc(int offset, int pos)
 			prlnbuf[i++] = '-';
 		}
 		else {
-			hexcon(2, bank);
-			prlnbuf[i++] = hex[1];
-			prlnbuf[i++] = hex[2];
+			hexcon(&prlnbuf[i], 2, bank);
+			i+=2;
 		}
 		prlnbuf[i++] = ':';
 		offset += B2ADDR(page, 0);
 	}
-	hexcon(4, offset);
-	prlnbuf[i++] = hex[1];
-	prlnbuf[i++] = hex[2];
-	prlnbuf[i++] = hex[3];
-	prlnbuf[i]   = hex[4];
-}
-
-
-/* ----
- * hexcon()
- * ----
- * convert number supplied as argument to hexadecimal in hex[digit]
- */
-
-void
-hexcon(int digit, int num)
-{
-	for (; digit > 0; digit--) {
-		hex[digit] = (num & 0x0f) + '0';
-		if (hex[digit] > '9')
-			hex[digit] += 'A' - '9' - 1;
-		num >>= 4;
-	}
+	hexcon(&prlnbuf[i], 4, offset);
 }
 
 

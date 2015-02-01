@@ -95,7 +95,6 @@ int pce_load_map(char *fname, int mode);
 void println(void);
 void clearln(void);
 void loadlc(int offset, int f);
-void hexcon(int digit, int num);
 void putbyte(int offset, int data);
 void putword(int offset, int data);
 void putbuffer(void *data, int size);
