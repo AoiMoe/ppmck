@@ -35,6 +35,8 @@ clean:
 $(OBJS)  : defs.h externs.h protos.h
 main.o   : inst.h vars.h
 pce.o    : pce.h
+pcx.o    : pce.h
+mml.o    : pce.h
 nes.o    : nes.h
 %.o : %.c
 	$(CC) $(CFLAGS) -o $@ -c $<

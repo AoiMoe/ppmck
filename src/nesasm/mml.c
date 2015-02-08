@@ -3,6 +3,7 @@
 #include "defs.h"
 #include "externs.h"
 #include "protos.h"
+#include "pce.h"
 
 /* defines */
 #define SND_STOP		0	/* stop processing (track finish) */

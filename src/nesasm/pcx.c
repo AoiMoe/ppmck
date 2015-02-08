@@ -6,19 +6,20 @@
 #include "defs.h"
 #include "externs.h"
 #include "protos.h"
+#include "pce.h"
 
 /* globals */
-char pcx_name[128];		/* pcx file name */
+char pcx_name[MAX_PCX_NAME+1];		/* pcx file name */
 int  pcx_w, pcx_h;		/* pcx dimensions */
 int  pcx_nb_colors;		/* number of colors in the pcx */
 int  pcx_nb_args;		/* number of argument */
-unsigned int   pcx_arg[8];	/* pcx args array */
+unsigned int   pcx_arg[MAX_PCX_ARGS];	/* pcx args array */
 unsigned char *pcx_buf;		/* pointer to the pcx buffer */
-unsigned char  pcx_pal[256][3];		/* palette */
-unsigned char  pcx_plane[128][4];	/* plane buffer */
+unsigned char  pcx_pal[NUM_PCX_PALETTE_ENTRIES][NUM_PCX_PALETTE_DIMS];		/* palette */
+unsigned char  pcx_plane[PCX_PLANE_BUFFER_SIZE][NUM_PCX_PLANES];	/* plane buffer */
 unsigned int     tile_offset;	/* offset in the tile reference table */
-struct t_tile    tile[256];		/* tile info table */
-struct t_tile   *tile_tbl[256];	/* tile hash table */
+struct t_tile    tile[MAX_PCX_TILES];		/* tile info table */
+struct t_tile   *tile_tbl[PCX_TILE_HASH_SIZE];	/* tile hash table */
 struct t_symbol *tile_lablptr;	/* tile symbol reference */
 struct PCX_HEADER {		/* pcx file header */
 	unsigned char manufacturer, version;
@@ -170,7 +171,7 @@ pcx_set_tile(struct t_symbol *ref, unsigned int offset)
 		goto err;
 
 	/* reset tile hash table */
-	for (i = 0; i < 256; i++)
+	for (i = 0; i < PCX_TILE_HASH_SIZE; i++)
 		tile_tbl[i] = NULL;
 
 	/* get infos */
@@ -179,14 +180,14 @@ pcx_set_tile(struct t_symbol *ref, unsigned int offset)
 	data = &rom[ref->bank - bank_base][ref->value & BANK_SIZE_MASK] + start;
 
 	/* 256 tiles max */
-	if (nb > 256)
-		nb = 256;
+	if (nb > MAX_PCX_TILES)
+		nb = MAX_PCX_TILES;
 
 	/* parse tiles */
 	for (i = 0; i < nb; i++) {
 		/* calculate tile crc */
 		crc  = crc_calc(data, size);
-		hash = (crc & 0xFF);
+		hash = PCX_TILE_HASH_MOD(crc);
 
 		/* insert the tile in the tile table */
 		tile[i].next = tile_tbl[hash];
@@ -235,7 +236,7 @@ pcx_search_tile(unsigned char *data, int size)
 
 	/* calculate tile crc */
 	crc  = crc_calc(data, size);
-	tile = tile_tbl[crc & 0xFF];
+	tile = tile_tbl[PCX_TILE_HASH_MOD(crc)];
 
 	/* search tile */
 	while (tile) {
@@ -260,11 +261,11 @@ pcx_search_tile(unsigned char *data, int size)
 int
 pcx_get_args(int *ip)
 {
-	char name[128];
+	char name[MAX_PCX_NAME+1];
 	char c;
 
 	/* get pcx file name */
-	if (!getstring(ip, name, 127))
+	if (!getstring(ip, name, MAX_PCX_NAME))
 		return (0);
 
 	/* reset args counter */
@@ -291,9 +292,9 @@ pcx_get_args(int *ip)
 		pcx_arg[pcx_nb_args++] = value;
 
 		/* check number of args */
-		if (pcx_nb_args == 7)
+		if (pcx_nb_args >= MAX_PCX_ARGS-1)
 			break;
-	}			
+	}
 
 	/* check number of args */
 	if (optype & (1 << pcx_nb_args)) {
@@ -379,11 +380,13 @@ int
 pcx_load(char *name)
 {
 	FILE *f;
+	size_t len;
 
 	/* check if the file is the same as the previously loaded one;
 	 * if this is the case do not reload it
 	 */
-	if (strlen(name) && (strcasecmp(pcx_name, name) == 0))
+	len = strlen(name);
+	if (len && (strcasecmp(pcx_name, name) == 0))
 		return (1);
 	else {
 		/* no it's a new file - ok let's prepare loading */
@@ -393,6 +396,11 @@ pcx_load(char *name)
 		pcx_name[0] = '\0';
 	}
 
+	if (len > MAX_PCX_NAME) {
+		error("pcx name too long!");
+		return (0);
+	}
+
 	/* open the file */
 	if ((f = open_file(name, "rb")) == NULL) {
 		error("Can not open file!");
@@ -400,21 +408,33 @@ pcx_load(char *name)
 	}
 
 	/* get the picture size */
-	fread(&pcx, 128, 1, f);
+	if (sizeof (pcx) != PCX_HEADER_SIZE) {
+		error("pceas bug: run-time inconsistency of PCX_HEADER_SIZE!");
+		return (0);
+	}
+	fread(&pcx, PCX_HEADER_SIZE, 1, f);
 	pcx_w = (GET_SHORT(pcx.xmax) - GET_SHORT(pcx.xmin) + 1);
 	pcx_h = (GET_SHORT(pcx.ymax) - GET_SHORT(pcx.ymin) + 1);
 
-	/* adjust picture width */
+	/* adjust picture width to even */
 	if (pcx_w & 0x01)
 		pcx_w++;
 
 	/* check size range */
-	if ((pcx_w > 1024) || (pcx_h > 768)) {
-		error("Picture size too big, max. 1024x768!");
+	if ((pcx_w > MAX_PCX_WIDTH) || (pcx_h > MAX_PCX_HEIGHT)) {
+		error("Picture size too big, max. "
+			  MACROVAL_TO_STR(MAX_PCX_WIDTH)
+			  "x"
+			  MACROVAL_TO_STR(MAX_PCX_HEIGHT)
+			  "!");
 		return (0);
 	}
-	if ((pcx_w < 16) || (pcx_h < 16)) {
-		error("Picture size too small, min. 16x16!");
+	if ((pcx_w < MIN_PCX_WIDTH) || (pcx_h < MIN_PCX_HEIGHT)) {
+		error("Picture size too small, min. "
+			  MACROVAL_TO_STR(MIN_PCX_WIDTH)
+			  "x"
+			  MACROVAL_TO_STR(MIN_PCX_HEIGHT)
+			  "!");
 		return (0);
 	}
 
@@ -499,7 +519,7 @@ decode_256(FILE *f, int w, int h)
 	while ((c != 12) && (c != EOF))
 		c = fgetc(f);
 	if (c == 12)
-		fread(pcx_pal, 768, 1, f);
+		fread(pcx_pal, NUM_PCX_PALETTE_DIMS, NUM_PCX_PALETTE_ENTRIES, f);
 
 	/* number of colors */
 	pcx_nb_colors = 256;
@@ -604,7 +624,7 @@ decode_16(FILE *f, int w, int h)
 	}			
 
 	/* get the palette */
-	memset(pcx_pal, 0, 768);
+	MEMCLR(pcx_pal);
 	memcpy(pcx_pal, pcx.colormap, (1 << pcx.np) * 3);
 
 	/* number of colors */
