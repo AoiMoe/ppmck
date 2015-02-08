@@ -158,6 +158,7 @@
 #define FUNC	6	/* used for a function */
 
 /* operation code flags */
+#define CLASSMASK	0x1FF8000
 #define PSEUDO		0x0008000
 #define CLASS1		0x0010000
 #define CLASS2		0x0020000
@@ -168,6 +169,7 @@
 #define CLASS8		0x0400000
 #define CLASS9		0x0800000
 #define CLASS10		0x1000000
+#define MODEMASK	0x0001FFF	/* note: popcount(MODEMASK) == 13 */
 #define ACC			0x0000001
 #define IMM			0x0000002
 #define ZP			0x0000004
@@ -181,6 +183,9 @@
 #define ABS_Y		0x0000400
 #define ABS_IND		0x0000800
 #define ABS_IND_X	0x0001000
+#define MAX_ADDRMODES	16	/* for alignment, most least 2^n value
+							 * more than popcount(MODEMASK) */
+#define NUM_OPTYPES		6	/* number of optypes for class4 instructions */
 
 /* pass flags */
 #define FIRST_PASS	0
