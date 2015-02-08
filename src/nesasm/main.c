@@ -63,7 +63,7 @@ int   mx_opt;
 int   mlist_opt;	/* macro listing main flag */
 int   xlist;		/* listing file main flag */
 int   list_level;	/* output level */
-int   asm_opt[8];	/* assembler options */
+int   asm_opt[NUM_OPTS];	/* assembler options */
 
 
 // definition

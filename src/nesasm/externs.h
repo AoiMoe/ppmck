@@ -76,6 +76,6 @@ extern unsigned int	value;	/* operand field value */
 extern int  mlist_opt;	/* macro listing main flag */
 extern int  xlist;		/* listing file main flag */
 extern int  list_level;	/* output level */
-extern int  asm_opt[8];	/* assembler option state */
+extern int  asm_opt[NUM_OPTS];	/* assembler option state */
 extern int  opvaltab[6][16];
 
