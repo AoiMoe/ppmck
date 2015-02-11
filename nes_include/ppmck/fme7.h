@@ -154,8 +154,14 @@ fme7_do_effect:
 .pitchenve_write2:
 	lda	effect_flag,x
 	and	#%00000010
-	beq	.arpeggio_write2
+	beq	.toneenve_write2
 	jsr	sound_fme7_pitch_enve
+	
+.toneenve_write2:
+	lda	effect_flag,x
+	and	#%00000100
+	beq	.arpeggio_write2
+	jsr	sound_fme7_tone_enve
 
 .arpeggio_write2:
 	lda	effect_flag,x
@@ -272,14 +278,52 @@ fme7_wave_set:
 	bne	fme7_volume_set
 
 	jsr	sound_data_address
+	lda	[sound_add_low,x]	;音色データ読み出し
+	pha
+	bpl	fme7_tone_env_set ; 音色エンベロープ処理
+	
+	lda	effect_flag,x
+	and	#%11111011
+	sta	effect_flag,x		;音色エンベロープ無効指定
+	
+	pla
+	and	#%00000011
+	sta	fme7_tone,x
+
+	jsr	fme7_tone_set_sub
+	jsr	sound_data_address
+	jmp	sound_fme7_read
+
+fme7_tone_env_set: ; 音色エンベロープ
+
+	lda	effect_flag,x
+	ora	#%00000100
+	sta	effect_flag,x		;音色エンベロープ有効指定
+	
+	pla
+	sta	duty_sel,x
+	asl	a
+	tay
+
+	lda	#bank(dutyenve_table)*2
+	jsr	change_bank
+
+	lda	dutyenve_table,y	;音色エンベロープアドレス設定
+	sta	duty_add_low,x
+	lda	dutyenve_table+1,y
+	sta	duty_add_high,x
+	jsr	sound_data_address
+	jmp	sound_fme7_read
+
+fme7_tone_set_sub: ; 音色セットサブルーチン(A=音色)
+	pha
 	ldy	fme7_ch_selx4
 	lda	fme7_enable_bit_tbl,y	;まずノイズビット、トーンビットの両方を0にする
 	eor	#$FF
 	and	fme7_reg7
 	sta	fme7_reg7
-	lda	[sound_add_low,x]	;音色データ読み出し
-	and	#%00000011
-	sta	fme7_tone,x
+	pla
+	
 	clc
 	adc	fme7_ch_selx4
 	tay
@@ -289,9 +333,9 @@ fme7_wave_set:
 	ldy	#$07
 	sty	FME7_ADDR
 	sta	FME7_DATA
-	jsr	sound_data_address
-	jmp	sound_fme7_read
+	rts
 
+	
 fme7_enable_bit_tbl:
 ;		       @0   @1(tone)  @2(noise)   @3(both)
 	db	%00001001, %00001000, %00000001, %00000000	; ch A
@@ -490,6 +534,9 @@ sound_fme7_pitch_enve:
 	jsr	fme7_write
 	jmp	pitch_enverope_address
 ;-------------------------------------------------------------------------------
+sound_fme7_tone_enve:
+	jmp	fme7_tone_enve_sub
+;-------------------------------------------------------------------------------
 sound_fme7_note_enve
 	jsr	note_enve_sub
 	bcs	.end4			;0なので書かなくてよし
@@ -497,4 +544,29 @@ sound_fme7_note_enve
 	jsr	fme7_write
 .end4
 	jmp	arpeggio_address
+;-------------------------------------------------------------------------------
+fme7_tone_enve_sub:
+	ldx	<channel_selx2
+
+	lda	#bank(dutyenve_table)*2
+	jsr	change_bank
+
+	indirect_lda	duty_add_low		;エンベロープデータ読み込み
+	cmp	#$ff			;最後かどーか
+	beq	fme7_tone_enve_endmark	;最後ならそのままおしまい
+	jsr	fme7_tone_set_sub		;音色を設定する
+
+	jmp	duty_enverope_address	;アドレス一個増やして終了
+
+fme7_tone_enve_endmark:
+	lda	duty_sel,x
+	asl	a
+	tay
+
+	lda	dutyenve_lp_table,y
+	sta	duty_add_low,x
+	lda	dutyenve_lp_table+1,y
+	sta	duty_add_high,x
+	jmp	fme7_tone_enve_sub
+
 ;-------------------------------------------------------------------------------
