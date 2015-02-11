@@ -1,4 +1,5 @@
 ppmck release 9a ex11.1 by BouKiCHi
+ppmck release 9a ex11.1am1 by AoiMoe
 
 **** このファイルについて
 
@@ -25,6 +26,20 @@ ppmck release 9a ex11.1 by BouKiCHi
 ・FDS音源 MOD周波数の設定(9a ex9)
 
 ・@@、@@rをFME7(S5B)で有効にした(9a ex10)
+・#LINEの追加(9a ex11.1 am1)
+
+***** #LINEの追加(9a ex11.1 am1)
+
+C言語の#lineディレクティブ風のコマンドである#LINEを追加しました。
+マクロプロセッサと組み合わせる場合に便利かもしれません。
+
+例;
+#LINE 42 hoge.mml
+A a9999
+
+コンパイル結果メッセージ(抜粋):
+Warning: hoge.mml     42: フレーム音長が0になりました。
+
 
 ***** @@、@@rをFME7(S5B)で有効にした(9a ex10)
 
