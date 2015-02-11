@@ -194,6 +194,7 @@ enum {
 	SLAR_NOT_STARTED,
 	TOO_MUCH_DEFINE,
 	ABNORMAL_MOD_FREQ,
+	ABNORMAL_LINE_DIRECTIVE,
 };
 
 // エラー文字列
@@ -253,6 +254,7 @@ const	char	*ErrorlMessage[] = {
 	"スラーが開始されていません",				"Slar not started",
 	"#DEFINEが多すぎます",				"Too much use #DEFINE",
 	"MOD周波数の値が異常です",			"Abnormal MOD frequency value",
+	"#LINEの引数が異常です",			"Abnormal #LINE parameters",
 };
 
 
@@ -522,7 +524,6 @@ LINE *readMmlFile(char *fname)
 {
 	LINE *lptr;
 	int line_count;
-	int i;
 	char *filestr;
 	filestr = readTextFile(fname);
 	
@@ -543,10 +544,6 @@ LINE *readMmlFile(char *fname)
 	lptr[0].str    = filestr;		/* ポインタとサイズが格納されている */
 	lptr[0].line   = line_count;
 	lptr[0].filename = fname;
-	for( i = 1; i <= line_count; i++ ) {
-		lptr[i].filename = fname;
-		lptr[i].line = i;
-	}
 	return lptr;
 }
 
@@ -620,7 +617,7 @@ int setEffectSub(LINE *lptr, int line, int *ptr_status_end_flag, int min, int ma
 	return 1;
 on_error:
 	lptr[line].status = 0;
-	dispError( error_no, lptr[line].filename, line );
+	dispError( error_no, lptr[line].filename, lptr[line].line );
 	return 0;
 }
 
@@ -646,6 +643,7 @@ void getLineStatus(LINE *lptr, int inc_nest )
 		{ "#OCTAVE-REV",     _OCTAVE_REV     },
 		{ "#GATE-DENOM",        _GATE_DENOM  },
 		{ "#INCLUDE",        _INCLUDE        },
+		{ "#LINE",			 _LINE,			 },
 		{ "#EX-DISKFM",      _EX_DISKFM      },
 		{ "#EX-NAMCO106",    _EX_NAMCO106    },
 		{ "#EX-VRC7",		 _EX_VRC7		 },
@@ -678,11 +676,19 @@ void getLineStatus(LINE *lptr, int inc_nest )
 	int	line, i, param, cnt, track_flag, status_end_flag, bank,bank_ch;
 	char	*temp, *temp2;
 	char *ptr;
+	char *cur_fname;
+	int cur_lineno;
+
 	ptr = lptr[0].str;
 
 	status_end_flag = 0;
 
+	cur_fname = lptr->filename;
+	cur_lineno = 1;
+
 	for( line = 1; line <= lptr->line; line++ ) {
+		lptr[line].filename = cur_fname;
+		lptr[line].line = cur_lineno++;
 		ptr = skipSpace( ptr );
 		/* 前の行がエフェクト定義処理だった？ */
 		if( ((lptr[line-1].status&_SET_EFFECT) != 0) && (status_end_flag != 0) ) {
@@ -730,7 +736,7 @@ void getLineStatus(LINE *lptr, int inc_nest )
 				while( strchr( str_track, *ptr ) ) {
 					temp = strchr( str_track, *ptr );
 					if( temp == NULL ) {
-						dispError( INVALID_TRACK_HEADER, lptr[line].filename, line );
+						dispError( INVALID_TRACK_HEADER, lptr[line].filename, lptr[line].line );
 					} else {
 						track_flag |= (1<<(temp-str_track));
 					}
@@ -739,7 +745,7 @@ void getLineStatus(LINE *lptr, int inc_nest )
 				// トラック許可のチェック
 				for (i = 0; i < _TRACK_MAX; i++) {
 					if( (TRACK(i) & track_flag) && !(TRACK(i) & track_allow_flag) ) {
-						dispError( INVALID_TRACK_HEADER, lptr[line].filename, line );
+						dispError( INVALID_TRACK_HEADER, lptr[line].filename, lptr[line].line );
 						track_flag &= ~TRACK(i);
 					}
 				}
@@ -763,7 +769,7 @@ void getLineStatus(LINE *lptr, int inc_nest )
 			/* Includeコマンドの処理 */
 			  case _INCLUDE:
 				if( inc_nest > 16 ) {				/* ネストは16段まで(再帰で呼ばれると終了しないので) */
-					dispWarning( TOO_MANY_INCLUDE_FILES, lptr[line].filename, line );
+					dispWarning( TOO_MANY_INCLUDE_FILES, lptr[line].filename, lptr[line].line );
 					lptr[line].status = 0;
 				} else {
 					LINE *ltemp;
@@ -779,6 +785,19 @@ void getLineStatus(LINE *lptr, int inc_nest )
 						error_flag = 1;
 					}
 				}
+				break;
+			/* LINEコマンド */
+			case _LINE:
+				temp = skipSpace(lptr[line].str);
+				param = Asc2Int(temp, &cnt);
+				if (cnt == 0 || param < 1) {
+					dispError(ABNORMAL_LINE_DIRECTIVE, lptr[line].filename, lptr[line].line);
+					break;
+				}
+				cur_lineno = param;
+				temp = skipSpaceOld(temp+cnt);
+				if (*temp != '\0')
+					cur_fname = temp;
 				break;
 			/* LFOコマンド */
 			  case _SET_PITCH_MOD:
@@ -873,7 +892,7 @@ void getLineStatus(LINE *lptr, int inc_nest )
 						track_allow_flag |= TRACK(BN106TRACK+i);
 					}
 				} else {
-					dispError( DEFINITION_IS_WRONG, lptr[line].filename, line );
+					dispError( DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 					lptr[line].status = 0;
 				}
 				break;
@@ -896,7 +915,7 @@ void getLineStatus(LINE *lptr, int inc_nest )
 					}
 					auto_bankswitch = 1;
 				} else {
-					dispError( DEFINITION_IS_WRONG, lptr[line].filename, line );
+					dispError( DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 				}
 				break;
 			/* バンク切り替え埋め込み(暫定処理の互換措置) */
@@ -952,12 +971,12 @@ void getLineStatus(LINE *lptr, int inc_nest )
 								//bank_change[bank] = param-1;
 								bank_sel[param-1] = bank+1;
 							} else {
-								dispError( DEFINITION_IS_WRONG, lptr[line].filename, line );
+								dispError( DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 								lptr[line].status = 0;
 								//bank_change[bank] = 0xff;
 							}
 						} else {
-							dispError( DEFINITION_IS_WRONG, lptr[line].filename, line );
+							dispError( DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 							lptr[line].status = 0;
 						}
 					} else {
@@ -966,13 +985,13 @@ void getLineStatus(LINE *lptr, int inc_nest )
 							//bank_change[0] = param-1;
 							bank_sel[param-1] = 1;
 						} else {
-							dispError( DEFINITION_IS_WRONG, lptr[line].filename, line );
+							dispError( DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 							lptr[line].status = 0;
 							//bank_change[0] = 0xff;
 						}
 					}
 				} else {
-					dispError( DEFINITION_IS_WRONG, lptr[line].filename, line );
+					dispError( DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 					lptr[line].status = 0;
 				}
 				break;
@@ -988,7 +1007,7 @@ void getLineStatus(LINE *lptr, int inc_nest )
 					/* 数字によるトラック指定 */
 					param = Asc2Int( temp, &cnt );
 					if (cnt == 0) {
-						dispError( DEFINITION_IS_WRONG, lptr[line].filename, line );
+						dispError( DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 						lptr[line].status = 0;
 						break;
 					} else {
@@ -1006,20 +1025,20 @@ void getLineStatus(LINE *lptr, int inc_nest )
 						param = Asc2Int( temp, &cnt );
 						if( cnt != 0) {
 							if (checkBankRange(param) == 0) {
-								dispError( BANK_IDX_OUT_OF_RANGE, lptr[line].filename, line );
+								dispError( BANK_IDX_OUT_OF_RANGE, lptr[line].filename, lptr[line].line );
 								break;
 							}
 							bank_sel[bank_ch-1] = param;
 						} else {
-							dispError( DEFINITION_IS_WRONG, lptr[line].filename, line );
+							dispError( DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 							lptr[line].status = 0;
 						}
 					} else {
-						dispError( DEFINITION_IS_WRONG, lptr[line].filename, line );
+						dispError( DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 						lptr[line].status = 0;
 					}
 				} else {
-					dispError( DEFINITION_IS_WRONG, lptr[line].filename, line );
+					dispError( DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 					lptr[line].status = 0;
 				}
 				break;
@@ -1055,7 +1074,7 @@ void getLineStatus(LINE *lptr, int inc_nest )
 			  case _DEFINE:
 				if (define_count + 1 >= MAX_DEF)
 				{
-					dispError( TOO_MUCH_DEFINE, lptr[line].filename, line );
+					dispError( TOO_MUCH_DEFINE, lptr[line].filename, lptr[line].line );
 					lptr[line].status = 0;
 				}
 				else
@@ -1091,7 +1110,7 @@ void getLineStatus(LINE *lptr, int inc_nest )
 				if( cnt != 0 && param > 0) {
 					gate_denom = param;
 				} else {
-					dispError( DEFINITION_IS_WRONG, lptr[line].filename, line );
+					dispError( DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 					lptr[line].status = 0;
 				}
 				break;
@@ -1106,7 +1125,7 @@ void getLineStatus(LINE *lptr, int inc_nest )
 					lptr[line].str = ptr;
 				} else {
 					/* エラーチェック */
-					dispError( COMMAND_NOT_DEFINED, lptr[line].filename, line );
+					dispError( COMMAND_NOT_DEFINED, lptr[line].filename, lptr[line].line );
 					lptr[line].status = 0;
 					lptr[line].str = ptr;
 				}
@@ -1140,7 +1159,7 @@ int getTone( LINE *lptr )
 			ptr = lptr[line].str;
 			ptr++;								/* '{'の分を飛ばす */
 			if (tone_tbl[no][0] != 0) {
-				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, line );
+				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, lptr[line].line );
 			}
 			tone_tbl[no][0] = 0;
 			offset = 0;
@@ -1154,7 +1173,7 @@ int getTone( LINE *lptr )
 						tone_tbl[no][i] = EFTBL_END;
 						tone_tbl[no][0]++;
 					} else {
-						dispError( PARAMETER_IS_LACKING, lptr[line].filename, line );
+						dispError( PARAMETER_IS_LACKING, lptr[line].filename, lptr[line].line );
 						tone_tbl[no][0] = 0;
 					}
 					end_flag = 1;
@@ -1173,7 +1192,7 @@ int getTone( LINE *lptr )
 							ptr = lptr[line+offset].str;
 						}
 					} else {
-						dispError( TONE_DEFINITION_IS_WRONG, lptr[line].filename, line );
+						dispError( TONE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 						tone_tbl[no][0] = 0;
 						end_flag = 1;
 					}
@@ -1189,7 +1208,7 @@ int getTone( LINE *lptr )
 						i++;
                         length++;
 					} else {
-						dispError( TONE_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
+						dispError( TONE_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 						tone_tbl[no][0] = 0;
 						end_flag = 1;
 					}
@@ -1202,7 +1221,7 @@ int getTone( LINE *lptr )
 			}
 		/* 音色定義だけど_SAME_LINEの時はエラー */
 		} else if( lptr[line].status == (_SET_TONE|_SAME_LINE) ) {
-			dispError( TONE_DEFINITION_IS_WRONG, lptr[line].filename, line );
+			dispError( TONE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
 			length += getTone( lptr[line].inc_ptr );
@@ -1236,7 +1255,7 @@ int getEnvelope( LINE *lptr )
 			ptr = lptr[line].str;
 			ptr++;								/* '{'の分を飛ばす */
 			if (envelope_tbl[no][0] != 0) {
-				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, line );
+				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, lptr[line].line );
 			}
 			envelope_tbl[no][0] = 0;
 			offset = 0;
@@ -1250,7 +1269,7 @@ int getEnvelope( LINE *lptr )
 						envelope_tbl[no][i] = EFTBL_END;
 						envelope_tbl[no][0]++;
 					} else {
-						dispError( PARAMETER_IS_LACKING, lptr[line].filename, line );
+						dispError( PARAMETER_IS_LACKING, lptr[line].filename, lptr[line].line );
 						envelope_tbl[no][0] = 0;
 					}
 					end_flag = 1;
@@ -1269,7 +1288,7 @@ int getEnvelope( LINE *lptr )
 							ptr = lptr[line+offset].str;
 						}
 					} else {
-						dispError( ENVELOPE_DEFINITION_IS_WRONG, lptr[line].filename, line );
+						dispError( ENVELOPE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 						envelope_tbl[no][0] = 0;
 						end_flag = 1;
 					}
@@ -1283,7 +1302,7 @@ int getEnvelope( LINE *lptr )
 						i++;
                         length++;
 					} else {
-						dispError( ENVELOPE_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
+						dispError( ENVELOPE_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line].line );
 						envelope_tbl[no][0] = 0;
 						end_flag = 1;
 					}
@@ -1296,7 +1315,7 @@ int getEnvelope( LINE *lptr )
 			}
 		/* エンベロープ定義だけど_SAME_LINEの時はエラー */
 		} else if( lptr[line].status == (_SET_ENVELOPE|_SAME_LINE) ) {
-			dispError( ENVELOPE_DEFINITION_IS_WRONG, lptr[line].filename, line );
+			dispError( ENVELOPE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
 			length += getEnvelope( lptr[line].inc_ptr );
@@ -1327,7 +1346,7 @@ int getPitchEnv( LINE *lptr )
 			ptr = lptr[line].str;
 			ptr++;								/* '{'の分を飛ばす */
 			if (pitch_env_tbl[no][0] != 0) {
-				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, line );
+				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, lptr[line].line );
 			}
 			pitch_env_tbl[no][0] = 0;
 			offset = 0;
@@ -1341,7 +1360,7 @@ int getPitchEnv( LINE *lptr )
 						pitch_env_tbl[no][i] = EFTBL_END;
 						pitch_env_tbl[no][0]++;
 					} else {
-						dispError( PARAMETER_IS_LACKING, lptr[line].filename, line );
+						dispError( PARAMETER_IS_LACKING, lptr[line].filename, lptr[line].line );
 						pitch_env_tbl[no][0] = 0;
 					}
 					end_flag = 1;
@@ -1360,7 +1379,7 @@ int getPitchEnv( LINE *lptr )
 							ptr = lptr[line+offset].str;
 						}
 					} else {
-						dispError( PITCH_ENVELOPE_DEFINITION_IS_WRONG, lptr[line].filename, line );
+						dispError( PITCH_ENVELOPE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 						pitch_env_tbl[no][0] = 0;
 						end_flag = 1;
 					}
@@ -1374,7 +1393,7 @@ int getPitchEnv( LINE *lptr )
 						i++;
 						length++;
 					} else {
-						dispError( PITCH_ENVELOPE_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
+						dispError( PITCH_ENVELOPE_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 						pitch_env_tbl[no][0] = 0;
 						end_flag = 1;
 					}
@@ -1387,7 +1406,7 @@ int getPitchEnv( LINE *lptr )
 			}
 		/* ピッチエンベロープ定義だけど_SAME_LINEの時はエラー */
 		} else if( lptr[line].status == (_SET_PITCH_ENV|_SAME_LINE) ) {
-			dispError( PITCH_ENVELOPE_DEFINITION_IS_WRONG, lptr[line].filename, line );
+			dispError( PITCH_ENVELOPE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
 			length += getPitchEnv( lptr[line].inc_ptr );
@@ -1418,7 +1437,7 @@ int getPitchMod( LINE *lptr )
 			ptr = lptr[line].str;
 			ptr++;								/* '{'の分を飛ばす */
 			if (pitch_mod_tbl[no][0] != 0) {
-				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, line );
+				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, lptr[line].line );
 			}
 			pitch_mod_tbl[no][0] = 0;
 			offset = 0;
@@ -1431,7 +1450,7 @@ int getPitchMod( LINE *lptr )
 					if (pitch_mod_tbl[no][0] >= 3) {
 						//OK.
 					} else {
-						dispError( PARAMETER_IS_LACKING, lptr[line].filename, line );
+						dispError( PARAMETER_IS_LACKING, lptr[line].filename, lptr[line].line );
 						pitch_mod_tbl[no][0] = 0;
 					}
 					end_flag = 1;
@@ -1444,7 +1463,7 @@ int getPitchMod( LINE *lptr )
 							ptr = lptr[line+offset].str;
 						}
 					} else {
-						dispError( LFO_DEFINITION_IS_WRONG, lptr[line].filename, line );
+						dispError( LFO_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 						pitch_mod_tbl[no][0] = 0;
 						end_flag = 1;
 					}
@@ -1463,7 +1482,7 @@ int getPitchMod( LINE *lptr )
 								i++;
 								length++;
 							} else {
-								dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
+								dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 								pitch_mod_tbl[no][0] = 0;
 								end_flag = 1;
 							}
@@ -1476,19 +1495,19 @@ int getPitchMod( LINE *lptr )
 								i++;
 								length++;
 							} else {
-								dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
+								dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 								pitch_mod_tbl[no][0] = 0;
 								end_flag = 1;
 							}
 							break;
 						  default:
-							dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
+							dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 							pitch_mod_tbl[no][0] = 0;
 							end_flag = 1;
 							break;
 						}
 					} else {
-						dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
+						dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 						pitch_mod_tbl[no][0] = 0;
 						end_flag = 1;
 					}
@@ -1501,7 +1520,7 @@ int getPitchMod( LINE *lptr )
 			}
 		/* 音色定義だけど_SAME_LINEの時はエラー */
 		} else if( lptr[line].status == (_SET_PITCH_MOD|_SAME_LINE) ) {
-			dispError( LFO_DEFINITION_IS_WRONG, lptr[line].filename, line );
+			dispError( LFO_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
 			length += getPitchMod( lptr[line].inc_ptr );
@@ -1534,7 +1553,7 @@ int getArpeggio( LINE *lptr )
 			ptr = lptr[line].str;
 			ptr++;								/* '{'の分を飛ばす */
 			if (arpeggio_tbl[no][0] != 0) {
-				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, line );
+				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, lptr[line].line );
 			}
 			arpeggio_tbl[no][0] = 0;
 			offset = 0;
@@ -1548,7 +1567,7 @@ int getArpeggio( LINE *lptr )
 						arpeggio_tbl[no][i] = EFTBL_END;
 						arpeggio_tbl[no][0]++;
 					} else {
-						dispError( PARAMETER_IS_LACKING, lptr[line].filename, line );
+						dispError( PARAMETER_IS_LACKING, lptr[line].filename, lptr[line].line );
 						arpeggio_tbl[no][0] = 0;
 					}
 					end_flag = 1;
@@ -1568,7 +1587,7 @@ int getArpeggio( LINE *lptr )
 							ptr = lptr[line+offset].str;
 						}
 					} else {
-						dispError( NOTE_ENVELOPE_DEFINITION_IS_WRONG, lptr[line].filename, line );
+						dispError( NOTE_ENVELOPE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 						arpeggio_tbl[no][0] = 0;
 						end_flag = 1;
 					}
@@ -1586,7 +1605,7 @@ int getArpeggio( LINE *lptr )
 						i++;
 						length++;
 					} else {
-						dispError( NOTE_ENVELOPE_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
+						dispError( NOTE_ENVELOPE_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line].line );
 						arpeggio_tbl[no][0] = 0;
 						end_flag = 1;
 					}
@@ -1599,7 +1618,7 @@ int getArpeggio( LINE *lptr )
 			}
 		/* アルペジオ定義だけど_SAME_LINEの時はエラー */
 		} else if( lptr[line].status == (_SET_ARPEGGIO|_SAME_LINE) ) {
-			dispError( NOTE_ENVELOPE_DEFINITION_IS_WRONG, lptr[line].filename, line );
+			dispError( NOTE_ENVELOPE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
 			length += getArpeggio( lptr[line].inc_ptr );
@@ -1634,7 +1653,7 @@ void getDPCM( LINE *lptr )
 			ptr++;								// '{'の分を飛ばす
 			tbl = &dpcm_tbl[no];
 			if (tbl->flag != 0) {
-				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, line );
+				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, lptr[line].line );
 			}
 			tbl->flag = 1;						// フラグを使用中に
 			tbl->index = -1;
@@ -1653,7 +1672,7 @@ void getDPCM( LINE *lptr )
 					switch( i ) {
 					  case 0:
 					  case 1:
-						dispError( DPCM_PARAMETER_IS_LACKING, lptr[line].filename, line );
+						dispError( DPCM_PARAMETER_IS_LACKING, lptr[line].filename, lptr[line].line );
 						tbl->flag = 0;
 						break;
 					  default:
@@ -1670,7 +1689,7 @@ void getDPCM( LINE *lptr )
 							ptr = lptr[line+offset].str;
 						}
 					} else {
-						dispError( DPCM_DEFINITION_IS_WRONG, lptr[line].filename, line );
+						dispError( DPCM_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 						tbl->flag = 0;
 						end_flag = 1;
 					}
@@ -1700,7 +1719,7 @@ void getDPCM( LINE *lptr )
 						ptr++;
 						// ファイル存在チェック/サイズチェック
 						if( (fp = openDmc( tbl->fname )) == NULL ) {
-							dispError( DPCM_FILE_NOT_FOUND, lptr[line+offset].filename, line );
+							dispError( DPCM_FILE_NOT_FOUND, lptr[line+offset].filename, lptr[line+offset].line );
 							tbl->flag = 0;
 							end_flag = 1;
 						} else {
@@ -1717,7 +1736,7 @@ void getDPCM( LINE *lptr )
 						if( cnt != 0 && (0 <= num && num <= 15) ) {
 								tbl->freq = num;
 						} else {
-							dispError( DPCM_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
+							dispError( DPCM_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 							tbl->flag = 0;
 							end_flag = 1;
 						}
@@ -1736,7 +1755,7 @@ void getDPCM( LINE *lptr )
 						if( cnt != 0 && (0 < num && num < 16384) ) {
 							tbl->size = num;
 						} else {
-							dispError( DPCM_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
+							dispError( DPCM_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line].line );
 							tbl->flag = 0;
 							end_flag = 1;
 						}
@@ -1749,7 +1768,7 @@ void getDPCM( LINE *lptr )
 						if (cnt != 0 && ((0 <= num && num <= 0x7f) || num == 0xff)) {
 							tbl->delta_init = num;
 						} else {
-							dispError( DPCM_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
+							dispError( DPCM_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 							tbl->flag = 0;
 							end_flag = 1;
 						}
@@ -1762,7 +1781,7 @@ void getDPCM( LINE *lptr )
 						if (cnt != 0 && (0 <= num && num <= 2)) {
 							tbl->freq |= (num<<6);
 						} else {
-							dispError( DPCM_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
+							dispError( DPCM_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 							tbl->flag = 0;
 							end_flag = 1;
 						}
@@ -1770,7 +1789,7 @@ void getDPCM( LINE *lptr )
 						i++;
 						break;
 					  default:
-						dispError( DPCM_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
+						dispError( DPCM_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 						tbl->flag = 0;
 						end_flag = 1;
 						break;
@@ -1785,15 +1804,15 @@ void getDPCM( LINE *lptr )
 			if ( error_flag == 0 )
 			{
 				if( tbl->size > (0xff)*16+1 ) {
-					dispError( DPCM_FILE_SIZE_OVER, lptr[line+offset].filename, line );
+					dispError( DPCM_FILE_SIZE_OVER, lptr[line+offset].filename, lptr[line+offset].line );
 					tbl->flag = 0;
 				} else if ((tbl->size % 16) != 1) {
-					dispWarning( DPCM_FILE_SIZE_ERROR, lptr[line+offset].filename, line );
+					dispWarning( DPCM_FILE_SIZE_ERROR, lptr[line+offset].filename, lptr[line+offset].line );
 				}
 			}
 		// DPCM定義だけど_SAME_LINEの時はエラー
 		} else if( lptr[line].status == (_SET_DPCM_DATA|_SAME_LINE) ) {
-			dispError( DPCM_DEFINITION_IS_WRONG, lptr[line].filename, line );
+			dispError( DPCM_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 		// インクルードファイル処理
 		} else if( lptr[line].status == _INCLUDE ) {
 			getDPCM( lptr[line].inc_ptr );
@@ -1825,7 +1844,7 @@ int getFMTone( LINE *lptr )
 			ptr = lptr[line].str;
 			ptr++;								/* '{'の分を飛ばす */
 			if (fm_tone_tbl[no][0] != 0) {
-				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, line );
+				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, lptr[line].line );
 			}
 			fm_tone_tbl[no][0] = 0;
 			offset = 0;
@@ -1838,7 +1857,7 @@ int getFMTone( LINE *lptr )
 					if (fm_tone_tbl[no][0] == 64) {
 						//OK.
 					} else {
-						dispError( PARAMETER_IS_LACKING, lptr[line].filename, line );
+						dispError( PARAMETER_IS_LACKING, lptr[line].filename, lptr[line].line );
 						fm_tone_tbl[no][0] = 0;
 					}
 					end_flag = 1;
@@ -1851,7 +1870,7 @@ int getFMTone( LINE *lptr )
 							ptr = lptr[line+offset].str;
 						}
 					} else {
-						dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line].filename, line+offset );
+						dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line+offset].line );
 						fm_tone_tbl[no][0] = 0;
 						line += offset;
 						end_flag = 1;
@@ -1866,13 +1885,13 @@ int getFMTone( LINE *lptr )
 						i++;
 						length++;
 						if( i > 65 ) {
-							dispError( ABNORMAL_PARAMETERS_OF_FM_TONE, lptr[line+offset].filename, line+offset );
+							dispError( ABNORMAL_PARAMETERS_OF_FM_TONE, lptr[line+offset].filename, lptr[line+offset].line );
 							fm_tone_tbl[no][0] = 0;
 							line += offset;
 							end_flag = 1;
 						}
 					} else {
-						dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line+offset].filename, line+offset );
+						dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 						fm_tone_tbl[no][0] = 0;
 						line += offset;
 						end_flag = 1;
@@ -1886,7 +1905,7 @@ int getFMTone( LINE *lptr )
 			}
 		/* 音色定義だけど_SAME_LINEの時はエラー */
 		} else if( lptr[line].status == (_SET_FM_TONE|_SAME_LINE) ) {
-			dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line].filename, line );
+			dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
 			length += getFMTone( lptr[line].inc_ptr );
@@ -1918,7 +1937,7 @@ int getVRC7Tone( LINE *lptr )
 			ptr = lptr[line].str;
 			ptr++;								/* '{'の分を飛ばす */
 			if (vrc7_tone_tbl[no][0] != 0) {
-				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, line );
+				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, lptr[line].line );
 			}
 			vrc7_tone_tbl[no][0] = 0;
 			offset = 0;
@@ -1931,7 +1950,7 @@ int getVRC7Tone( LINE *lptr )
 					if (vrc7_tone_tbl[no][0] == 8) {
 						//OK.
 					} else {
-						dispError( PARAMETER_IS_LACKING, lptr[line].filename, line );
+						dispError( PARAMETER_IS_LACKING, lptr[line].filename, lptr[line].line );
 						vrc7_tone_tbl[no][0] = 0;
 					}
 					end_flag = 1;
@@ -1944,7 +1963,7 @@ int getVRC7Tone( LINE *lptr )
 							ptr = lptr[line+offset].str;
 						}
 					} else {
-						dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line].filename, line+offset );
+						dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line+offset].line );
 						vrc7_tone_tbl[no][0] = 0;
 						line += offset;
 						end_flag = 1;
@@ -1959,13 +1978,13 @@ int getVRC7Tone( LINE *lptr )
 						i++;
 						length++;
 						if( i > 9 ) {
-							dispError( ABNORMAL_PARAMETERS_OF_FM_TONE, lptr[line+offset].filename, line+offset );
+							dispError( ABNORMAL_PARAMETERS_OF_FM_TONE, lptr[line+offset].filename, lptr[line+offset].line );
 							vrc7_tone_tbl[no][0] = 0;
 							line += offset;
 							end_flag = 1;
 						}
 					} else {
-						dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line+offset].filename, line+offset );
+						dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 						vrc7_tone_tbl[no][0] = 0;
 						line += offset;
 						end_flag = 1;
@@ -1979,7 +1998,7 @@ int getVRC7Tone( LINE *lptr )
 			}
 			if( i != 9 ) {
 				if (!error_flag) {
-					dispError( ABNORMAL_PARAMETERS_OF_FM_TONE, lptr[line].filename, line);
+					dispError( ABNORMAL_PARAMETERS_OF_FM_TONE, lptr[line].filename, lptr[line].line);
 					vrc7_tone_tbl[no][0] = 0;
 				}
 			}
@@ -1987,7 +2006,7 @@ int getVRC7Tone( LINE *lptr )
 
 		/* 音色定義だけど_SAME_LINEの時はエラー */
 		} else if( lptr[line].status == (_SET_VRC7_TONE|_SAME_LINE) ) {
-			dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line].filename, line );
+			dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
 			length += getVRC7Tone( lptr[line].inc_ptr );
@@ -2038,7 +2057,7 @@ int getVRC7HRTone( LINE *lptr )
 			ptr = lptr[line].str;
 			ptr++;								/* '{'の分を飛ばす */
 			if (vrc7_tone_tbl[no][0] != 0) {
-				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, line );
+				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, lptr[line].line );
 			}
 			data_len = 0;
 			offset = 0;
@@ -2107,7 +2126,7 @@ int getVRC7HRTone( LINE *lptr )
 					
 						//OK.
 					} else {
-						dispError( PARAMETER_IS_LACKING, lptr[line].filename, line );
+						dispError( PARAMETER_IS_LACKING, lptr[line].filename, lptr[line].line );
 						data_len = 0;
 					}
 					end_flag = 1;
@@ -2120,7 +2139,7 @@ int getVRC7HRTone( LINE *lptr )
 							ptr = lptr[line+offset].str;
 						}
 					} else {
-						dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line].filename, line+offset );
+						dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line+offset].line );
 						data_len = 0;
 						line += offset;
 						end_flag = 1;
@@ -2134,13 +2153,13 @@ int getVRC7HRTone( LINE *lptr )
 						ptr += cnt;
 						i++;
 						if( data_len > 24 ) {
-							dispError( ABNORMAL_PARAMETERS_OF_FM_TONE, lptr[line+offset].filename, line+offset );
+							dispError( ABNORMAL_PARAMETERS_OF_FM_TONE, lptr[line+offset].filename, lptr[line+offset].line );
 							data_len = 0;
 							line += offset;
 							end_flag = 1;
 						}
 					} else {
-						dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line+offset].filename, line+offset );
+						dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 						data_len = 0;
 						line += offset;
 						end_flag = 1;
@@ -2154,14 +2173,14 @@ int getVRC7HRTone( LINE *lptr )
 			}
 			if( data_len != 24 ) {
 				if (!error_flag) {
-					dispError( ABNORMAL_PARAMETERS_OF_FM_TONE, lptr[line].filename, line);
+					dispError( ABNORMAL_PARAMETERS_OF_FM_TONE, lptr[line].filename, lptr[line].line);
 					data_len = 0;
 				}
 			}
 
 		/* 音色定義だけど_SAME_LINEの時はエラー */
 		} else if( lptr[line].status == (_SET_VRC7_NTONE|_SAME_LINE) ) {
-			dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line].filename, line );
+			dispError( FM_TONE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
 			length += getVRC7HRTone( lptr[line].inc_ptr );
@@ -2200,7 +2219,7 @@ int getN106Tone( LINE *lptr )
 			ptr = lptr[line].str;
 			ptr++;								/* '{'の分を飛ばす */
 			if (n106_tone_tbl[no][0] != 0) {
-				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, line );
+				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, lptr[line].line );
 			}
 			n106_tone_tbl[no][0] = 0;
 			offset = 0;
@@ -2221,7 +2240,7 @@ int getN106Tone( LINE *lptr )
 							ptr = lptr[line+offset].str;
 						}
 					} else {
-						dispError( N106_TONE_DEFINITION_IS_WRONG, lptr[line].filename, line+offset );
+						dispError( N106_TONE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line+offset].line );
 						n106_tone_tbl[no][0] = 0;
 						line += offset;
 						end_flag = 1;
@@ -2237,7 +2256,7 @@ int getN106Tone( LINE *lptr )
 							i++;
 							length++;
 						} else {
-							dispError( N106_TONE_DEFINITION_IS_WRONG, lptr[line].filename, line+offset );
+							dispError( N106_TONE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line+offset].line );
 							n106_tone_tbl[no][0] = 0;
 							line += offset;
 							end_flag = 1;
@@ -2250,13 +2269,13 @@ int getN106Tone( LINE *lptr )
 							i++;
 							length++;
 							if( i > 2+32 ) {
-								dispError( ABNORMAL_PARAMETERS_OF_N106_TONE, lptr[line+offset].filename, line+offset );
+								dispError( ABNORMAL_PARAMETERS_OF_N106_TONE, lptr[line+offset].filename, lptr[line+offset].line );
 								n106_tone_tbl[no][0] = 0;
 								line += offset;
 								end_flag = 1;
 							}
 						} else {
-							dispError( N106_TONE_DEFINITION_IS_WRONG, lptr[line+offset].filename, line+offset );
+							dispError( N106_TONE_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 							n106_tone_tbl[no][0] = 0;
 							line += offset;
 							end_flag = 1;
@@ -2281,16 +2300,16 @@ int getN106Tone( LINE *lptr )
 			  default:     n106_tone_num = -1; break;
 			}
 			if( n106_tone_num == -1 ) {
-				dispError( ABNORMAL_PARAMETERS_OF_N106_TONE, lptr[line].filename, line );
+				dispError( ABNORMAL_PARAMETERS_OF_N106_TONE, lptr[line].filename, lptr[line].line );
 				n106_tone_tbl[no][0] = 0;
 			}
 			if( n106_tone_tbl[no][1] >= n106_tone_max[n106_tone_num] ) {
-				dispError( N106_TONE_DEFINITION_IS_WRONG, lptr[line].filename, line );
+				dispError( N106_TONE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 				n106_tone_tbl[no][0] = 0;
 			}
 		/* 音色定義だけど_SAME_LINEの時はエラー */
 		} else if( lptr[line].status == (_SET_N106_TONE|_SAME_LINE) ) {
-			dispError( N106_TONE_DEFINITION_IS_WRONG, lptr[line].filename, line );
+			dispError( N106_TONE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
 			length += getN106Tone( lptr[line].inc_ptr );
@@ -2323,7 +2342,7 @@ int getHardEffect( LINE *lptr )
 			ptr = lptr[line].str;
 			ptr++;								/* '{'の分を飛ばす */
 			if (hard_effect_tbl[no][0] != 0) {
-				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, line );
+				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, lptr[line].line );
 			}
 			hard_effect_tbl[no][0] = 0;
 			offset = 0;
@@ -2336,7 +2355,7 @@ int getHardEffect( LINE *lptr )
 					if (hard_effect_tbl[no][0] == 4) {
 						//OK.
 					} else {
-						dispError( PARAMETER_IS_LACKING, lptr[line].filename, line );
+						dispError( PARAMETER_IS_LACKING, lptr[line].filename, lptr[line].line );
 						hard_effect_tbl[no][0] = 0;
 					}
 					end_flag = 1;
@@ -2349,7 +2368,7 @@ int getHardEffect( LINE *lptr )
 							ptr = lptr[line+offset].str;
 						}
 					} else {
-						dispError( LFO_DEFINITION_IS_WRONG, lptr[line].filename, line );
+						dispError( LFO_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 						hard_effect_tbl[no][0] = 0;
 						end_flag = 1;
 					}
@@ -2366,7 +2385,7 @@ int getHardEffect( LINE *lptr )
 								ptr += cnt;
 								i++;
 							} else {
-								dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
+								dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 								hard_effect_tbl[no][0] = 0;
 								end_flag = 1;
 							}
@@ -2378,7 +2397,7 @@ int getHardEffect( LINE *lptr )
 								ptr += cnt;
 								i++;
 							} else {
-								dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
+								dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 								hard_effect_tbl[no][0] = 0;
 								end_flag = 1;
 							}
@@ -2390,7 +2409,7 @@ int getHardEffect( LINE *lptr )
 								ptr += cnt;
 								i++;
 							} else {
-								dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
+								dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 								hard_effect_tbl[no][0] = 0;
 								end_flag = 1;
 							}
@@ -2402,19 +2421,19 @@ int getHardEffect( LINE *lptr )
 								ptr += cnt;
 								i++;
 							} else {
-								dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
+								dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 								hard_effect_tbl[no][0] = 0;
 								end_flag = 1;
 							}
 							break;
 						  default:
-							dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
+							dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 							hard_effect_tbl[no][0] = 0;
 							end_flag = 1;
 							break;
 						}
 					} else {
-						dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, line );
+						dispError( LFO_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 						hard_effect_tbl[no][0] = 0;
 						end_flag = 1;
 					}
@@ -2427,7 +2446,7 @@ int getHardEffect( LINE *lptr )
 			}
 		/* 音色定義だけど_SAME_LINEの時はエラー */
 		} else if( lptr[line].status == (_SET_HARD_EFFECT|_SAME_LINE) ) {
-			dispError( LFO_DEFINITION_IS_WRONG, lptr[line].filename, line );
+			dispError( LFO_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
 			length += getHardEffect( lptr[line].inc_ptr );
@@ -2461,7 +2480,7 @@ int getEffectWave( LINE *lptr )
 			ptr = lptr[line].str;
 			ptr++;								/* '{'の分を飛ばす */
 			if (effect_wave_tbl[no][0] != 0) {
-				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, line );
+				dispWarning( THIS_NUMBER_IS_ALREADY_USED, lptr[line].filename, lptr[line].line );
 			}
 			effect_wave_tbl[no][0] = 0;
 			offset = 0;
@@ -2474,7 +2493,7 @@ int getEffectWave( LINE *lptr )
 					if (effect_wave_tbl[no][0] == 32) {
 						//OK.
 					} else {
-						dispError( PARAMETER_IS_LACKING, lptr[line].filename, line );
+						dispError( PARAMETER_IS_LACKING, lptr[line].filename, lptr[line].line );
 						effect_wave_tbl[no][0] = 0;
 					}
 					end_flag = 1;
@@ -2487,7 +2506,7 @@ int getEffectWave( LINE *lptr )
 							ptr = lptr[line+offset].str;
 						}
 					} else {
-						dispError( EFFECT_WAVE_DEFINITION_IS_WRONG, lptr[line].filename, line+offset );
+						dispError( EFFECT_WAVE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line+offset].line );
 						effect_wave_tbl[no][0] = 0;
 						line += offset;
 						end_flag = 1;
@@ -2502,13 +2521,13 @@ int getEffectWave( LINE *lptr )
 						ptr += cnt;
 						i++;
 						if( i > 33 ) {
-							dispError( EFFECT_WAVE_DEFINITION_IS_WRONG, lptr[line+offset].filename, line+offset );
+							dispError( EFFECT_WAVE_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 							effect_wave_tbl[no][0] = 0;
 							line += offset;
 							end_flag = 1;
 						}
 					} else {
-						dispError( EFFECT_WAVE_DEFINITION_IS_WRONG, lptr[line+offset].filename, line+offset );
+						dispError( EFFECT_WAVE_DEFINITION_IS_WRONG, lptr[line+offset].filename, lptr[line+offset].line );
 						effect_wave_tbl[no][0] = 0;
 						line += offset;
 						end_flag = 1;
@@ -2522,7 +2541,7 @@ int getEffectWave( LINE *lptr )
 			}
 		/* 音色定義だけど_SAME_LINEの時はエラー */
 		} else if( lptr[line].status == (_SET_EFFECT_WAVE|_SAME_LINE) ) {
-			dispError( EFFECT_WAVE_DEFINITION_IS_WRONG, lptr[line].filename, line );
+			dispError( EFFECT_WAVE_DEFINITION_IS_WRONG, lptr[line].filename, lptr[line].line );
 		/* インクルードファイル処理 */
 		} else if( lptr[line].status == _INCLUDE ) {
 			length += getEffectWave( lptr[line].inc_ptr );
@@ -3853,7 +3872,7 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( octave_flag == 0 ) { octave++; } else { octave--; }
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				/* オクターブダウン */
@@ -3861,28 +3880,28 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( octave_flag == 0 ) { octave--; } else { octave++; }
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				/* 音長設定 */
 				  case _LENGTH:
-					ptr = setCommandBufL( cmd, _LENGTH, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBufL( cmd, _LENGTH, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) == 0 ) {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				/* 音符(nコマンド) */
 				  case _NOTE:
-					ptr = setCommandBufN0( cmd, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBufN0( cmd, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) == 0 ) {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				/* 音符(@nコマンド) */
 				  case _KEY:
-					ptr = setCommandBufN1( cmd, _KEY, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBufN1( cmd, _KEY, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) == 0 ) {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				/* 音符 */
@@ -3893,9 +3912,9 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 				  case _NOTE_G:
 				  case _NOTE_A:
 				  case _NOTE_B:
-					ptr = setCommandBufN( cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBufN( cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) == 0 ) {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				/* 休符/連符 */
@@ -3903,16 +3922,16 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 				  case _CONT_END:
 				  case _TIE:
 				  case _WAIT:
-					ptr = setCommandBufR( cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBufR( cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) == 0 ) {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				 /* キーオフ */
 				  case _KEY_OFF:
-					ptr = setCommandBufK( cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBufK( cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) == 0 ) {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				/* コマンドパラメータが0個の物 */
@@ -3938,93 +3957,93 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 				  case _SELF_DELAY_OFF:
 				  case _SELF_DELAY_QUEUE_RESET:
 					if (mml[i].num == _SLAR && ( NOSLAR_TRACK & (1<<trk) ))
-						ptr = setCommandBufR( cmd, _TIE, ptr, line, mml[i].enable&(1<<trk) );
+						ptr = setCommandBufR( cmd, _TIE, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					else
-						setCommandBuf( 0, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+						setCommandBuf( 0, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 
 					if( (mml[i].enable&(1<<trk)) == 0 ) {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;					
 				/* コマンドパラメータが1個の物 */
 				  case _TEMPO:			/* テンポ */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( cmd->param[0] <= 0 ) {
-							dispError( ABNORMAL_TEMPO_VALUE, lptr[line].filename, line );
+							dispError( ABNORMAL_TEMPO_VALUE, lptr[line].filename, lptr[line].line );
 							cmd->cmd = _NOP;
 						} else {
 							tbase = (double)_BASETEMPO/(double)cmd->param[0];
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _TONE:			/* 音色切り替え */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						//vrc6用に制限を外す(内蔵矩形波、MMC5は@3まで)
 						//if( cmd->param[0] < 0 || cmd->param[0] > 3 ) {
 						if( cmd->param[0] < 0 || cmd->param[0] > 7 ) {
-							dispError( ABNORMAL_TONE_NUMBER, lptr[line].filename, line );
+							dispError( ABNORMAL_TONE_NUMBER, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _REL_ORG_TONE:		/* リリース音色 */
 				  case _ORG_TONE:		/* 音色切り替え */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if ((mml[i].num == _REL_ORG_TONE) && (cmd->param[0] == 255)) {
 							//ok
 						} else if ( cmd->param[0] < 0 || cmd->param[0] > 127 ) {
-							dispError( ABNORMAL_TONE_NUMBER, lptr[line].filename, line );
+							dispError( ABNORMAL_TONE_NUMBER, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _ENVELOPE:		/* エンベロープ指定 */
 					cmd->filename = lptr[line].filename;
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( cmd->param[0] == 255) { 
 							volume_flag = 0x0000; 
 						} else if( 0 <= cmd->param[0] && cmd->param[0] <= 127) {
 							volume_flag = 0x8000; 
 						} else {
-							dispError( ABNORMAL_ENVELOPE_NUMBER, lptr[line].filename, line );
+							dispError( ABNORMAL_ENVELOPE_NUMBER, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						} 
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line ); 
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line ); 
 					} 
 					break; 
 				  case _REL_ENV:		/* リリースエンベロープ指定 */ 
 					cmd->filename = lptr[line].filename; 
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) ); 
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) ); 
 					if( (mml[i].enable&(1<<trk)) != 0 ) { 
 						if( cmd->param[0] == 255 ) { 
 							volume_flag = 0x0000; 
 						} else if( 0 <= cmd->param[0] && cmd->param[0] <= 127) {
 							volume_flag = 0x8000;
 						} else {
-							dispError( ABNORMAL_ENVELOPE_NUMBER, lptr[line].filename, line ); 
+							dispError( ABNORMAL_ENVELOPE_NUMBER, lptr[line].filename, lptr[line].line ); 
 							cmd->cmd = 0; 
 							cmd->line = 0; 
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _VOL_PLUS:		/* 音量指定 */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( cmd->param[0] == PARAM_OMITTED ) {
 							cmd->param[0] = 1;
@@ -4035,23 +4054,23 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 							cmd->param[0] = volume_flag+cmd->param[0];
 							if( ((1<<trk) & ~(FMTRACK|VRC6SAWTRACK) && (cmd->param[0] < 0 || cmd->param[0] > 15))
 							 || ((1<<trk) & (FMTRACK|VRC6SAWTRACK) && (cmd->param[0] < 0 || cmd->param[0] > 63)) ) {
-								dispError( VOLUME_RANGE_OVER_OF_RELATIVE_VOLUME, lptr[line].filename, line );
+								dispError( VOLUME_RANGE_OVER_OF_RELATIVE_VOLUME, lptr[line].filename, lptr[line].line );
 								cmd->cmd = 0;
 								cmd->line = 0;
 							} else {
 								volume_flag = cmd->param[0];
 							}
 						} else {
-							dispError( RELATIVE_VOLUME_WAS_USED_WITHOUT_SPECIFYING_VOLUME, lptr[line].filename, line );
+							dispError( RELATIVE_VOLUME_WAS_USED_WITHOUT_SPECIFYING_VOLUME, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _VOL_MINUS:		/* 音量指定 */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( cmd->param[0] == PARAM_OMITTED ) {
 							cmd->param[0] = 1;
@@ -4061,44 +4080,44 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 							cmd->cmd = _VOLUME;
 							cmd->param[0] = volume_flag-cmd->param[0];
 							if( cmd->param[0] < 0 ) {
-								dispError( VOLUME_RANGE_UNDER_OF_RELATIVE_VOLUME, lptr[line].filename, line );
+								dispError( VOLUME_RANGE_UNDER_OF_RELATIVE_VOLUME, lptr[line].filename, lptr[line].line );
 								cmd->cmd = 0;
 								cmd->line = 0;
 							} else {
 								volume_flag = cmd->param[0];
 							}
 						} else {
-							dispError( RELATIVE_VOLUME_WAS_USED_WITHOUT_SPECIFYING_VOLUME, lptr[line].filename, line );
+							dispError( RELATIVE_VOLUME_WAS_USED_WITHOUT_SPECIFYING_VOLUME, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _VOLUME:			/* 音量指定 */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( ((1<<trk) & ~(FMTRACK|VRC6SAWTRACK) && (cmd->param[0] < 0 || cmd->param[0] > 15))
 						 || ((1<<trk) & (FMTRACK|VRC6SAWTRACK) && (cmd->param[0] < 0 || cmd->param[0] > 63)) ) {
-							dispError( ABNORMAL_VOLUME_VALUE, lptr[line].filename, line );
+							dispError( ABNORMAL_VOLUME_VALUE, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						} else {
 							volume_flag = cmd->param[0];
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _HARD_ENVELOPE:
-					ptr = setCommandBuf( 2, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 2, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if ( (1<<trk) & (TRACK(0)|TRACK(1)) )
 						{
 						if( (cmd->param[0] < 0 || cmd->param[0] >  1)
 						 && (cmd->param[1] < 0 || cmd->param[1] >  1) ) {
-							dispError( ABNORMAL_ENVELOPE_VALUE, lptr[line].filename, line );
+							dispError( ABNORMAL_ENVELOPE_VALUE, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						}
@@ -4108,7 +4127,7 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 						{
 						if( (cmd->param[0] < 0 || cmd->param[0] >  1)
 						 && (cmd->param[1] < 0 || cmd->param[1] > 63) ) {
-							dispError( ABNORMAL_ENVELOPE_VALUE, lptr[line].filename, line );
+							dispError( ABNORMAL_ENVELOPE_VALUE, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						} else {
@@ -4116,11 +4135,11 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 						}
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _QUONTIZE:		/* クオンタイズ(length*n/gate_denom) */
-					ptr = setCommandBuf( 2, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 2, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if ( cmd->param[1] == PARAM_OMITTED ) {
 							cmd->param[1] = 0;
@@ -4129,23 +4148,23 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 						     ||cmd->param[0] > gate_denom
 						     ||(cmd->param[0] == 0 && cmd->param[1] <= 0)
 						     ||(cmd->param[0] == gate_denom && cmd->param[1] > 0) ) {
-							dispError( ABNORMAL_QUANTIZE_VALUE,  lptr[line].filename, line );
+							dispError( ABNORMAL_QUANTIZE_VALUE,  lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _QUONTIZE2:		/* クオンタイズ(length-n) */
-					ptr = setCommandBuf( 2, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 2, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) == 0 ) {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 #if 0
 				  case _SHUFFLE_QUONTIZE:	/* シャッフルクオンタイズ設定 */
-					ptr = setCommandBuf( 3, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 3, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if (   cmd->param[0] <= 0
 						     ||cmd->param[1] <= 0
@@ -4153,257 +4172,257 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 						     ||cmd->param[0] == PARAM_OMITTED
 						     ||cmd->param[1] == PARAM_OMITTED
 						     ||cmd->param[2] == PARAM_OMITTED  ) {
-							dispError( ABNORMAL_SHUFFLE_QUANTIZE_VALUE,  lptr[line].filename, line );
+							dispError( ABNORMAL_SHUFFLE_QUANTIZE_VALUE,  lptr[line].filename, lptr[line].line );
 							cmd->cmd = _NOP;
 							cmd->line = 0;
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 #endif
 				  case _LFO_ON:			/* ソフトＬＦＯ */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( (cmd->param[0] != 255) 
 						 && (cmd->param[0] < 0 || cmd->param[0] > 63) ) { 
-							dispError( ABNORMAL_LFO_NUMBER, lptr[line].filename, line );
+							dispError( ABNORMAL_LFO_NUMBER, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _EP_ON:			/* ピッチエンベロープ */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( (cmd->param[0] != 255) 
 						 && (cmd->param[0] < 0 || cmd->param[0] > 127) ) { 
-							dispError( ABNORMAL_PITCH_ENVELOPE_NUMBER, lptr[line].filename, line );
+							dispError( ABNORMAL_PITCH_ENVELOPE_NUMBER, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _EN_ON:			/* ノートエンベロープ */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( (cmd->param[0] != 255)
 						 && (cmd->param[0] < 0 || cmd->param[0] > 127) ) { 
-							dispError( ABNORMAL_NOTE_ENVELOPE_NUMBER, lptr[line].filename, line );
+							dispError( ABNORMAL_NOTE_ENVELOPE_NUMBER, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _MH_ON:			/* ハードウェアエフェクト */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( (cmd->param[0] != 255) 
 						 && (cmd->param[0] < 0 || cmd->param[0] > 15) ) { 
-							dispError( ABNORMAL_HARD_EFFECT_NUMBER, lptr[line].filename, line );
+							dispError( ABNORMAL_HARD_EFFECT_NUMBER, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 					case _FDS_MODFREQ:	/* MOD周波数 */
-						ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+						ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 						if( (mml[i].enable&(1<<trk)) != 0 ) {
 							if( (cmd->param[0] < 0 || cmd->param[0] > 4095) ) {
-								dispError( ABNORMAL_MOD_FREQ, lptr[line].filename, line );
+								dispError( ABNORMAL_MOD_FREQ, lptr[line].filename, lptr[line].line );
 								cmd->cmd = 0;
 								cmd->line = 0;
 							}
 						} else {
-							dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+							dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 						}
 						break;
 						
 						
 				  case _DETUNE:			/* ディチューン */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( (cmd->param[0] != 255)
 						 && (cmd->param[0] <-127 || cmd->param[0] > 126) ) {
-							dispError( ABNORMAL_DETUNE_VALUE, lptr[line].filename, line );
+							dispError( ABNORMAL_DETUNE_VALUE, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _TRANSPOSE:			/* トランスポーズ */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( (cmd->param[0] != 255)
 						 && (cmd->param[0] <-127 || cmd->param[0] > 126) ) {
-							dispError( ABNORMAL_TRANSPOSE_VALUE, lptr[line].filename, line );
+							dispError( ABNORMAL_TRANSPOSE_VALUE, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						}
 						transpose = cmd->param[0];
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _REPEAT_END:		/* リピート終了 */
 				  case _REPEAT_END2:	/* リピート終了 */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( cmd->param[0] < 2 ) {
-							dispError( ABNORMAL_VALUE_OF_REPEAT_COUNT, lptr[line].filename, line );
+							dispError( ABNORMAL_VALUE_OF_REPEAT_COUNT, lptr[line].filename, lptr[line].line );
 							cmd->param[0] = 2;
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _VRC7_TONE:			/* VRC7ユーザー音色切り替え */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( cmd->param[0] < 0 || cmd->param[0] > 63 ) {
-							dispError( ABNORMAL_TONE_NUMBER, lptr[line].filename, line );
+							dispError( ABNORMAL_TONE_NUMBER, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _SUN5B_HARD_SPEED:		/* PSGハードウェアエンベロープ速度 */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( cmd->param[0] < 0 || cmd->param[0] > 65535 ) {
-							dispError( ABNORMAL_ENVELOPE_VALUE, lptr[line].filename, line );
+							dispError( ABNORMAL_ENVELOPE_VALUE, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _SUN5B_HARD_ENV:		/* PSGハードウェアエンベロープ選択 */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( cmd->param[0] < 0 || cmd->param[0] > 15 ) {
-							dispError( ABNORMAL_ENVELOPE_VALUE, lptr[line].filename, line );
+							dispError( ABNORMAL_ENVELOPE_VALUE, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						} else {
 							volume_flag = 0x8000;
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _SUN5B_NOISE_FREQ:	/* PSGノイズ周波数 */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( cmd->param[0] < 0 || cmd->param[0] > 31 ) {
-							dispError( ABNORMAL_PITCH_VALUE, lptr[line].filename, line );
+							dispError( ABNORMAL_PITCH_VALUE, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						} else {
 							volume_flag = 0x8000;
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _TEMPO2:			/* フレーム基準テンポ */
-					ptr = setCommandBuf( 2, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 2, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( (cmd->param[0] <= 0) || (cmd->param[1] <= 0) ) {
-							dispError( ABNORMAL_TEMPO_VALUE, lptr[line].filename, line );
+							dispError( ABNORMAL_TEMPO_VALUE, lptr[line].filename, lptr[line].line );
 							cmd->cmd = _NOP;
 						} else {
 							tbase = (double)cmd->param[0] * (double)cmd->param[1] / _BASE ;
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _SWEEP:			/* スウィープ */
-					ptr = setCommandBuf( 2, cmd, _SWEEP, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 2, cmd, _SWEEP, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( (cmd->param[0] < 0 || cmd->param[0] > 15)
 						 || (cmd->param[1] < 0 || cmd->param[1] > 15) ) {
-							dispError( ABNORMAL_SWEEP_VALUE, lptr[line].filename, line );
+							dispError( ABNORMAL_SWEEP_VALUE, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						}
 					} else {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _DATA_WRITE:		/* データ(レジスタ)書き込み */
-					ptr = setCommandBuf( 2, cmd, _DATA_WRITE, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 2, cmd, _DATA_WRITE, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) == 0 ) {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _DATA_THRUE:		/* データ直接書き込み */
-					ptr = setCommandBuf( 2, cmd, _DATA_THRUE, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 2, cmd, _DATA_THRUE, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) == 0 ) {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 #if 0
 				  case _XX_COMMAND:		/* デバッグ用 */
-					ptr = setCommandBuf( 2, cmd, _XX_COMMAND, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 2, cmd, _XX_COMMAND, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) == 0 ) {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 #endif
 				  case _SELF_DELAY_ON:		/* セルフディレイ */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) != 0 ) {
 						if( (cmd->param[0] != 255)
 						 && (cmd->param[0] < 0 || cmd->param[0] > SELF_DELAY_MAX) ) {
-							dispError( ABNORMAL_SELFDELAY_VALUE, lptr[line].filename, line );
+							dispError( ABNORMAL_SELFDELAY_VALUE, lptr[line].filename, lptr[line].line );
 							cmd->cmd = 0;
 							cmd->line = 0;
 						}
 					} else {
 						cmd->cmd = _NOP;
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 				  case _TIME_SHIFT:	/* タイムシフト */
                         use_timeshift = 1;
-                        setCommandBuf( 0, cmd, _TIME_SHIFT, ptr, line, mml[i].enable&(1<<trk) );
+                        setCommandBuf( 0, cmd, _TIME_SHIFT, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
                         if( (mml[i].enable&(1<<trk)) == 0 ) {
-                            dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+                            dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
                         }
                         break;
 
 				  case _DATA_BREAK:		/* データ変換中止 */
-					setCommandBuf( 0, cmd, _TRACK_END, ptr, line, mml[i].enable&(1<<trk) );
+					setCommandBuf( 0, cmd, _TRACK_END, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if( (mml[i].enable&(1<<trk)) == 0 ) {
-						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+						dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 					}
 					break;
 
 				  case _NEW_BANK:
 					// 無視する場合でもptrは読み進める
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if (!auto_bankswitch) {
 						if( (mml[i].enable&(1<<trk)) != 0 ) {
 							if( cmd->param[0] == PARAM_OMITTED ) {
 								/* そういう場合があります */
 							}
 						} else {
-							dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+							dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 						}
 					} else {
 						cmd->cmd = _NOP;
@@ -4411,24 +4430,24 @@ CMD * analyzeData( int trk, CMD *cmd, LINE *lptr )
 					break;
 
 				  case _SHIFT_AMOUNT:			/* ピッチシフト量 (0〜8) */
-					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, line, mml[i].enable&(1<<trk) );
+					ptr = setCommandBuf( 1, cmd, mml[i].num, ptr, lptr[line].line, mml[i].enable&(1<<trk) );
 					if (pitch_correction) {
 						if( (mml[i].enable&(1<<trk)) != 0 ) {
 							if( (cmd->param[0] < 0 || cmd->param[0] > 8) ) { 
-								dispError( ABNORMAL_SHIFT_AMOUNT, lptr[line].filename, line );
+								dispError( ABNORMAL_SHIFT_AMOUNT, lptr[line].filename, lptr[line].line );
 								cmd->cmd = 0;
 								cmd->line = 0;
 							}
 						} else {
-							dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, line );
+							dispError( UNUSE_COMMAND_IN_THIS_TRACK, lptr[line].filename, lptr[line].line );
 						}
 					} else {
-						dispError( CANT_USE_SHIFT_AMOUNT_WITHOUT_PITCH_CORRECTION, lptr[line].filename, line );
+						dispError( CANT_USE_SHIFT_AMOUNT_WITHOUT_PITCH_CORRECTION, lptr[line].filename, lptr[line].line );
 					}
 					break;
 						
 				  default:				/* その他(エラー) */
-					dispError( COMMAND_NOT_DEFINED, lptr[line].filename, line );
+					dispError( COMMAND_NOT_DEFINED, lptr[line].filename, lptr[line].line );
 					ptr++;
 					break;
 				}

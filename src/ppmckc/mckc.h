@@ -66,7 +66,8 @@ typedef struct st_line {
 #define _PITCH_CORRECTION		21
 #define _OVERLOAD		22
 #define _EFF_BANKSWITCH	23
-#define _DEFINE	24
+#define _DEFINE			24
+#define _LINE			25
 
 
 
