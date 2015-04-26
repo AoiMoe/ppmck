@@ -172,17 +172,16 @@ ram_reset		.ds	3		;
 DMC_IRQ:
 ram_irq			.ds	3		;
 
-;effect_flag: DLLLadpv
-;+------ detune flag
-;l+----- software LFOスピード可変フラグ（予約）
-;ll+---- software LFO方向フラグ0=- 1=+
-;lll+--- software LFO flag
-;llll+---- note enverope flag
-;lllll+--- duty enverope flag / FDS hardware effect flag
-;llllll+-- pitch enverope flag
-;lllllll+- software enverope flag
-;llllllll
-;DLLLadpv
+;effect_flag               DLLLadpv
+EFF_DETUNE_ENABLE	= %10000000 ; detune flag
+EFF_SOFTLFO_VSPEED	= %01000000 ; software LFOスピード可変フラグ（予約）
+EFF_SOFTLFO_DIR		= %00100000 ; software LFO方向フラグ0=- 1=+
+EFF_SOFTLFO_ENABLE	= %00010000 ; software LFO flag
+EFF_NOTEENV_ENABLE	= %00001000 ; note envelope flag
+EFF_DUTYENV_ENABLE	= %00000100 ; duty envelope flag / FDS hardware effect flag
+EFF_PITCHENV_ENABLE	= %00000010 ; pitch envelope flag
+EFF_SOFTENV_ENABLE	= %00000001 ; software envelope flag
+EFF_SOFTLFO_MASK	= EFF_SOFTLFO_VSPEED | EFF_SOFTLFO_DIR | EFF_SOFTLFO_ENABLE
 
 
 ;rest_flag
@@ -599,7 +598,7 @@ bank_address_change:
 ;-------------------------------------------------------------------------------
 volume_sub:
 	lda	effect_flag,x
-	ora	#%00000001
+	ora	#EFF_SOFTENV_ENABLE
 	sta	effect_flag,x		;ソフトエンベ有効指定
 
 	lda	temporary
@@ -624,7 +623,7 @@ lfo_set_sub:
 	bne	lfo_data_set
 
 	lda	effect_flag,x
-	and	#%10001111		;LFO無効処理
+	and	#~EFF_SOFTLFO_MASK	;LFO無効処理
 	sta	effect_flag,x
 	jsr	sound_data_address
 	rts
@@ -656,7 +655,7 @@ lfo_data_set:
 
 	.if PITCH_CORRECTION
 		lda	effect_flag,x
-		ora	#%00010000		;LFO有効フラグセット
+		ora	#EFF_SOFTLFO_ENABLE	;LFO有効フラグセット
 		sta	effect_flag,x
 		jsr	lfo_initial_vector
 	.else
@@ -666,13 +665,13 @@ lfo_data_set:
 		bcc	urararara2
 
 		lda	effect_flag,x
-		ora	#%00110000
+		ora	#EFF_SOFTLFO_DIR | EFF_SOFTLFO_ENABLE
 		sta	effect_flag,x
 		jmp	ittoke2
 urararara2:
 		lda	effect_flag,x
-		and	#%11011111		;波形−処理
-		ora	#%00010000		;LFO有効フラグセット
+		and	#~EFF_SOFTLFO_DIR	;波形−処理
+		ora	#EFF_SOFTLFO_ENABLE	;LFO有効フラグセット
 		sta	effect_flag,x
 ittoke2:
 	.endif
@@ -687,12 +686,12 @@ lfo_initial_vector:
 ; 2A03など
 .decreasing_function:
 	lda	effect_flag,x
-	and	#%11011111		;LFOは最初減算
+	and	#~EFF_SOFTLFO_DIR	;LFOは最初減算
 	jmp	.ittoke2
 ; FDSなど
 .increasing_function:
 	lda	effect_flag,x
-	ora	#%00100000		;LFOは最初加算
+	ora	#EFF_SOFTLFO_DIR	;LFOは最初加算
 .ittoke2:
 	sta	effect_flag,x
 	rts
@@ -705,7 +704,7 @@ detune_sub:
 	bne	detune_data_set
 
 	lda	effect_flag,x
-	and	#%01111111		;detune無効処理
+	and	#~EFF_DETUNE_ENABLE	;detune無効処理
 	sta	effect_flag,x
 	jsr	sound_data_address
 	rts
@@ -713,7 +712,7 @@ detune_data_set:
 	tay
 	sta	detune_dat,x
 	lda	effect_flag,x
-	ora	#%10000000		;detune有効処理
+	ora	#EFF_DETUNE_ENABLE	;detune有効処理
 	sta	effect_flag,x
 	jsr	sound_data_address
 	rts
@@ -724,7 +723,7 @@ pitch_set_sub:
 	cmp	#$ff
 	bne	pitch_enverope_part
 	lda	effect_flag,x
-	and	#%11111101
+	and	#~EFF_PITCHENV_ENABLE
 	sta	effect_flag,x
 	jsr	sound_data_address
 	rts
@@ -743,7 +742,7 @@ pitch_enverope_part:
 	lda	pitchenve_table+1,y
 	sta	pitch_add_high,x
 	lda	effect_flag,x
-	ora	#%00000010
+	ora	#EFF_PITCHENV_ENABLE
 	sta	effect_flag,x
 	jsr	sound_data_address
 	rts
@@ -755,7 +754,7 @@ arpeggio_set_sub:
 	bne	arpeggio_part
 
 	lda	effect_flag,x
-	and	#%11110111
+	and	#~EFF_NOTEENV_ENABLE
 	sta	effect_flag,x
 	jsr	sound_data_address
 	rts
@@ -775,7 +774,7 @@ arpeggio_part:
 	sta	arpe_add_high,x
 
 	lda	effect_flag,x
-	ora	#%00001000
+	ora	#EFF_NOTEENV_ENABLE
 	sta	effect_flag,x
 	jsr	sound_data_address
 	rts
@@ -824,7 +823,7 @@ wait_sub:
 ;-------------------------------------------------------------------------------
 detune_write_sub:
 	lda	effect_flag,x
-	and	#%10000000
+	and	#EFF_DETUNE_ENABLE
 	bne	detune_part
 	rts
 
@@ -1065,7 +1064,7 @@ lfo_sub:
 		lda	#$00			;
 		sta	lfo_reverse_counter,x	;反転カウンタ初期化
 		lda	effect_flag,x		;方向ビットを反転
-		eor	#%00100000		;
+		eor	#EFF_SOFTLFO_DIR	;
 		sta	effect_flag,x		;
 
 .lfo_depth_set:
@@ -1077,7 +1076,7 @@ lfo_sub:
 		lda	#$00			;
 		sta	lfo_adc_sbc_counter,x	;デプスカウンタ初期化
 		lda	effect_flag,x		;＋か−か
-		and	#%00100000		;このビットが
+		and	#EFF_SOFTLFO_DIR	;このビットが
 		bne	.lfo_depth_plus		;立っていたら加算
 .lfo_depth_minus:
 			lda	lfo_depth,x
@@ -1381,13 +1380,13 @@ effect_init:
 		bmi	urararara
 
 		lda	effect_flag,x
-		and	#%10111111
-		ora	#%00100000
+		and	#~EFF_SOFTLFO_VSPEED
+		ora	#EFF_SOFTLFO_DIR
 		sta	effect_flag,x
 		jmp	ittoke
 urararara:
 		lda	effect_flag,x
-		and	#%10011111
+		and	#~(EFF_SOFTLFO_VSPEED | EFF_SOFTLFO_DIR)
 		sta	effect_flag,x
 ittoke:	
 	.endif

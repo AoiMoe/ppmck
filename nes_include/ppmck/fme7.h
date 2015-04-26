@@ -141,31 +141,31 @@ fme7_do_effect:
 
 .enve_write2:
 	lda	effect_flag,x
-	and	#%00000001
+	and	#EFF_SOFTENV_ENABLE
 	beq	.lfo_write2
 	jsr	sound_fme7_softenve
 
 .lfo_write2:
 	lda	effect_flag,x
-	and	#%00010000
+	and	#EFF_SOFTLFO_ENABLE
 	beq	.pitchenve_write2
 	jsr	sound_fme7_lfo
 
 .pitchenve_write2:
 	lda	effect_flag,x
-	and	#%00000010
+	and	#EFF_PITCHENV_ENABLE
 	beq	.toneenve_write2
 	jsr	sound_fme7_pitch_enve
 	
 .toneenve_write2:
 	lda	effect_flag,x
-	and	#%00000100
+	and	#EFF_DUTYENV_ENABLE
 	beq	.arpeggio_write2
 	jsr	sound_fme7_tone_enve
 
 .arpeggio_write2:
 	lda	effect_flag,x
-	and	#%00001000
+	and	#EFF_NOTEENV_ENABLE
 	beq	.return7
 	lda	rest_flag,x		;キーオンのときとそうでないときでアルペジオの挙動はちがう
 	and	#%00000010		;キーオンフラグ
@@ -283,7 +283,7 @@ fme7_wave_set:
 	bpl	fme7_tone_env_set ; 音色エンベロープ処理
 	
 	lda	effect_flag,x
-	and	#%11111011
+	and	#~EFF_DUTYENV_ENABLE
 	sta	effect_flag,x		;音色エンベロープ無効指定
 	
 	pla
@@ -297,7 +297,7 @@ fme7_wave_set:
 fme7_tone_env_set: ; 音色エンベロープ
 
 	lda	effect_flag,x
-	ora	#%00000100
+	ora	#EFF_DUTYENV_ENABLE
 	sta	effect_flag,x		;音色エンベロープ有効指定
 	
 	pla
@@ -353,7 +353,7 @@ fme7_volume_set:
 
 fme7_volume_part:
 	lda	effect_flag,x
-	and	#%11111110
+	and	#~EFF_SOFTENV_ENABLE
 	sta	effect_flag,x		;ソフトエンベ無効指定
 
 	lda	temporary

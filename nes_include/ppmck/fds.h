@@ -46,25 +46,25 @@ fds_do_effect:
 
 .enve_write2:
 	lda	effect_flag,x
-	and	#%00000001
+	and	#EFF_SOFTENV_ENABLE
 	beq	.lfo_write2
 	jsr	sound_fds_softenve
 
 .lfo_write2:
 	lda	effect_flag,x
-	and	#%00010000
+	and	#EFF_SOFTLFO_ENABLE
 	beq	.pitchenve_write2
 	jsr	sound_fds_lfo
 
 .pitchenve_write2:
 	lda	effect_flag,x
-	and	#%00000010
+	and	#EFF_PITCHENV_ENABLE
 	beq	.arpeggio_write2
 	jsr	sound_fds_pitch_enve
 
 .arpeggio_write2:
 	lda	effect_flag,x
-	and	#%00001000
+	and	#EFF_NOTEENV_ENABLE
 	beq	.hardenve_write2
 	lda	rest_flag,x		;キーオンのときとそうでないときでアルペジオの挙動はちがう
 	and	#%00000010		;キーオンフラグ
@@ -77,7 +77,7 @@ fds_do_effect:
 	jsr	arpeggio_address
 .hardenve_write2:
 	lda	effect_flag,x
-	and	#%00000100
+	and	#EFF_DUTYENV_ENABLE
 	beq	.return201
 	jsr	sound_fds_hard_enve
 	ldx	<channel_selx2
@@ -244,7 +244,7 @@ fds_volume_part:
 ;	sta	$4080			;ボリューム＆ハードエンベ書き込み
 
 	lda	effect_flag,x
-	and	#%11111110
+	and	#~EFF_SOFTENV_ENABLE
 	sta	effect_flag,x		;ソフトエンベ無効指定
 	
 	jsr	sound_data_address
@@ -264,7 +264,7 @@ fds_softenve_part:
 	sta	soft_add_low+1,x
 	
 	lda	effect_flag,x
-	ora	#%00000001
+	ora	#EFF_SOFTENV_ENABLE
 	sta	effect_flag,x		;ソフトエンベ有効指定
 	
 	jsr	sound_data_address
@@ -346,7 +346,7 @@ fds_hard_lfo_set:
 
 	ldx	<channel_selx2
 	lda	effect_flag,x
-	and	#%11111011
+	and	#~EFF_DUTYENV_ENABLE
 	sta	effect_flag,x
 	jsr	sound_data_address
 	jmp	sound_fds_read
@@ -368,7 +368,7 @@ fds_hard_lfo_data_set:
 	sta	fds_hard_count_2
 	ldx	<channel_selx2
 	lda	effect_flag,x
-	ora	#%00000100
+	ora	#EFF_DUTYENV_ENABLE
 	sta	effect_flag,x
 	jsr	sound_data_address
 	jmp	sound_fds_read
@@ -385,7 +385,7 @@ fds_hwenv_set:
 ;	sta	$4080			;ボリューム＆ハードエンベ書き込み
 
 	lda	effect_flag,x
-	and	#%11111110
+	and	#~EFF_SOFTENV_ENABLE
 	sta	effect_flag,x		;ソフトエンベ無効指定
 	jsr	sound_data_address
 	jmp	sound_fds_read

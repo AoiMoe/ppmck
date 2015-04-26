@@ -35,25 +35,25 @@ vrc7_do_effect:
 
 .enve_write2:
 	lda	effect_flag,x
-	and	#%00000001
+	and	#EFF_SOFTENV_ENABLE
 	beq	.lfo_write2
 	jsr	sound_vrc7_softenve
 
 .lfo_write2:
 	lda	effect_flag,x
-	and	#%00010000
+	and	#EFF_SOFTLFO_ENABLE
 	beq	.pitchenve_write2
 	jsr	sound_vrc7_lfo
 
 .pitchenve_write2:
 	lda	effect_flag,x
-	and	#%00000010
+	and	#EFF_PITCHENV_ENABLE
 	beq	.arpeggio_write2
 	jsr	sound_vrc7_pitch_enve
 
 .arpeggio_write2:
 	lda	effect_flag,x
-	and	#%00001000
+	and	#EFF_NOTEENV_ENABLE
 	beq	.return7
 	lda	rest_flag,x		;キーオンのときとそうでないときでアルペジオの挙動はちがう
 	and	#%00000010		;キーオンフラグ
@@ -261,7 +261,7 @@ vrc7_volume_set:
 
 vrc7_volume_part:
 	lda	effect_flag,x
-	and	#%11111110
+	and	#~EFF_SOFTENV_ENABLE
 	sta	effect_flag,x		;ソフトエンベ無効指定
 
 	lda	temporary

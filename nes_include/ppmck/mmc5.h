@@ -38,31 +38,31 @@ mmc5_do_effect:
 
 .duty_write2:
 	lda	effect_flag,x
-	and	#%00000100
+	and	#EFF_DUTYENV_ENABLE
 	beq	.enve_write2
 	jsr	sound_mmc5_dutyenve
 
 .enve_write2:
 	lda	effect_flag,x
-	and	#%00000001
+	and	#EFF_SOFTENV_ENABLE
 	beq	.lfo_write2
 	jsr	sound_mmc5_softenve
 
 .lfo_write2:
 	lda	effect_flag,x
-	and	#%00010000
+	and	#EFF_SOFTLFO_ENABLE
 	beq	.pitchenve_write2
 	jsr	sound_mmc5_lfo
 
 .pitchenve_write2:
 	lda	effect_flag,x
-	and	#%00000010
+	and	#EFF_PITCHENV_ENABLE
 	beq	.arpeggio_write2
 	jsr	sound_mmc5_pitch_enve
 
 .arpeggio_write2:
 	lda	effect_flag,x
-	and	#%00001000
+	and	#EFF_NOTEENV_ENABLE
 	beq	.return7
 	lda	rest_flag,x		;キーオンのときとそうでないときでアルペジオの挙動はちがう
 	and	#%00000010		;キーオンフラグ
@@ -161,7 +161,7 @@ mmc5_wave_set:
 
 mmc5_duty_select_part:
 	lda	effect_flag,x
-	and	#%11111011
+	and	#~EFF_DUTYENV_ENABLE
 	sta	effect_flag,x		;デューティエンベロープ無効指定
 
 	lda	effect2_flags,x         ; hw_envelope
@@ -189,7 +189,7 @@ mmc5_duty_select_part:
 
 mmc5_duty_enverope_part:
 	lda	effect_flag,x
-	ora	#%00000100
+	ora	#EFF_DUTYENV_ENABLE
 	sta	effect_flag,x		;デューティエンベロープ有効指定
 	pla
 	sta	duty_sel,x
@@ -219,7 +219,7 @@ mmc5_volume_set:
 
 mmc5_volume_part:
 	lda	effect_flag,x
-	and	#%11111110
+	and	#~EFF_SOFTENV_ENABLE
 	sta	effect_flag,x		;ソフトエンベ無効指定
 
 	lda	temporary

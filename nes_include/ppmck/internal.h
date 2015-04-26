@@ -29,19 +29,19 @@ do_effect:
 
 .duty_write2:
 	lda	effect_flag,x
-	and	#%00000100
+	and	#EFF_DUTYENV_ENABLE
 	beq	.enve_write2
 	jsr	sound_duty_enverope
 
 .enve_write2:
 	lda	effect_flag,x
-	and	#%00000001
+	and	#EFF_SOFTENV_ENABLE
 	beq	.lfo_write2
 	jsr	sound_software_enverope
 
 .lfo_write2:
 	lda	effect_flag,x
-	and	#%00010000
+	and	#EFF_SOFTLFO_ENABLE
 	beq	.ps_process
 	jsr	sound_lfo
 
@@ -50,16 +50,16 @@ do_effect:
 
 .pitchenve_write2:
 	lda	effect_flag,x
-	and	#%00000010
+	and	#EFF_PITCHENV_ENABLE
 	beq	.arpeggio_write2
 	jsr	sound_pitch_enverope
 
 .arpeggio_write2:
 	lda	effect_flag,x
-	and	#%00001000
+	and	#EFF_NOTEENV_ENABLE
 	beq	.return7
 	lda	rest_flag,x		;キーオンのときとそうでないときでアルペジオの挙動はちがう
-	and	#%00000010		;キーオンフラグ
+	and	#EFF_PITCHENV_ENABLE		;キーオンフラグ
 	bne	.arpe_key_on
 	jsr	sound_high_speed_arpeggio	;キーオンじゃないとき通常はこれ
 	jmp	.return7
@@ -267,7 +267,7 @@ duty_set:
 
 duty_select_part:
 	lda	effect_flag,x
-	and	#%11111011
+	and	#~EFF_DUTYENV_ENABLE
 	sta	effect_flag,x		;デューティエンベロープ無効指定
 
 	lda	effect2_flags,x         ; hw_envelope
@@ -293,7 +293,7 @@ duty_select_part:
 
 duty_enverope_part:
 	lda	effect_flag,x
-	ora	#%00000100
+	ora	#EFF_DUTYENV_ENABLE
 	sta	effect_flag,x		;デューティエンベロープ有効指定
 	pla
 	sta	duty_sel,x
@@ -322,7 +322,7 @@ volume_set:
 
 volume_part:
 	lda	effect_flag,x
-	and	#%11111110
+	and	#~EFF_SOFTENV_ENABLE
 	sta	effect_flag,x		;ソフトエンベ無効指定
 
 	lda	temporary
