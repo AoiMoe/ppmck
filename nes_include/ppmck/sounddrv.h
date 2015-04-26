@@ -185,10 +185,8 @@ EFF_SOFTLFO_MASK	= EFF_SOFTLFO_VSPEED | EFF_SOFTLFO_DIR | EFF_SOFTLFO_ENABLE
 
 
 ;rest_flag
-;xxxxxxor
-;|||||||+- rest
-;||||||+-- key on (if set, must do sound_data_write)
-;
+RESTF_REST		= %00000001 ; rest
+RESTF_KEYON		= %00000010 ; key on (if set, must do sound_data_write)
 
 	.code
 
@@ -1392,7 +1390,7 @@ ittoke:
 	.endif
 ;休符フラグクリア&Key Onフラグ書き込み
 sound_flag_clear_key_on
-	lda	#%00000010
+	lda	#RESTF_KEYON ; XXX: rest_flagにフラグが増えたとき破綻
 	sta	rest_flag,x
 	rts
 ;

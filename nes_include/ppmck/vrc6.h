@@ -134,11 +134,11 @@ sound_vrc6:
 	jsr	sound_vrc6_read
 	jsr	vrc6_do_effect
 	lda	rest_flag,x
-	and	#%00000010		;キーオンフラグ
+	and	#RESTF_KEYON		;キーオンフラグ
 	beq	.end1			
 	jsr	sound_vrc6_write	;立っていたらデータ書き出し
 	lda	rest_flag,x
-	and	#%11111101		;キーオンフラグオフ
+	and	#~RESTF_KEYON		;キーオンフラグオフ
 	sta	rest_flag,x
 .end1
 	rts
@@ -146,7 +146,7 @@ sound_vrc6:
 ;-------
 vrc6_do_effect:
 	lda	rest_flag,x
-	and	#%00000001
+	and	#RESTF_REST
 	beq	.duty_write2
 	rts				;休符なら終わり
 
@@ -179,7 +179,7 @@ vrc6_do_effect:
 	and	#EFF_NOTEENV_ENABLE
 	beq	.return7
 	lda	rest_flag,x		;キーオンのときとそうでないときでアルペジオの挙動はちがう
-	and	#%00000010		;キーオンフラグ
+	and	#RESTF_KEYON		;キーオンフラグ
 	bne	.arpe_key_on
 	jsr	sound_vrc6_note_enve	;キーオンじゃないとき通常はこれ
 	jmp	.return7
@@ -374,7 +374,7 @@ vrc6_rest_set:
 	bne	vrc6_lfo_set
 
 	lda	rest_flag,x
-	ora	#%00000001
+	ora	#RESTF_REST
 	sta	rest_flag,x
 
 	jsr	sound_data_address
