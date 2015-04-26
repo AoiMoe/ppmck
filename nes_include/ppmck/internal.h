@@ -59,7 +59,7 @@ do_effect:
 	and	#EFF_NOTEENV_ENABLE
 	beq	.return7
 	lda	rest_flag,x		;キーオンのときとそうでないときでアルペジオの挙動はちがう
-	and	#EFF_PITCHENV_ENABLE		;キーオンフラグ
+	and	#%00000010		;キーオンフラグ
 	bne	.arpe_key_on
 	jsr	sound_high_speed_arpeggio	;キーオンじゃないとき通常はこれ
 	jmp	.return7
