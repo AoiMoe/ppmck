@@ -371,7 +371,7 @@ vrc7_slur:
 	cmp	#$e9
 	bne	vrc7_oto_set
 	lda	effect2_flags,x
-	ora	#%00000001
+	ora	#EFF2_SLUR_ENABLE
 	sta	effect2_flags,x
 	jsr	sound_data_address
 	jmp	sound_vrc7_read
@@ -387,11 +387,11 @@ vrc7_oto_set:
 	jsr	vrc7_freq_set		;周波数セットへ
 
 	lda	effect2_flags,x		;スラーフラグのチェック
-	and	#%00000001
+	and	#EFF2_SLUR_ENABLE
 	beq	no_slur_vrc7
 
 	lda	effect2_flags,x
-	and	#%11111110
+	and	#~EFF2_SLUR_ENABLE
 	sta	effect2_flags,x		;スラーフラグのクリア
 	jmp	sound_flag_clear_key_on
 

@@ -46,7 +46,7 @@ slur_dpcm:
 	bne	no_dpcm
 
 	lda	effect2_flags,x
-	ora	#%00000001
+	ora	#EFF2_SLUR_ENABLE
 	sta	effect2_flags,x
 
 	jsr	sound_data_address
@@ -78,11 +78,11 @@ dpcm_set:
 	pha
 
 	lda	effect2_flags,x		;スラーフラグのチェック
-	and	#%00000001
+	and	#EFF2_SLUR_ENABLE
 	beq	no_slur_dpcm
 
 	lda	effect2_flags,x
-	and	#%11111110
+	and	#~EFF2_SLUR_ENABLE
 	sta	effect2_flags,x		;スラーフラグのクリア
 
 	pla

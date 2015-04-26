@@ -165,8 +165,8 @@ mmc5_duty_select_part:
 	sta	effect_flag,x		;デューティエンベロープ無効指定
 
 	lda	effect2_flags,x         ; hw_envelope
-	and	#%00110000
-	eor	#%00110000
+	and	#EFF2_HWENV_MASK
+	eor	#EFF2_HWENV_MASK
 	sta	register_high,x
 
 	pla
@@ -177,7 +177,7 @@ mmc5_duty_select_part:
 	asl	a
 	asl	a
 
-;;;;	ora	#%00110000		;waveform hold on & hardware envelope off
+;;;;	ora	#EFF2_HWENV_MASK	;waveform hold on & hardware envelope off
 
 	ora	register_high,x
 	sta	register_high,x		;書き込み
@@ -310,7 +310,7 @@ mmc5_hwenv:
 
 	jsr	sound_data_address
 	lda	effect2_flags,x
-	and	#%11001111
+	and	#~EFF2_HWENV_MASK
 	ora	[sound_add_low,x]
 	sta	effect2_flags,x
 	jsr	sound_data_address
@@ -323,7 +323,7 @@ mmc5_slur:
 	cmp	#$e9
 	bne	mmc5_oto_set
 	lda	effect2_flags,x
-	ora	#%00000001
+	ora	#EFF2_SLUR_ENABLE
 	sta	effect2_flags,x
 	jsr	sound_data_address
 	jmp	sound_mmc5_read
@@ -338,11 +338,11 @@ mmc5_oto_set:
 	jsr	mmc5_freq_set		;周波数セットへ
 
 	lda	effect2_flags,x		;スラーフラグのチェック
-	and	#%00000001
+	and	#EFF2_SLUR_ENABLE
 	beq	no_slur_mmc5
 
 	lda	effect2_flags,x
-	and	#%11111110
+	and	#~EFF2_SLUR_ENABLE
 	sta	effect2_flags,x		;スラーフラグのクリア
 	jmp	sound_flag_clear_key_on
 
@@ -443,7 +443,7 @@ sound_mmc5_dutyenve:
 	asl	a
 	asl	a
 	asl	a
-	ora	#%00110000		;waveform hold on & hardware envelope off
+	ora	#EFF2_HWENV_MASK	;waveform hold on & hardware envelope off
 	sta	register_high,x
 	ora	register_low,x		;音色データ（上位4bit）と下位4bitで足し算
 	ldy	<channel_selx4

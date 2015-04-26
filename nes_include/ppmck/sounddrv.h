@@ -183,6 +183,10 @@ EFF_PITCHENV_ENABLE	= %00000010 ; pitch envelope flag
 EFF_SOFTENV_ENABLE	= %00000001 ; software envelope flag
 EFF_SOFTLFO_MASK	= EFF_SOFTLFO_VSPEED | EFF_SOFTLFO_DIR | EFF_SOFTLFO_ENABLE
 
+;effect2_flags
+EFF2_HWENV_MASK		= %00110000 ; hw env mask (bit position of this mask depends on $4000 register.  cannot move.)
+EFF2_SMOOTH_ENABLE	= %00000010
+EFF2_SLUR_ENABLE	= %00000001
 
 ;rest_flag
 RESTF_REST		= %00000001 ; rest
@@ -988,8 +992,8 @@ sound_duty_enverope:
 	pha
 
 	lda	effect2_flags,x         ; hw_envelope
-	and	#%00110000
-	eor	#%00110000
+	and	#EFF2_HWENV_MASK
+	eor	#EFF2_HWENV_MASK
 	sta	register_high,x
 
 	pla
@@ -999,7 +1003,7 @@ sound_duty_enverope:
 	asl	a
 	asl	a
 	asl	a
-;	ora	#%00110000		;hardware envelope & ... disable
+;	ora	#EFF2_HWENV_MASK	;hardware envelope & ... disable
 	ora	register_high,x		;hw_envelope
 	sta	register_high,x
 

@@ -132,7 +132,7 @@ sound_data_write:
 	sta	$4002,y
 
 	lda	effect2_flags,x
-	and	#%00000010
+	and	#EFF2_SMOOTH_ENABLE
 	bne	sound_write_smooth
 	lda	sound_freq_high,x	;High Write
 	sta	$4003,y
@@ -195,12 +195,12 @@ int_hwenv_command:
 
 	jsr	sound_data_address
 	lda	effect2_flags,x
-	and	#%11001111
+	and	#~EFF2_HWENV_MASK
 	ora	[sound_add_low,x]
 	sta	effect2_flags,x
-	and #%00110000
-	eor #%00110000
-	sta register_high,x
+	and	#EFF2_HWENV_MASK
+	eor	#EFF2_HWENV_MASK
+	sta	register_high,x
 	jsr	sound_data_address
 	jmp	sound_data_read
 
@@ -211,7 +211,7 @@ slur_command:
 	cmp	#$e9
 	bne	smooth_command
 	lda	effect2_flags,x
-	ora	#%00000001
+	ora	#EFF2_SLUR_ENABLE
 	sta	effect2_flags,x
 	jsr	sound_data_address
 	jmp	sound_data_read
@@ -226,12 +226,12 @@ smooth_command:
 	beq	.smooth_off
 .smooth_on
 	lda	effect2_flags,x
-	ora	#%00000010
+	ora	#EFF2_SMOOTH_ENABLE
 	sta	effect2_flags,x
 	jmp	.smooth_fin
 .smooth_off:
 	lda	effect2_flags,x
-	and	#%11111101
+	and	#~EFF2_SMOOTH_ENABLE
 	sta	effect2_flags,x
 .smooth_fin:
 	jsr	sound_data_address
@@ -271,8 +271,8 @@ duty_select_part:
 	sta	effect_flag,x		;デューティエンベロープ無効指定
 
 	lda	effect2_flags,x         ; hw_envelope
-	and	#%00110000
-	eor	#%00110000
+	and	#EFF2_HWENV_MASK
+	eor	#EFF2_HWENV_MASK
 	sta	register_high,x
 
 	pla
@@ -282,7 +282,7 @@ duty_select_part:
 	asl	a
 	asl	a
 	asl	a
-;	ora	#%00110000		;hardware envelope & ... disable
+;	ora	#EFF2_HWENV_MASK	;hardware envelope & ... disable
 	ora	register_high,x		;hw_envelope
 	sta	register_high,x		;書き込み
 	ora	register_low,x
@@ -356,7 +356,7 @@ rest_set:
 	beq	tri
 
 	lda	register_high,x
-	ora #%00110000 ; hw_envelope disable
+	ora	#EFF2_HWENV_MASK	; hw_envelope disable
 	sta	$4000,y
 	jsr	sound_data_address
 	rts
@@ -443,10 +443,10 @@ oto_set:
 
 	jsr	frequency_set		;周波数セットへ
 	lda	effect2_flags,x		;スラーフラグのチェック
-	and	#%00000001
+	and	#EFF2_SLUR_ENABLE
 	beq	no_slur
 	lda	effect2_flags,x
-	and	#%11111110
+	and	#~EFF2_SLUR_ENABLE
 	sta	effect2_flags,x		;スラーフラグのクリア
 	jmp	sound_flag_clear_key_on
 
