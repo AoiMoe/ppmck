@@ -10,6 +10,17 @@ PPMCKC=		$(PPMCKDIR)/bin/ppmckc.exe
 NESASM=		$(PPMCKDIR)/bin/nesasm.exe
 
 PPMCKASMSRCDIR=	$(PPMCKDIR)/nes_include
+PPMCKASMSRCS=	$(PPMCKASMSRCDIR)/ppmck.asm \
+		$(PPMCKASMSRCDIR)/ppmck/dpcm.h \
+		$(PPMCKASMSRCDIR)/ppmck/fds.h \
+		$(PPMCKASMSRCDIR)/ppmck/fme7.h \
+		$(PPMCKASMSRCDIR)/ppmck/freqdata.h \
+		$(PPMCKASMSRCDIR)/ppmck/internal.h \
+		$(PPMCKASMSRCDIR)/ppmck/mmc5.h \
+		$(PPMCKASMSRCDIR)/ppmck/n106.h \
+		$(PPMCKASMSRCDIR)/ppmck/sounddrv.h \
+		$(PPMCKASMSRCDIR)/ppmck/vrc6.h \
+		$(PPMCKASMSRCDIR)/ppmck/vrc7.h
 PPMCKASM=	ppmck.asm
 PPMCKNES=	ppmck.nes
 PPMCKCTMPS=	effect.h define.inc
@@ -85,7 +96,7 @@ $(OBJDIR)/%.dmc: $(DMCSRCDIR)/%.dmc | $(MAKEOBJ)
 $(PPMCKCOUTDST): $(PSRCDST) $(DMCFILESDST) | $(MAKEOBJ)
 	cd '$(OBJDIR)' && '$(PPMCKC)' $(PPMCKCFLAGS) $(PSRC) $(PPMCKCOUT)
 
-$(OUTDST): $(PPMCKCOUTDST)
+$(OUTDST): $(PPMCKCOUTDST) $(PPMCKASMSRCS)
 	cd '$(OBJDIR)' && NES_INCLUDE='$(PPMCKASMSRCDIR)' '$(NESASM)' $(NESASMFLAGS) $(PPMCKASM)
 	-rm -f '$(OUTDST)'
 	mv '$(OBJDIR)/$(PPMCKNES)' '$(OUTDST)'
