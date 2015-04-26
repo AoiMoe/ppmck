@@ -15,34 +15,34 @@ sound_dpcm_play:
 	lda	[sound_add_low,x]
 ;----------
 ;ループ処理1
-	cmp	#$a0
+	cmp	#CMD_LOOP1
 	bne	dmc_loop_program2
 	jsr	loop_sub
 	jmp	sound_dpcm_play
 ;----------
 ;ループ処理2(分岐)
 dmc_loop_program2
-	cmp	#$a1
+	cmp	#CMD_LOOP2
 	bne	dmc_bank_command
 	jsr	loop_sub2
 	jmp	sound_dpcm_play
 ;----------
 ;バンク切り替え
 dmc_bank_command
-	cmp	#$ee
+	cmp	#CMD_BANK_SWITCH
 	bne	slur_dpcm
 	jsr	data_bank_addr
 	jmp	sound_dpcm_play
 ;----------
 ;dmc_data_end:
-;	cmp	#$ff
+;	cmp	#CMD_END
 ;	bne	no_dpcm
 ;	jsr	data_end_sub
 ;	jmp	sound_dpcm_play
 ;----------
 ;スラーコマンド（DPCMの為、発音時間を伸ばすのみ)
 slur_dpcm:
-	cmp	#$e9
+	cmp	#CMD_SLUR
 	bne	no_dpcm
 
 	lda	effect2_flags,x
@@ -53,7 +53,7 @@ slur_dpcm:
 	jmp	sound_dpcm_play
 
 no_dpcm:
-	cmp	#$fc
+	cmp	#CMD_REST
 	bne	dmc_y_command_set
 	.if	DPCM_RESTSTOP
 	lda	#$0F		;この2行を有効にすると
@@ -63,13 +63,13 @@ no_dpcm:
 ;----------
 ;ｙコマンド設定
 dmc_y_command_set:
-	cmp	#$f5
+	cmp	#CMD_WRITE_REG
 	bne	wait_set2
 	jsr	y_sub
 	jmp	sound_dpcm_play
 
 wait_set2:
-	cmp	#$f4
+	cmp	#CMD_WAIT
 	bne	dpcm_set
 	jsr	wait_sub
 	rts

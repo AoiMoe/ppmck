@@ -161,28 +161,28 @@ sound_data_read:
 ;----------
 ;ループ処理1
 loop_program
-	cmp	#$a0
+	cmp	#CMD_LOOP1
 	bne	loop_program2
 	jsr	loop_sub
 	jmp	sound_data_read
 ;----------
 ;ループ処理2(分岐)
 loop_program2
-	cmp	#$a1
+	cmp	#CMD_LOOP2
 	bne	bank_command		;duty_set
 	jsr	loop_sub2
 	jmp	sound_data_read
 ;----------
 ;バンク切り替え
 bank_command
-	cmp	#$ee
+	cmp	#CMD_BANK_SWITCH
 	bne	int_hwenv_command
 	jsr	data_bank_addr
 	jmp	sound_data_read
 ;----------
 ;データエンド設定
 ;data_end:
-;	cmp	#$ff
+;	cmp	#CMD_END
 ;	bne	duty_set
 ;	jsr	data_end_sub
 ;	jmp	sound_data_read
@@ -190,7 +190,7 @@ bank_command
 ;----------
 ;ハードエンベロープ
 int_hwenv_command:
-	cmp	#$f0
+	cmp	#CMD_HWENV
 	bne	slur_command
 
 	jsr	sound_data_address
@@ -208,7 +208,7 @@ int_hwenv_command:
 ;----------
 ;スラー
 slur_command:
-	cmp	#$e9
+	cmp	#CMD_SLUR
 	bne	smooth_command
 	lda	effect2_flags,x
 	ora	#EFF2_SLUR_ENABLE
@@ -219,7 +219,7 @@ slur_command:
 ;----------
 ;スムース
 smooth_command:
-	cmp	#$e8
+	cmp	#CMD_SMOOTH
 	bne	pitchshift_command
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
@@ -240,7 +240,7 @@ smooth_command:
 ;----------
 ;ピッチシフト
 pitchshift_command:
-	cmp	#$e7
+	cmp	#CMD_PITCH_SHIFT
 	bne	duty_set
 	lda	ps_step,x
 	beq	.ps_setup
@@ -254,7 +254,7 @@ pitchshift_command:
 ;----------
 ;音色設定
 duty_set:
-	cmp	#$fe
+	cmp	#CMD_TONE
 	bne	volume_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]	;音色データ読み出し

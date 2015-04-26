@@ -192,6 +192,33 @@ EFF2_SLUR_ENABLE	= %00000001
 RESTF_REST		= %00000001 ; rest
 RESTF_KEYON		= %00000010 ; key on (if set, must do sound_data_write)
 
+;command no.
+CMD_LOOP1		= $a0
+CMD_LOOP2		= $a1
+CMD_FDS_MODFREQ		= $e6 ; fds
+CMD_PITCH_SHIFT		= $e7
+CMD_SMOOTH		= $e8
+CMD_SLUR		= $e9
+CMD_BANK_SWITCH		= $ee
+CMD_PITCH_SHIFT_AMOUNT	= $ef ; n106
+CMD_HWENV		= $f0
+CMD_FME7_NOISE_FREQ	= $f1 ; fme6
+CMD_FME7_HWENV_SPEED	= $f2 ; fme6
+CMD_FDS_HWLFO		= $f3 ; fds
+CMD_WAIT		= $f4
+CMD_WRITE_REG		= $f5
+CMD_DIRECT_FREQ		= $f6
+CMD_NOTEENV		= $f7
+CMD_PITCHENV		= $f8
+CMD_SWEEP		= $f9
+CMD_DETUNE		= $fa
+CMD_SOFTLFO		= $fb
+CMD_REST		= $fc
+CMD_VOLUME		= $fd
+CMD_TONE		= $fe
+CMD_END			= $ff
+
+
 	.code
 
 

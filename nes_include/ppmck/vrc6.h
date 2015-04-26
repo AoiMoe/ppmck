@@ -258,35 +258,35 @@ sound_vrc6_read:
 ;----------
 ;ループ処理1
 vrc6_loop_program
-	cmp	#$a0
+	cmp	#CMD_LOOP1
 	bne	vrc6_loop_program2
 	jsr	loop_sub
 	jmp	sound_vrc6_read
 ;----------
 ;ループ処理2(分岐)
 vrc6_loop_program2
-	cmp	#$a1
+	cmp	#CMD_LOOP2
 	bne	vrc6_bank_command
 	jsr	loop_sub2
 	jmp	sound_vrc6_read
 ;----------
 ;バンク切り替え
 vrc6_bank_command
-	cmp	#$ee
+	cmp	#CMD_BANK_SWITCH
 	bne	vrc6_slur
 	jsr	data_bank_addr
 	jmp	sound_vrc6_read
 ;----------
 ;データエンド設定
 ;vrc6_data_end:
-;	cmp	#$ff
+;	cmp	#CMD_END
 ;	bne	vrc6_wave_set
 ;	jsr	data_end_sub
 ;	jmp	sound_vrc6_read
 ;----------
 ;スラー
 vrc6_slur:
-	cmp	#$e9
+	cmp	#CMD_SLUR
 	bne	vrc6_wave_set
 	lda	effect2_flags,x
 	ora	#EFF2_SLUR_ENABLE
@@ -297,7 +297,7 @@ vrc6_slur:
 ;----------
 ;音色設定
 vrc6_wave_set:
-	cmp	#$fe
+	cmp	#CMD_TONE
 	bne	vrc6_volume_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]	;音色データ読み出し
@@ -337,7 +337,7 @@ vrc6_duty_enverope_part:
 ;----------
 ;音量設定
 vrc6_volume_set:
-	cmp	#$fd
+	cmp	#CMD_VOLUME
 	bne	vrc6_rest_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
@@ -370,7 +370,7 @@ vrc6_softenve_part:
 
 ;----------
 vrc6_rest_set:
-	cmp	#$fc
+	cmp	#CMD_REST
 	bne	vrc6_lfo_set
 
 	lda	rest_flag,x
@@ -387,48 +387,48 @@ vrc6_rest_set:
 	rts
 ;----------
 vrc6_lfo_set:
-	cmp	#$fb
+	cmp	#CMD_SOFTLFO
 	bne	vrc6_detune_set
 	jsr	lfo_set_sub
 	jmp	sound_vrc6_read
 ;----------
 vrc6_detune_set:
-	cmp	#$fa
+	cmp	#CMD_DETUNE
 	bne	vrc6_pitch_set
 	jsr	detune_sub
 	jmp	sound_vrc6_read
 ;----------
 ;ピッチエンベロープ設定
 vrc6_pitch_set:
-	cmp	#$f8
+	cmp	#CMD_PITCHENV
 	bne	vrc6_arpeggio_set
 	jsr	pitch_set_sub
 	jmp	sound_vrc6_read
 ;----------
 ;ノートエンベロープ設定
 vrc6_arpeggio_set:
-	cmp	#$f7
+	cmp	#CMD_NOTEENV
 	bne	vrc6_freq_direct_set
 	jsr	arpeggio_set_sub
 	jmp	sound_vrc6_read
 ;----------
 ;再生周波数直接設定
 vrc6_freq_direct_set:
-	cmp	#$f6
+	cmp	#CMD_DIRECT_FREQ
 	bne	vrc6_y_command_set
 	jsr	direct_freq_sub
 	rts
 ;----------
 ;ｙコマンド設定
 vrc6_y_command_set:
-	cmp	#$f5
+	cmp	#CMD_WRITE_REG
 	bne	vrc6_wait_set
 	jsr	y_sub
 	jmp	sound_vrc6_read
 ;----------
 ;ウェイト設定
 vrc6_wait_set:
-	cmp	#$f4
+	cmp	#CMD_WAIT
 	bne	vrc6_oto_set
 	jsr	wait_sub
 	rts

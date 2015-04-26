@@ -153,35 +153,35 @@ sound_vrc7_read:
 ;----------
 ;ループ処理1
 vrc7_loop_program
-	cmp	#$a0
+	cmp	#CMD_LOOP1
 	bne	vrc7_loop_program2
 	jsr	loop_sub
 	jmp	sound_vrc7_read
 ;----------
 ;ループ処理2(分岐)
 vrc7_loop_program2
-	cmp	#$a1
+	cmp	#CMD_LOOP2
 	bne	vrc7_bank_set
 	jsr	loop_sub2
 	jmp	sound_vrc7_read
 ;----------
 ;バンクを切り替えます〜
 vrc7_bank_set
-	cmp	#$ee
+	cmp	#CMD_BANK_SWITCH
 	bne	vrc7_wave_set
 	jsr	data_bank_addr
 	jmp	sound_vrc7_read
 ;----------
 ;データエンド設定
 ;vrc7_data_end:
-;	cmp	#$ff
+;	cmp	#CMD_END
 ;	bne	vrc7_wave_set
 ;	jsr	data_end_sub
 ;	jmp	sound_vrc7_read
 ;----------
 ;音色設定
 vrc7_wave_set:
-	cmp	#$fe
+	cmp	#CMD_TONE
 	bne	vrc7_volume_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
@@ -251,7 +251,7 @@ end_tone_set:
 ;----------
 ;音量設定
 vrc7_volume_set:
-	cmp	#$fd
+	cmp	#CMD_VOLUME
 	bne	vrc7_rest_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
@@ -288,7 +288,7 @@ vrc7_softenve_part:
 	jmp	sound_vrc7_read
 ;----------
 vrc7_rest_set:
-	cmp	#$fc
+	cmp	#CMD_REST
 	bne	vrc7_lfo_set
 
 	lda	rest_flag,x
@@ -320,55 +320,55 @@ vrc7_key_off
 
 ;----------
 vrc7_lfo_set:
-	cmp	#$fb
+	cmp	#CMD_SOFTLFO
 	bne	vrc7_detune_set
 	jsr	lfo_set_sub
 	jmp	sound_vrc7_read
 ;----------
 vrc7_detune_set:
-	cmp	#$fa
+	cmp	#CMD_DETUNE
 	bne	vrc7_pitch_set
 	jsr	detune_sub
 	jmp	sound_vrc7_read
 ;----------
 ;ピッチエンベロープ設定
 vrc7_pitch_set:
-	cmp	#$f8
+	cmp	#CMD_PITCHENV
 	bne	vrc7_arpeggio_set
 	jsr	pitch_set_sub
 	jmp	sound_vrc7_read
 ;----------
 ;ノートエンベロープ設定
 vrc7_arpeggio_set:
-	cmp	#$f7
+	cmp	#CMD_NOTEENV
 	bne	vrc7_freq_direct_set
 	jsr	arpeggio_set_sub
 	jmp	sound_vrc7_read
 ;----------
 ;再生周波数直接設定
 vrc7_freq_direct_set:
-	cmp	#$f6
+	cmp	#CMD_DIRECT_FREQ
 	bne	vrc7_y_command_set
 	jsr	direct_freq_sub
 	rts
 ;----------
 ;ｙコマンド設定
 vrc7_y_command_set:
-	cmp	#$f5
+	cmp	#CMD_WRITE_REG
 	bne	vrc7_wait_set
 	jsr	y_sub
 	jmp	sound_vrc7_read
 ;----------
 ;ウェイト設定
 vrc7_wait_set:
-	cmp	#$f4
+	cmp	#CMD_WAIT
 	bne	vrc7_slur
 	jsr	wait_sub
 	rts
 ;----------
 ;スラー
 vrc7_slur:
-	cmp	#$e9
+	cmp	#CMD_SLUR
 	bne	vrc7_oto_set
 	lda	effect2_flags,x
 	ora	#EFF2_SLUR_ENABLE

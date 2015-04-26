@@ -166,35 +166,35 @@ sound_fds_read:
 ;----------
 ;ループ処理1
 fds_loop_program
-	cmp	#$a0
+	cmp	#CMD_LOOP1
 	bne	fds_loop_program2
 	jsr	loop_sub
 	jmp	sound_fds_read
 ;----------
 ;ループ処理2(分岐)
 fds_loop_program2
-	cmp	#$a1
+	cmp	#CMD_LOOP2
 	bne	fds_bank_set
 	jsr	loop_sub2
 	jmp	sound_fds_read
 ;----------
 ;バンクを切り替えます〜FDS版
 fds_bank_set
-	cmp	#$ee
+	cmp	#CMD_BANK_SWITCH
 	bne	fds_wave_set
 	jsr	data_bank_addr
 	jmp	sound_fds_read
 ;----------
 ;データエンド設定
 ;fds_data_end:
-;	cmp	#$ff
+;	cmp	#CMD_END
 ;	bne	fds_wave_set
 ;	jsr	data_end_sub
 ;	jmp	sound_fds_read
 ;----------
 ;音色設定
 fds_wave_set:
-	cmp	#$fe
+	cmp	#CMD_TONE
 	bne	fds_volume_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
@@ -231,7 +231,7 @@ wave_data_set:
 ;----------
 ;音量設定
 fds_volume_set:
-	cmp	#$fd
+	cmp	#CMD_VOLUME
 	bne	fds_rest_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
@@ -271,7 +271,7 @@ fds_softenve_part:
 	jmp	sound_fds_read
 ;----------
 fds_rest_set:
-	cmp	#$fc
+	cmp	#CMD_REST
 	bne	fds_lfo_set
 
 	lda	rest_flag,x
@@ -288,55 +288,55 @@ fds_rest_set:
 	rts
 ;----------
 fds_lfo_set:
-	cmp	#$fb
+	cmp	#CMD_SOFTLFO
 	bne	fds_detune_set
 	jsr	lfo_set_sub
 	jmp	sound_fds_read
 ;----------
 fds_detune_set:
-	cmp	#$fa
+	cmp	#CMD_DETUNE
 	bne	fds_pitch_set
 	jsr	detune_sub
 	jmp	sound_fds_read
 ;----------
 ;ピッチエンベロープ設定
 fds_pitch_set:
-	cmp	#$f8
+	cmp	#CMD_PITCHENV
 	bne	fds_arpeggio_set
 	jsr	pitch_set_sub
 	jmp	sound_fds_read
 ;----------
 ;ノートエンベロープ設定
 fds_arpeggio_set:
-	cmp	#$f7
+	cmp	#CMD_NOTEENV
 	bne	fds_freq_direct_set
 	jsr	arpeggio_set_sub
 	jmp	sound_fds_read
 ;----------
 ;再生周波数直接設定
 fds_freq_direct_set:
-	cmp	#$f6
+	cmp	#CMD_DIRECT_FREQ
 	bne	fds_y_command_set
 	jsr	direct_freq_sub
 	rts
 ;----------
 ;ｙコマンド設定
 fds_y_command_set:
-	cmp	#$f5
+	cmp	#CMD_WRITE_REG
 	bne	fds_wait_set
 	jsr	y_sub
 	jmp	sound_fds_read
 ;----------
 ;ウェイト設定
 fds_wait_set:
-	cmp	#$f4
+	cmp	#CMD_WAIT
 	bne	fds_hard_lfo_set
 	jsr	wait_sub
 	rts
 ;----------
 ;FDS音源ハードウェアエフェクト設定
 fds_hard_lfo_set:
-	cmp	#$f3
+	cmp	#CMD_FDS_HWLFO
 	bne	fds_hwenv_set
 
 	jsr	sound_data_address
@@ -375,7 +375,7 @@ fds_hard_lfo_data_set:
 ;----------
 ;ハードウェアボリュームエンベロープ
 fds_hwenv_set:
-	cmp	#$f0
+	cmp	#CMD_HWENV
 	bne	fds_modfreq_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
@@ -392,7 +392,7 @@ fds_hwenv_set:
 ;----------
 ;MOD周波数設定
 fds_modfreq_set:
-    cmp	#$e6
+    cmp	#CMD_FDS_MODFREQ
     bne	fds_oto_set
 
     jsr	sound_data_address

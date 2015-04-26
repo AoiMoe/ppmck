@@ -184,28 +184,28 @@ sound_n106_read:
 ;----------
 ;ループ処理1
 n106_loop_program
-	cmp	#$a0
+	cmp	#CMD_LOOP1
 	bne	n106_loop_program2
 	jsr	loop_sub
 	jmp	sound_n106_read
 ;----------
 ;ループ処理2(分岐)
 n106_loop_program2
-	cmp	#$a1
+	cmp	#CMD_LOOP2
 	bne	n106_bank_command
 	jsr	loop_sub2
 	jmp	sound_n106_read
 ;----------
 ;バンク切り替え
 n106_bank_command
-	cmp	#$ee
+	cmp	#CMD_BANK_SWITCH
 	bne	n106_slur
 	jsr	data_bank_addr
 	jmp	sound_n106_read
 ;----------
 ;データエンド設定
 ;n106_data_end:
-;	cmp	#$ff
+;	cmp	#CMD_END
 ;	bne	n106_wave_set
 ;	jsr	data_end_sub
 ;	jmp	sound_n106_read
@@ -213,7 +213,7 @@ n106_bank_command
 ;----------
 ;スラー
 n106_slur:
-	cmp	#$e9
+	cmp	#CMD_SLUR
 	bne	n106_wave_set
 	lda	effect2_flags,x
 	ora	#EFF2_SLUR_ENABLE
@@ -224,7 +224,7 @@ n106_slur:
 ;----------
 ;音色設定
 n106_wave_set:
-	cmp	#$fe
+	cmp	#CMD_TONE
 	bne	n106_volume_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
@@ -286,7 +286,7 @@ n106_wave_data_set:
 ;----------
 ;音量設定
 n106_volume_set:
-	cmp	#$fd
+	cmp	#CMD_VOLUME
 	bne	n106_rest_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
@@ -317,7 +317,7 @@ n106_softenve_part:
 	jmp	sound_n106_read
 ;----------
 n106_rest_set:
-	cmp	#$fc
+	cmp	#CMD_REST
 	bne	n106_lfo_set
 
 	lda	rest_flag,x
@@ -337,55 +337,55 @@ n106_rest_set:
 	rts
 ;----------
 n106_lfo_set:
-	cmp	#$fb
+	cmp	#CMD_SOFTLFO
 	bne	n106_detune_set
 	jsr	lfo_set_sub
 	jmp	sound_n106_read
 ;----------
 n106_detune_set:
-	cmp	#$fa
+	cmp	#CMD_DETUNE
 	bne	n106_pitch_set
 	jsr	detune_sub
 	jmp	sound_n106_read
 ;----------
 ;ピッチエンベロープ設定
 n106_pitch_set:
-	cmp	#$f8
+	cmp	#CMD_PITCHENV
 	bne	n106_arpeggio_set
 	jsr	pitch_set_sub
 	jmp	sound_n106_read
 ;----------
 ;ノートエンベロープ設定
 n106_arpeggio_set:
-	cmp	#$f7
+	cmp	#CMD_NOTEENV
 	bne	n106_freq_direct_set
 	jsr	arpeggio_set_sub
 	jmp	sound_n106_read
 ;----------
 ;再生周波数直接設定
 n106_freq_direct_set:
-	cmp	#$f6
+	cmp	#CMD_DIRECT_FREQ
 	bne	n106_y_command_set
 	jsr	direct_freq_sub
 	rts
 ;----------
 ;ｙコマンド設定
 n106_y_command_set:
-	cmp	#$f5
+	cmp	#CMD_WRITE_REG
 	bne	n106_wait_set
 	jsr	y_sub
 	jmp	sound_n106_read
 ;----------
 ;ウェイト設定
 n106_wait_set:
-	cmp	#$f4
+	cmp	#CMD_WAIT
 	bne	n106_shift_amount_set
 	jsr	wait_sub
 	rts
 ;----------
 ;ピッチシフト量設定
 n106_shift_amount_set:
-	cmp	#$ef
+	cmp	#CMD_PITCH_SHIFT_AMOUNT
 	bne	n106_oto_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
