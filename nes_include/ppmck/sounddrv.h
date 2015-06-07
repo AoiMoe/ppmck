@@ -1745,24 +1745,59 @@ warizan_start:
 
 
 ;--------------------
+; sound_pitch_enverope : (内蔵音源専用)ピッチエンベロープのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	y : 破壊
+;	temporary : 破壊
+;	pitch_add_{low,high},x : 反映
+;	sound_freq_{low,high},x : 反映
+;	音程 : 反映
+;	(以下pitch_subからの間接的な副作用)
+;	バンク : #bank(pitchenve_table)
+; 備考:
+;	XXX:internal.hへ移動すべきでは
+;	XXX:つづり
+;
 sound_pitch_enverope:
 	lda	sound_freq_high,x
 	sta	temporary
 	jsr	pitch_sub
-pitch_write:
+
 	lda	sound_freq_low,x
 	ldy	<channel_selx4
 	sta	$4002,y
 	lda	sound_freq_high,x
 	cmp	temporary
-	beq	end3
+	beq	.done
 	sta	$4003,y
-end3:
-	jsr	pitch_enverope_address
+.done:
+	jsr	pitch_enverope_address	;アドレス一個増やす
 	rts
-;-------------------------------------------------------------------------------
-pitch_sub:
 
+
+;--------------------
+; pitch_sub : ピッチエンベロープのフレーム処理における音源非依存な音量値計算
+;
+; 入力:
+;	x : channel_selx2
+;	sound_freq_{low,high,n106},x : エンベロープ処理前の音程
+; 出力:
+;	sound_freq_{low,high,n106},x : エンベロープ処理の結果が反映される
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+;	pitch_add_{low,higi},x : リピートマークを指していた場合には先頭に戻る
+;	(以下、freq_add_mcknumberからの間接的な影響)
+; 備考:
+;	データを読み出した後、アドレス(pitch_add_{low,high},x)を進めないので、
+;	呼び出し元で進める必要がある。
+;	実際にレジスタに書き込むのは呼び出し元の仕事。
+;
+
+pitch_sub:
 	; 定義バンク切り替え
 	lda	#bank(pitchenve_table)*2
 	jsr	change_bank
@@ -1770,13 +1805,13 @@ pitch_sub:
 	ldx	<channel_selx2
 	indirect_lda	pitch_add_low
 	cmp	#$ff
-	beq	return62
+	beq	.do_repeat
 
 	jmp	freq_add_mcknumber
 
-;--------------------------------------------------
-return62:
-	indirect_lda	pitch_add_low	
+.do_repeat
+	; リピートテーブルを参照してデータアドレスをリストアする
+	indirect_lda	pitch_add_low	; XXX:無意味
 	lda	pitch_sel,x
 	asl	a
 	tay
@@ -1784,15 +1819,29 @@ return62:
 	sta	pitch_add_low,x
 	lda	pitchenve_lp_table+1,y
 	sta	pitch_add_high,x
-	jmp	pitch_sub
-;--------------------------------------------------
+	jmp	pitch_sub	;XXX:バンク切り替えの後に飛ぶようにすべし
+
+
+;--------------------
+; pitch_enverope_address : ピッチエンベロープアドレスを1つ進める
+;
+; 入力:
+;	x : channel_selx2
+;	pitch_add_{low,high},x : 足される前の値
+; 出力:
+;	pitch_add_{low,high},x : 16bit値として1足される
+; 備考:
+;	XXX:つづり
+;
 pitch_enverope_address:
 	inc	pitch_add_low,x
-	bne	return63
+	bne	.done
 	inc	pitch_add_high,x
-return63:
+.done
 	rts
-;-------------------------------------------------------------------------------
+
+
+;--------------------
 sound_high_speed_arpeggio:		;note enverope
 ARPEGGIO_RETRIG = 0			; 1だとsound_freq_highが変化しなくても書き込む
 	.if !ARPEGGIO_RETRIG
