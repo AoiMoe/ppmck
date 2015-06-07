@@ -635,32 +635,74 @@ change_bank:
 
 
 ;-------------------------------------------------------------------------------
-; リピート終了コマンド
+; loop_sub : 音源チップ非依存なリピートコマンドの処理
 ;
-; channel_loop++;
-; if (channel_loop == <num>) {
-;   channel_loop = 0;
+; 入力:
+;	x : channel_selx2
+;	sound_add_{low,high},x : 現在のサウンドデータアドレス
+;		<cmd> <count> <bank> <addr_low> <addr_high>
+;		↑ここを指す
+; 出力:
+;	sound_bank,x / sound_add_{low,high},x : 次のコマンドを指す
+; 副作用:
+;	a : 破壊
+;	channel_loop,x : 反映
+; 備考:
+;	すぐ下にあるloop_sub2も参照のこと
+;
+; channel_loop[x]++;
+; if (channel_loop[x] == <num>) {
+;   channel_loop[x] = 0;
 ;   残りのパラメータ無視してadrを次に進める;
 ; } else {
 ;   0xeeコマンドと同じ処理;
 ; }
+;
 loop_sub:
 	jsr	sound_data_address
 	inc	channel_loop,x
 	lda	channel_loop,x
 	cmp	[sound_add_low,x]	;繰り返し回数
-	beq	loop_end
-	jsr	sound_data_address
-	jmp	bank_address_change
-loop_end:
+	beq	.loop_done
+	; 無条件ジャンプ処理(0xeeコマンドと同等)
+	jsr	sound_data_address	;次の位置に進める
+	jmp	bank_address_change	;バンク/アドレスL/アドレスHを読んで設定
+.loop_done:
+	; 明示的にループ回数をリセットするようなループ始点コマンドは無いので、
+	; 次の機会のためにループ回数をクリアしておく必要がある
 	lda	#$00
 	sta	channel_loop,x
-loop_esc_through			;loop_sub2から飛んでくる
-	lda	#$04
+_loop_esc_through:			;loop_sub2から飛んでくる
+	lda	#$04			;回数/バンク/アドレスL/Hをスキップ
 	jsr	sound_data_address_add_a
-	rts				;おちまい
+	rts
+
+
 ;-----------
-; リピート途中抜け
+; loop_sub2 : 音源チップ非依存なリピート中断コマンドの処理
+;
+; 入力:
+;	x : channel_selx2
+;	sound_add_{low,high},x : 現在のサウンドデータアドレス
+;		<cmd> <count> <bank> <addr_low> <addr_high>
+;		↑ここを指す
+; 出力:
+;	sound_bank,x / sound_add_{low,high},x : 次のコマンドを指す
+; 副作用:
+;	a : 破壊
+;	channel_loop,x : 反映
+; 備考:
+;	loop_subとはリピート継続時と終了時の処理が逆
+;	+-----------+--------------+--------------+
+;	|           | ループ継続時 | ループ終了時 |
+;	+-----------+--------------+--------------+
+;	| loop_sub  | (後方へ)jump | fallthrough  |
+;	| loop_sub2 | fallthrough  | (前方へ)jump |
+;	+-----------+--------------+--------------+
+;
+;	bneするので、Loop_subの近くにある必要がある
+;
+;	XXX:サブルーチン名
 ;
 ; channel_loop++;
 ; if (channel_loop == <num>) {
@@ -669,25 +711,45 @@ loop_esc_through			;loop_sub2から飛んでくる
 ; } else {
 ;   残りのパラメータ無視してadrを次に進める;
 ; }
-
+;
 loop_sub2:
 	jsr	sound_data_address
 	inc	channel_loop,x
 	lda	channel_loop,x
 	cmp	[sound_add_low,x]	;繰り返し回数
-	bne	loop_esc_through
+	bne	_loop_esc_through
 	lda	#$00
 	sta	channel_loop,x
 	jsr	sound_data_address
 	jmp	bank_address_change
-;-------------------------------------------------------------------------------
-;バンクセット (gotoコマンド。bank, adr_low, adr_high)
+
+
+;--------------------
+; data_bank_addr : 音源チップ非依存なバンクセットコマンドの処理
+; bank_address_change : 別のコマンドから利用されるジャンプ処理サブルーチン
+;
+; 入力:
+;	x : channel_selx2
+;	sound_add_{low,high},x : 現在のサウンドデータアドレス
+;		(data_bank_addrの場合)
+;			<cmd> <bank> <addr_low> <addr_high>
+;			↑ここを指す
+;		(bank_address_changeの場合)
+;			<cmd> ... <bank> <addr_low> <addr_high>
+;				  ↑ここを指す
+; 出力:
+;	sound_bank,x / sound_add_{low,high},x : 次のコマンドを指す
+; 副作用:
+;	a : 破壊
+; 備考:
+;	バンク切り替え自体は行わない
+;
 data_bank_addr:
 	jsr	sound_data_address
 bank_address_change:
 	if (ALLOW_BANK_SWITCH)
-	lda	[sound_add_low,x]
-	sta	sound_bank,x
+		lda	[sound_add_low,x]
+		sta	sound_bank,x
 	endif
 
 	jsr	sound_data_address
@@ -700,15 +762,17 @@ bank_address_change:
 	sta	<sound_add_low,x	;新しいアドレス書込み
 
 	rts
-;-------------------------------------------------------------------------------
+
+
+;--------------------
 ;data_end_sub:
 ;	ldy	<channel_sel
-;	
+;
 ;	if (ALLOW_BANK_SWITCH)
 ;	lda	loop_point_bank,y
 ;	sta	sound_bank,x
 ;	endif
-;	
+;
 ;	lda	loop_point_table,x
 ;	sta	<sound_add_low,x	;ループ開始位置書き込み Low
 ;	inx
