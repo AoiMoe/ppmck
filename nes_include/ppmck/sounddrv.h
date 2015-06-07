@@ -559,20 +559,50 @@ sound_driver_start:
 ;------------------------------------------------------------------------------
 ;command read sub routines
 ;------------------------------------------------------------------------------
+
+;--------------------
+; sound_data_address : サウンドデータのアドレスに１を足す
+;
+; 入力:
+;	x : channel_selx2
+;	sound_add_{low,high},x : 足される前の値
+; 出力:
+;	sound_add_{low,high},x : 16ビット値として1足される
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_data_address:
-	inc	<sound_add_low,x	;データアドレス＋１
-	bne	return2			;位が上がったら
-sound_data_address_inc_high
-	inc	<sound_add_high,x	;データアドレス百の位（違）＋１
-return2:
+	inc	<sound_add_low,x	;データアドレス(lo)+1
+	bne	__sound_data_address_done
+					;位が上がったら
+_sound_data_address_inc_high:		;sound_data_address_add_aから飛んでくる
+	inc	<sound_add_high,x	;データアドレス(hi)+1
+__sound_data_address_done:
 	rts
 
+
+;--------------------
+; sound_data_address_add_a : サウンドデータのアドレスにaを足す
+;
+; 入力:
+;	a : 加算値
+;	x : channel_selx2
+;	sound_add_{low,high},x : 足される前の値
+; 出力:
+;	sound_add_{low,high},x : 16ビット値としてaが足される
+; 副作用:
+;	a : 破壊される
+; 備考:
+;	bcsするので上の_sound_data_address_inc_highの近くにないといけない
+;
 sound_data_address_add_a:
 	clc
 	adc	<sound_add_low,x
 	sta	<sound_add_low,x
-	bcs	sound_data_address_inc_high
+	bcs	_sound_data_address_inc_high
 	rts
+
+
 ;-------------------------------------------------------------------------------
 change_bank:
 ;バンクをReg.Aに変えます〜
