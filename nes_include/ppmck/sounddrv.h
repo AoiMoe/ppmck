@@ -226,11 +226,19 @@ CMD_END			= $ff
 ;-------------------------------------------------------------------------------
 ;macros and misc sub routines
 ;-------------------------------------------------------------------------------
-;indirect_lda
-;statement
+
+;--------------------
+; indirect_lda : ゼロページではないアドレスnでlda [n,x]を実現する
+;
+; statement
 ;	indirect_lda	hoge_add_low	;hoge_add_low is not zero page address
-;is same as:
+; is same as:
 ;	lda	[hoge_add_low,x]
+;
+; 副作用:
+;	x : channel_selx2が再ロードされる(冗長?)
+;	ind_lda_add : 破壊
+;
 indirect_lda	.macro
 	lda	\1,x		;hoge_add_low
 	sta	<ind_lda_add
@@ -238,7 +246,7 @@ indirect_lda	.macro
 	sta	<ind_lda_add+1
 	ldx	#$00
 	lda	[ind_lda_add,x]
-	ldx	<channel_selx2
+	ldx	<channel_selx2	;XXX: 冗長?
 	.endm
 
 ;--------------------------------------
