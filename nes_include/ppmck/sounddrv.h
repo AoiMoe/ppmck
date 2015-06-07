@@ -1197,108 +1197,183 @@ wait_sub:
 ;-------------------------------------------------------------------------------
 ;effect sub routines
 ;-------------------------------------------------------------------------------
+
+;--------------------
+; detune_write_sub : デチューンコマンドの値を周波数レジスタのワーク値に反映する
+;
+; 入力:
+;	x : channel_selx2
+;	detune_dat,x : 符号付きデチューン値
+;	sound_freq_{low,high,n106},x : 加算前の周波数値
+; 出力:
+;	sound_freq_{low,high,n106},x : 加算後の周波数値
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+; 備考:
+;	実際にレジスタに書き込むのは呼び出し元の仕事。
+;
 detune_write_sub:
 	lda	effect_flag,x
 	and	#EFF_DETUNE_ENABLE
-	bne	detune_part
+	bne	.detune_is_enabled
+	; デチューンが無効なら何もしない
 	rts
 
-detune_part:
+	; デチューン有効
+.detune_is_enabled:
 	lda	detune_dat,x
+	; fallthrough
 
-; freqにAを加減算する
-; Aの$80が立っていなかったらそのまま加算
-; Aの$80が立っていたらand $7Fして減算
-; input: A
+;--------------------
+; freq_add_mcknumber : 周波数レジスタの値に符号付き値を加算する
+;
+; 入力:
+;	x : channel_selx2
+;	a : 符号付き加算値(補数表現ではなく、符号1bit+仮数7bit形式)
+;	sound_freq_{low,high,n106},x : 加算前の周波数値
+; 出力:
+;	sound_freq_{low,high,n106},x : 加算後の周波数値
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+; 備考:
+;	実際にレジスタに書き込むのは呼び出し元の仕事。
+;
 freq_add_mcknumber:
 	.if PITCH_CORRECTION
-	eor	freq_vector_table,x
+		;符号をテーブルで補正する
+		eor	freq_vector_table,x
 	.else
-	eor	#0			;set N flag
+		;符号を補正しない
+		eor	#0		;set N flag
 	.endif
-	bmi	detune_minus
+	bmi	__detune_minus
+	; fallthrough
 
-; freqにAを加算する
-; input: A
+;--------------------
+; detune_plus : 周波数値に値を加算する
+;
+; 入力:
+;	x : channel_selx2
+;	a : 加算値
+;	sound_freq_{low,high,n106},x : 加算前の周波数値
+; 出力:
+;	sound_freq_{low,high,n106},x : 加算後の周波数値
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+; 備考:
+;	反映されるのはワークエリアの値だけで、実際にレジスタに書き込むのは
+;	呼び出し元の仕事。
+;
 detune_plus:
 	eor	#0			;set Z flag
 	beq	.endo			;プラス0なら終了
-	
+
 	ldy	pitch_shift_amount,x
-	bne	detune_plus_with_asl	;シフトあり
-	
+	bne	_detune_plus_with_asl	;シフトあり
+
+	; シフトなし単純加算
 	clc
 	adc	sound_freq_low,x
 	sta	sound_freq_low,x
-	bcs	.mid_plus
+	bcs	.carry		; XXX: .endoを最後に移動してbcc .endoにすべし
 .endo:	rts
-.mid_plus:
+.carry:
+	; 桁上がり
 	inc	sound_freq_high,x
-	bne	.n106_high_through
+	bne	.no_extra_carry
+	; さらに桁上がり
 	inc	sound_freq_n106,x
-.n106_high_through:
+.no_extra_carry:
 	rts
 
-detune_minus:
+__detune_minus:
 	and	#%01111111
-; freqからAを減算する
-; input: A
+	; fallthrough
+
+;--------------------
+; detune_minus_nomask : 周波数値から値を減算する
+;
+; 入力:
+;	x : channel_selx2
+;	a : 減算値(補数表現ではなく、符号1bit+仮数7bit形式)
+;	sound_freq_{low,high,n106},x : 減算前の周波数値
+; 出力:
+;	sound_freq_{low,high,n106},x : 減算後の周波数値
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+;	t0 : 破壊
+;	以下はpitch_shift_amount,xが0でないとき
+;	t1 : 破壊
+;	t2 : 破壊
+; 備考:
+;	実際にレジスタに書き込むのは呼び出し元の仕事。
+;
 detune_minus_nomask:
-	eor	#0			;set Z flag
+	eor	#0			;set Z flag iff A==0
 	beq	.endo			;プラス0なら終了
-	
+
 	ldy	pitch_shift_amount,x
-	bne	detune_minus_nomask_with_asl	;シフトあり
-	
+	bne	_detune_minus_nomask_with_asl	;シフトあり
+
 	sta	<t0
 	lda	sound_freq_low,x
 	sec
 	sbc	<t0
 	sta	sound_freq_low,x
-	bcc	.mid_minus
+	bcc	.borrow		; XXX: .endoを最後に移動してbcs .endoにすべし
 .endo:	rts
-.mid_minus:
+.borrow:
+	; 桁下がり
 	lda	sound_freq_high,x
-	beq	.borrow
-.no_borrow:
+	beq	.extra_borrow
 	dec	sound_freq_high,x
 	rts
-.borrow:
+.extra_borrow:
+	; さらに桁下がり
 	dec	sound_freq_high,x
 	dec	sound_freq_n106,x
 	rts
 
-;---------------------------------
-; 何回か左シフトするバージョン
-; ここは直接呼び出さず、
-; freq_add_mcknumber, detune_plus, detune_minus_nomaskを経由すること
-; A = 足し算引き算する値
-; Y = シフト量 (0は禁止)
-detune_plus_with_asl:
+	; _detune_plus_with_asl / _detune_minus_nomask_with_asl
+	; 変化量に対する任意回の左シフトを伴うバージョン
+	; 内部ルーチンなので直接呼び出さず、
+	; freq_add_mcknumber, detune_plus, detune_minus_nomaskを経由すること
+	; A = 足し算引き算する値
+	; Y = シフト量 (0は禁止)
+_detune_plus_with_asl:
 	sta	<t0
 	lda	#0
 	sta	<t1
 	sta	<t2
-	beq	freq_add_mcknumber_shift	;always
+	beq	__do_detune_plus_with_asl	;常にZ=0なので、
+						;無条件ジャンプと等価
+						;(命令長が1バイト短く済む)
 
-detune_minus_nomask_with_asl:
+_detune_minus_nomask_with_asl:
+	; A(1～127)を2の補数表現で符号反転(-1:FFh～-127:81h)してt0へストア
 	eor	#$ff
 	sta	<t0
 	inc	<t0
-	beq	detune_through		;0
-	
-	lda	#$ff
+	beq	__detune_through		;A=0なら何もしない
+	; t0をt2/t1/t0からなる24bit符号付き整数へと符号拡張
+	lda	#$ff	;t0は常に負数なので、t1/t2はFFhとなる
 	sta	<t1
 	sta	<t2
 
-freq_add_mcknumber_shift:
-.lp
+__do_detune_plus_with_asl:
+	; t2/t1/t0 24bit値をY回左シフト
+.loop
 		asl	<t0
 		rol	<t1
 		rol	<t2
 		dey
-		bne	.lp
-.add
+		bne	.loop
+
+	; t2/t1/t0をsound_freq_{n106,high,low}に加算
 	clc
 	lda	<t0
 	adc	sound_freq_low,x
@@ -1309,7 +1384,7 @@ freq_add_mcknumber_shift:
 	lda	<t2
 	adc	sound_freq_n106,x
 	sta	sound_freq_n106,x
-detune_through:
+__detune_through:
 	rts
 
 
