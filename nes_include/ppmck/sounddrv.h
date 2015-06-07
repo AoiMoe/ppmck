@@ -1559,6 +1559,23 @@ duty_enverope_address:
 
 
 ;--------------------
+; sound_lfo : (内蔵音源専用)LFOのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	y : 破壊
+;	temporary : 破壊
+;	音程 : 反映
+;	(以下lfo_subからの間接的な副作用)
+;	sound_freq_{low,high,n106},x : 反映
+;	lfo_start_counter,x : 反映
+;	lfo_reverse_counter,x : 反映
+;	lfo_adc_sbc_counter,x : 反映
+;	effect_flag,x : EFF_SOFTLFO_DIRビットが影響を受ける
+; 備考:
+;	XXX:internal.hへ移動すべきでは
+;
 sound_lfo:
 	lda	sound_freq_high,x
 	sta	temporary
@@ -1567,58 +1584,105 @@ sound_lfo:
 
 	lda	sound_freq_low,x
 	ldy	<channel_selx4
-	sta	$4002,y			;　　現在値をレジスタにセット
+	sta	$4002,y			;現在値をレジスタにセット
 	lda	sound_freq_high,x
 	cmp	temporary
-	beq	end4
+	beq	.done
 	sta	$4003,y
-end4:
-	rts				;ここまで
-;-------------------------------------------------------------------------------
+.done:
+	rts
+
+
+;--------------------
+; lfo_sub : LFOのフレーム処理における音源非依存な音量値計算
+;
+; 入力:
+;	sound_freq_{low,high,n106},x : LFO処理前の音程
+; 出力:
+;	sound_freq_{low,high,n106},x : LFO処理の結果が反映される
+; 副作用:
+;	a : 破壊
+;	x : channel_selx2になる
+;	y : 破壊
+;	lfo_start_counter,x : 反映
+;	lfo_reverse_counter,x : 反映
+;	lfo_adc_sbc_counter,x : 反映
+;	effect_flag,x : EFF_SOFTLFO_DIRビットが影響を受ける
+; 備考:
+;	実際にレジスタに書き込むのは呼び出し元の仕事。
+;	XXX:サブルーチン名
+;
 lfo_sub:
 	ldx	<channel_selx2
+
+	; LFOの開始を遅らせるフェーズ
 	lda	lfo_start_counter,x
-	beq	.lfo_start
+	beq	.do_lfo
 	dec	lfo_start_counter,x
 	rts
 
-.lfo_start:
-	asl	lfo_reverse_time,x	;2倍する(LFOの1/2周期になる)
+.do_lfo:
+	; 変化方向を反転するか判定
+	asl	lfo_reverse_time,x	;2倍する(一時的にLFOの1/2周期になる)
 	lda	lfo_reverse_counter,x	;反転用カウンタ読み込み
 	cmp	lfo_reverse_time,x	;LFOの周期の1/2ごとに反転する
-	bne	.lfo_depth_set		;規定数に達していなければデプス処理へ
-.lfo_revers_set:				;規定数に達していたら方向反転処理
+	bne	.skip_reverse		;規定数に達していなければ反転をスキップ
+
+		; 規定数に達していたら方向反転処理
 		lda	#$00			;
 		sta	lfo_reverse_counter,x	;反転カウンタ初期化
 		lda	effect_flag,x		;方向ビットを反転
 		eor	#EFF_SOFTLFO_DIR	;
 		sta	effect_flag,x		;
 
-.lfo_depth_set:
-	lsr	lfo_reverse_time,x	;1/2にする(LFOの1/4周期になる)
-	lda	lfo_adc_sbc_counter,x	;デプス用カウンタ読み込み
-	cmp	lfo_adc_sbc_time,x	;lfo_adc_sbc_timeごとにデプス処理する
-	bne	.lfo_count_inc		;まだならカウンタプラスへ
-.lfo_depth_work:				;一致していればデプス処理
+.skip_reverse:
+	lsr	lfo_reverse_time,x	;1/2にする(LFOの1/4周期に戻る)
+
+	; 変化速度の処理
+	lda	lfo_adc_sbc_counter,x	;変化速度カウンタ読み込み
+	cmp	lfo_adc_sbc_time,x	;lfo_adc_sbc_timeごとに変分処理する
+	bne	.delta_done		;まだなら変分処理をスキップする
+
+		; 一致していれば変分処理
 		lda	#$00			;
-		sta	lfo_adc_sbc_counter,x	;デプスカウンタ初期化
+		sta	lfo_adc_sbc_counter,x	;変化速度カウンタ初期化
 		lda	effect_flag,x		;＋か−か
 		and	#EFF_SOFTLFO_DIR	;このビットが
-		bne	.lfo_depth_plus		;立っていたら加算
-.lfo_depth_minus:
+		bne	.lfo_delta_plus		;立っていたら加算
+			; 減算
 			lda	lfo_depth,x
 			jsr	detune_minus_nomask
-			jmp	.lfo_count_inc
-.lfo_depth_plus:
+			jmp	.delta_done
+.lfo_delta_plus:
+			; 加算
 			lda	lfo_depth,x
 			jsr	detune_plus
 
-.lfo_count_inc:
-	inc	lfo_reverse_counter,x	;カウンタ足してお終い
+.delta_done:
+	;カウンタ足してお終い
+	inc	lfo_reverse_counter,x
 	inc	lfo_adc_sbc_counter,x
 	rts
 
-;-------------------------------------------------------------------------------
+
+;--------------------
+; warizan_start : ピッチLFOのための割り算処理
+;
+; 入力:
+;	x : channel_selx2
+;	lfo_reverse_time,x : LFO周期の1/4
+;	lfo_depth,x : LFOの振れ幅(Y軸ピーク)
+; 出力:
+;	lfo_depth,x : 一回あたりの変化量
+;	lfo_adc_sbc_time,x : 変化させる時間間隔(フレーム数単位)
+; 副作用:
+;	a : 破壊
+;	t0 : 破壊
+;	t1 : 破壊
+;	lfo_adc_sbc_counter,x : lfo_adc_sbc_time,xと同じ値で初期化される
+; 備考:
+;	XXX:サブルーチン名
+;
 warizan_start:
 .quotient = t0
 .divisor = t1
@@ -1629,7 +1693,9 @@ warizan_start:
 	beq	.plus_one		;同じなら1:1
 	bmi	.depth_wari		;Y軸ピークのほうが大きい場合
 
-.revers_wari:				;1/4周期のほうが大きい場合
+.revers_wari:
+	; 1/4周期のほうが大きい場合(=傾きが1未満のとき)には
+	; (1/4周期)/(Y軸ピーク)フレームごとに1増減させる
 	lda	lfo_depth,x
 	sta	<.divisor
 	lda	lfo_reverse_time,x
@@ -1642,6 +1708,8 @@ warizan_start:
 	rts
 
 .depth_wari:
+	; Y軸ピークのほうが大きい場合(=傾きが1超のとき)には
+	; 1フレームごとに(Y軸ピーク)/(1/4周期)増減させる
 	lda	lfo_reverse_time,x
 	sta	<.divisor
 	lda	lfo_depth,x
@@ -1653,24 +1721,30 @@ warizan_start:
 	sta	lfo_adc_sbc_counter,x
 	rts
 
-.plus_one:				;1フレームごとに1
+.plus_one:
+	; 1/4周期とY軸ピークが等しい場合(=傾きがちょうど1のとき)には
+	; 1フレームごとに1増減させる
 	lda	#$01
 	sta	lfo_depth,x
 	sta	lfo_adc_sbc_time,x
 	sta	lfo_adc_sbc_counter,x
 	rts
 
+	; 実際に割り算を行うサブルーチン
+	; .quotient += floor(a/.divisor)
 .warizan:
 	inc	<.quotient
 	sec
 	sbc	<.divisor
+	; XXX: 単にbcs .warizan じゃ駄目なの？
 	beq	.warizan_end
 	bcc	.warizan_end
-	bcs	.warizan			;always
+	bcs	.warizan		;無条件ジャンプと等価
 .warizan_end:
 	rts
 
-;-------------------------------------------------------------------------------
+
+;--------------------
 sound_pitch_enverope:
 	lda	sound_freq_high,x
 	sta	temporary
