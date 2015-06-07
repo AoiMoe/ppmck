@@ -1053,19 +1053,41 @@ pitch_set_sub:
 
 
 ;--------------------
+; arpeggio_set_sub : 音源チップ非依存なノートエンベロープコマンドの処理
+;
+; 入力:
+;	x : channel_selx2
+;	sound_add_{low,high},x : 現在のサウンドデータアドレス
+;		<cmd> <nenv_number>
+;		↑ここを指す
+; 出力:
+;	sound_add_{low,high},x : 次のコマンドを指す
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+;	effect_flag,x : ノートエンベロープフラグが操作される
+;	(以下nenv_number != ffhのとき)
+;	arpeggio_sel,x : ノートエンベロープ番号
+;	バンク : arpeggio_tableのあるバンク
+;	arpe_add_{low,high},x : ピッチエンベロープデータアドレス
+; 備考:
+;	XXX: サブルーチン名
+;
 arpeggio_set_sub:
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
 	cmp	#$ff
-	bne	arpeggio_part
+	bne	.arpeggio_enable
 
+	; 無効化
 	lda	effect_flag,x
 	and	#~EFF_NOTEENV_ENABLE
 	sta	effect_flag,x
 	jsr	sound_data_address
 	rts
 
-arpeggio_part:
+	; 有効化
+.arpeggio_enable:
 	sta	arpeggio_sel,x
 	asl	a
 	tay
@@ -1084,7 +1106,9 @@ arpeggio_part:
 	sta	effect_flag,x
 	jsr	sound_data_address
 	rts
-;-------------------------------------------------------------------------------
+
+
+;--------------------
 direct_freq_sub:
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
