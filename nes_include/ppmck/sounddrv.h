@@ -1171,14 +1171,27 @@ y_sub:
 
 
 ;--------------------
+; wait_sub : 音源チップ非依存な待機コマンド(w)の処理
+;
+; 入力:
+;	x : channel_selx2
+;	sound_add_{low,high},x : 現在のサウンドデータアドレス
+;		<cmd> <count>
+;		↑ここを指す
+; 出力:
+;	sound_add_{low,high},x : 次のコマンドを指す
+; 副作用:
+;	a : 破壊
+;	sound_counter,x : 待機カウント
+; 備考:
+;	XXX: サブルーチン名
+;
 wait_sub:
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
 	sta	sound_counter,x
 	jsr	sound_data_address
-
 	rts
-;-------------------------------------------------------------------------------
 
 
 ;-------------------------------------------------------------------------------
