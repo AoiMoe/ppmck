@@ -2137,38 +2137,68 @@ sound_flag_clear_key_on:
 
 
 ;--------------------
+; pitchshift_setup : (内蔵音源専用)ピッチシフト/ポルタメントコマンドの処理
 ;
-; dest : t0,t1
-; Note that t0 and t1 might be used in a subroutine
+; 入力:
+;	channel_selx2 : チャンネル番号の2倍
+;	(xはサブルーチンの先頭でchannel_selx2になる)
+;	sound_add_{low,high},x : 現在のサウンドデータアドレス
+;		<cmd> <count> <bank> <addr_low> <addr_high>
+;		↑ここを指す
+; 出力:
+; 副作用:
+;	a : 破壊
+;	x : channel_selx2になる
+;	t0 : 破壊
+;	t1 : 破壊
+;	t2 : 破壊
+;	t3 : 破壊
+;	t4 : 破壊
+;	t5 : 破壊
+;	t6 : 破壊
+;	ps_temp : 破壊
+; 備考:
 ;
 
 pitchshift_setup:
-	; curfreq = freq
+;この別名のアサインは変更してはならない。特にt0/t1が重要
+.diff_lo	= t0
+.diff_hi	= t1
+.oldfreq_lo	= t2
+.oldfreq_hi	= t3
+.curfreq_lo	= t4
+.curfreq_hi	= t5
+.t_note		= t6
+.nega_flag	= ps_temp	; XXX:なんでt7を使わないのか
+	;現在の周波数レジスタの状態を.curfreqにセーブ
 	ldx	<channel_selx2
 	lda	sound_freq_low,x
-	sta	<t4
+	sta	<.curfreq_lo
 	lda	sound_freq_high,x
-	sta	<t5
+	sta	<.curfreq_hi
 
+	;直前のコマンドのノート番号に対応する周波数レジスタ値を
+	;計算して.oldfreqにセーブ
 	jsr	frequency_set
-	ldx	<channel_selx2
-
-	; oldfreq = freq
+	ldx	<channel_selx2	;XXX:不要?
 	lda	sound_freq_low,x
-	sta	<t2
+	sta	<.oldfreq_lo
 	lda	sound_freq_high,x
-	sta	<t3
+	sta	<.oldfreq_hi
 
 	lda	sound_sel,x
-	sta	<t6
-	
-	; read note
+	sta	<.t_note
+
+	;コマンドバイトをスキップ
 	jsr	sound_data_address
+
+	;備考:続く2バイトには普通の発声コマンドがある
+	;音程を読み込む
 	lda	[sound_add_low,x]
 	sta	sound_sel,x
 	sta	ps_nextnote,x
 
-	; read count
+	;音長を読み込む
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
 	sta	ps_count,x
@@ -2176,114 +2206,129 @@ pitchshift_setup:
 
 	jsr	sound_data_address
 
+	;変化量の計算
 	lda	sound_sel,x
-	cmp	<t6
-	bne	ps_calc_freq
+	cmp	<.t_note
+	bne	.ps_calc_freq
 
-	; next = current
+	;変化しない場合
 	lda	#$00
 	sta	ps_step,x
 	rts
-	
 
-ps_calc_freq:
-	jsr	frequency_set
-	ldx	<channel_selx2
+	;まずは周波数レジスタの変化分を計算する
+.ps_calc_freq:
+	jsr	frequency_set	; 到達先の音程に対応する周波数レジスタの計算
 
-	; if ( oldfreq < freq ) goto posi else goto nega
-	lda	<t3
+	ldx	<channel_selx2	;XXX:不要?
+
+	;if ( oldfreq < freq ) goto posi else goto nega
+	;これを2バイト比較に展開する
+	lda	<.oldfreq_hi
 	cmp	sound_freq_high,x
-	bcc	ps_diff_posi  ; (A < B)
-	bne	ps_diff_nega  ; (A > B)
-	lda	<t2 ; (A == B)
+	bcc	.ps_diff_posi	; oldfreq_high < sound_freq_high → posi
+	bne	.ps_diff_nega	; oldfreq_high > sound_freq_high → nega
+	; oldfreq_high == sound_freq_high
+	lda	<.oldfreq_lo
 	cmp	sound_freq_low,x
-	bcs	ps_diff_nega  ; (A >= B)
+	bcs	.ps_diff_nega	; oldfreq_low >= sound_freq_low → nega
 
-ps_diff_posi:
-	; nega = 0
+.ps_diff_posi:
 	lda	#$00
-	sta	<ps_temp
-	
-	; diff = freq - oldfreq
+	sta	<.nega_flag
+
+	;diff = freq - oldfreq
+	;これを16bitで行う
 	sec
 	lda	sound_freq_low,x
-	sbc	<t2
-	sta	<t0
+	sbc	<.oldfreq_lo
+	sta	<.diff_lo
 
 	lda	sound_freq_high,x
-	sbc	<t3
-	sta	<t1
-	jmp	ps_restore_note
-ps_diff_nega:
-	; nega = 1
+	sbc	<.oldfreq_hi
+	sta	<.diff_hi
+	jmp	.ps_restore_note
+
+.ps_diff_nega:
 	lda	#$01
-	sta	<ps_temp
-	
-	; diff = oldfreq - freq
+	sta	<.nega_flag
+
+	;diff = oldfreq - freq
+	;これを16bitで行う
 	sec
-	lda	<t2
+	lda	<.oldfreq_lo
 	sbc	sound_freq_low,x
-	sta	<t0
+	sta	<.diff_lo
 
-	lda	<t3
+	lda	<.oldfreq_hi
 	sbc	sound_freq_high,x
-	sta	<t1
+	sta	<.diff_hi
 
-ps_restore_note:
-
-	; note = t_note
-	lda	<t6
+.ps_restore_note:
+	;現在のノート番号を、一つ前のコマンドのものに戻す
+	lda	<.t_note
 	sta	sound_sel,x
 
-	; freq = curfreq
-	lda	<t4
+	;現在の周波数レジスタ値を、このコマンド直前の値に戻す
+	lda	<.curfreq_lo
 	sta	sound_freq_low,x
-	lda	<t5
+	lda	<.curfreq_hi
 	sta	sound_freq_high,x
 
-
-	; if ( diff < count ) goto step else goto freq
-	lda	<t1
+	;傾きの比較
+	;if ( diff < count ) goto step else goto freq
+	;これを符号無しの16bit vs 8bitで行う
+	lda	<.diff_hi
 	cmp	#$00
-	bcc	ps_step_base  ; (A < B)
-	bne	ps_freq_base  ; (A > B)
-	lda	<t0 ; (A == B)
+	bcc	.ps_step_base	;XXX:不要。あらゆる値から0を引いても桁借りしないので常にジャンプしない
+	bne	.ps_freq_base	;diff_high != 0 → freq
+	;diff_high == 0
+	lda	<.diff_lo
 	cmp	ps_count,x
-	bcs	ps_freq_base  ; (A >= B)
+	bcs	.ps_freq_base	;diff_low > ps_count → freq
 
-ps_step_base:
 
-	; addfreq = 1
+	;傾きが1よりもゆるい場合
+	;addfreq = 1
+	;step = count / diff
+.ps_step_base:
 	lda	#$01
 	sta	ps_addfreq_l,x
 	lda	#$00
 	sta	ps_addfreq_h,x
 
-	; step = count / diff
-	; t2 = t0
-	lda	<t0
+	;b_divに渡す16bit値の準備
+	;分母 = diff
+	;diff(t1:t0)は分子を渡すためのエリアなので先に処理する必要がある
+	lda	<.diff_lo
 	sta	<t2
-	lda	<t1
+	lda	<.diff_hi
 	sta	<t3
-
-	; t0 = count
+	;分子 = count
 	lda	ps_count,x
 	sta	<t0
 	lda	#$00
 	sta	<t1
-	
+
 	jsr	b_div
 
-	; step = t6
+	;step = 商
 	lda	<t6
 	sta	ps_step,x
 
-	jmp	ps_nega_chk
-ps_freq_base:
+	jmp	.ps_nega_chk
+
+
+	;傾きが1よりも急な場合
+	;step = 1
+	;addfreq = diff / count
+.ps_freq_base:
 	lda	#$01
 	sta	ps_step,x
 
-	; addfreq = diff / count
+	;b_divに渡す16bit値の準備
+	;分子は既にt1:t0(diff)に代入されている
+	;分母 = count
 	lda	ps_count,x
 	sta	<t2
 	lda	#$00
@@ -2291,17 +2336,18 @@ ps_freq_base:
 
 	jsr	b_div
 
-	; addfreq = t6
+	;addfreq = 商
 	lda	<t6
 	sta	ps_addfreq_l,x
 	lda	<t7
 	sta	ps_addfreq_h,x
 
-ps_nega_chk:
+.ps_nega_chk:
 	lda	<ps_temp
-	beq	ps_posi
-	; addfreq = 0 - addfreq
+	beq	.ps_posi
 
+	;二の補数表現での16bit負数にする
+	;addfreq = 0 - addfreq
 	sec
 	lda	#$00
 	sbc	ps_addfreq_l,x
@@ -2310,66 +2356,72 @@ ps_nega_chk:
 	lda	#$00
 	sbc	ps_addfreq_h,x
 	sta	ps_addfreq_h,x
-	
-ps_posi:
+
+.ps_posi:
 	lda	ps_step,x
 	sta	ps_count,x
 
 	rts
 
 
-;--------------------------
-;process_ps
-;called from effect part
+;--------------------
+; process_ps : (内蔵音源専用)ピッチシフト/ポルタメントのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+;	temporary : 破壊
+;	ps_count,x : 反映
+;	sound_freq_{high,low},x : 反映
+; 備考:
+;	XXX:internal.hへ移動すべきでは
+;	XXX:サブルーチン名
 ;
 process_ps:
+	;ps_step,xが0なら無効
 	lda	ps_step,x
-	beq	process_ps_fin ; if (!step) return
+	beq	.done
+
+	;ウェイト : ps_count,xを1つ減らし、0になっていなければ終了
 	dec	ps_count,x
-	bne	process_ps_fin ; if (count > 0) return
+	bne	.done
+
+	;ウェイトカウントリセット
 	lda	ps_step,x
 	sta	ps_count,x
 
+	;古いsound_freq_high,xを保存
 	lda	sound_freq_high,x
 	sta	temporary
 
-	; freq += ps_addfreq
+	;freq += ps_addfreq
 	clc
 	lda	sound_freq_low,x
 	adc	ps_addfreq_l,x
 	sta	sound_freq_low,x
-
 	lda	sound_freq_high,x
 	adc	ps_addfreq_h,x
 	sta	sound_freq_high,x
 
-	; write to sound regs
+	;音程レジスタへの書き込み
 	lda	sound_freq_low,x
 	ldy	<channel_selx4
 	sta	$4002,y
-	lda	sound_freq_high,x
 
+	;sound_freq_high,xが変化していなければ上位バイトは書き込まない
+	lda	sound_freq_high,x
 	cmp	temporary
-	beq	process_ps_fin
+	beq	.done
 	sta	$4003,y
 	sta	sound_lasthigh,x
 
-
-process_ps_fin:
+.done:
 	rts
 
 
-; -------------------------
-; b_div
-; 16bit binary divider
-; C = A / B
-;
-; in   :
-;   t0,t1 = dividend(A)  t2,t3 = divider(B) 
-; temp :
-;   t4,t5 = temp
-; out  :
-;   t6,t7 = quotient(C)
+;--------------------
 ;
 ; dest : almost all params
 ;
