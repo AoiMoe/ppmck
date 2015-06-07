@@ -1842,16 +1842,34 @@ pitch_enverope_address:
 
 
 ;--------------------
+; sound_high_speed_arpeggio : (内蔵音源専用)ノートエンベロープのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+;	temporary2 : 破壊
+;	sound_freq_{low,high},x : 反映
+;	sound_lasthigh,x : 反映
+;	音程 : 反映
+;	arpe_add_{low,high},x : 反映
+; 備考:
+;	XXX:internal.hへ移動すべきでは
+;	XXX:サブルーチン名
+;
 sound_high_speed_arpeggio:		;note enverope
 ARPEGGIO_RETRIG = 0			; 1だとsound_freq_highが変化しなくても書き込む
 	.if !ARPEGGIO_RETRIG
+	;古いsound_freq_high,xの保存
 	lda	sound_freq_high,x
 	sta	temporary2
 	.endif
+
 	jsr	note_enve_sub
 	bcs	.end			; 0なので書かなくてよし
+
 	jsr	frequency_set
-;.note_freq_write:
 	ldx	<channel_selx2
 	lda	sound_freq_low,x
 	ldy	<channel_selx4
@@ -1863,12 +1881,19 @@ ARPEGGIO_RETRIG = 0			; 1だとsound_freq_highが変化しなくても書き込�
 	.endif
 	sta	$4003,y
 	sta	sound_lasthigh,x
-	
+
 .end:
 	jsr	arpeggio_address
 	rts
-;--------------------------------------------------
-note_add_set:
+
+
+;--------------------
+; _note_add_set : (note_enve_subの下請け)ノートエンベロープのリピート処理
+;
+; 備考:
+;	XXX:他の_sub系の実装と形式をそろえるべし
+;
+_note_add_set:
 	; 定義バンク切り替え
 	lda	#bank(arpeggio_table)*2
 	jsr	change_bank
@@ -1880,87 +1905,126 @@ note_add_set:
 	sta	arpe_add_low,x
 	lda	arpeggio_lp_table+1,y
 	sta	arpe_add_high,x
-	jmp	note_enve_sub
-;--------------------------------------------------
+	jmp	note_enve_sub	; XXX:バンク切り替えの後にすべし
+
+
+;--------------------
+; arpeggio_address : ノートエンベロープアドレスを1つ進める
+;
+; 入力:
+;	x : channel_selx2
+;	arpe_add_{low,high},x : 足される前の値
+; 出力:
+;	arpe_add_{low,high},x : 16bit値として1足される
+; 備考:
+;	XXX:サブルーチン名
+;
 arpeggio_address:
 	inc	arpe_add_low,x
-	bne	return83
+	bne	.done
 	inc	arpe_add_high,x
-return83:
+.done:
 	rts
-;-------------------------------------------------------------------------------
-;Output 
-;	C=0(読み込んだ値は0じゃないので発音処理しろ)
-;	C=1(読み込んだ値は0なので発音処理しなくていいよ)
+
+
+;--------------------
+; note_enve_sub : ノートエンベロープのフレーム処理における音源非依存な音量値計算
+;
+; 入力:
+;	x : channel_selx2
+;	sound_sel,x : エンベロープ処理前のノート番号
+; 出力:
+;	sound_sel,x : エンベロープ処理の結果が反映される
+;	Cフラグ : 1ならば音程変化していない(発声処理を省略できる)
+; 副作用:
+;	a : 破壊
+;	x : channel_selx2
+;	y : 破壊
+;	t0 : 破壊
+;	arpe_add_{low,higi},x : リピートマークを指していた場合には先頭に戻る
+;	バンク : arpeggio_tableのあるバンク
+; 備考:
+;	データを読み出した後、アドレス(arpe_add_{low,high},x)を進めないので、
+;	呼び出し元で進める必要がある。
+;	実際にレジスタに書き込むのは呼び出し元の仕事。
 ;
 note_enve_sub:
-
-	; 定義バンク切り替え
 	lda	#bank(arpeggio_table)*2
 	jsr	change_bank
 
 	ldx	<channel_selx2
-	indirect_lda	arpe_add_low		;ノートエンベデータ読み出し
-	cmp	#$ff			;$ff（お終い）か？
-	beq	note_add_set
-	cmp	#$00			;ゼロか？(Zフラグ再セット)
-	beq	.note_enve_zero_end	;ゼロならC立ててお終い
+	indirect_lda	arpe_add_low
+	cmp	#$ff			;リピートマークかどうか
+	beq	_note_add_set
+
+	;変化分がゼロかどうかをチェックする(80hも0として扱う)
+	;なお、変化分は補数表現ではなく符号1bit+仮数7bit形式
+	cmp	#$00
+	beq	.done_by_zero
 	cmp	#$80
-	beq	.note_enve_zero_end	;ゼロならC立ててお終い
-	bne	.arpeggio_sign_check	;always
-.note_enve_zero_end
+	beq	.done_by_zero
+	bne	.sign_check		;無条件ジャンプ
+.done_by_zero:
 	sec				;発音処理は不要
 	rts
-.arpeggio_sign_check
-	eor	#0			;N flag確認
-	bmi	arpeggio_minus		;−処理へ
 
-arpeggio_plus:
-	sta	<t0			;テンポラリに置く（ループ回数）
-arpeggio_plus2:
-	lda	sound_sel,x		;音階データ読み出し
+.sign_check:
+	eor	#0			;Aレジスタの符号を確認
+	bmi	.do_minus		;負数処理へ
+
+	;正数処理
+	;ノート番号が不連続なため、1ずつ足してゆく
+	;11の次はオクターブ上の0とする
+	sta	<t0			;足す値をテンポラリに置く（ループ回数）
+.do_loop_plus:
+	lda	sound_sel,x		;ノート番号読み出し
 	and	#$0f			;下位4bit抽出
-	cmp	#$0b			;もしbなら
-	beq	oct_plus		;オクターブ＋処理へ
-	inc	sound_sel,x		;でなければ音階＋１
-	jmp	loop_1			;ループ処理１へ
-oct_plus:
-	lda	sound_sel,x		;音階データ読み出し
+	cmp	#$0b			;もし11なら
+	beq	.oct_plus		;オクターブ+処理へ
+	inc	sound_sel,x		;でなければ音階+1
+	jmp	.loop_cond_plus		;ループ条件判定へ
+.oct_plus:
+	lda	sound_sel,x		;ノート番号読み出し
 	and	#$f0			;上位4bit取り出し＆下位4bitゼロ
 	clc
-	adc	#$10			;オクターブ＋１
-	sta	sound_sel,x		;音階データ書き出し
-loop_1:
-	dec	<t0			;ループ回数−１
-	lda	<t0			;んで読み出し
-	beq	note_enve_end		;ゼロならループ処理終わり
-	bne	arpeggio_plus2		;でなければまだ続く
+	adc	#$10			;オクターブ+1
+	sta	sound_sel,x		;ノート番号書き出し
+.loop_cond_plus:
+	dec	<t0			;ループ回数-1
+	lda	<t0			;Zフラグへ反映
+	beq	.done			;ゼロなら終了
+	bne	.do_loop_plus		;でなければ続行(無条件ジャンプ)
 
-arpeggio_minus:
-	and	#%01111111
-	sta	<t0
-arpeggio_minus2:
-	lda	sound_sel,x		;音階データ読み出し
+	;負数処理
+	;ノート番号が不連続なため、1ずつ引いてゆく
+	;0の次はオクターブ下の11とする
+.do_minus:
+	and	#%01111111		;符号ビットを落とす
+	sta	<t0			;引く値をテンポラリに置く（ループ回数）
+.do_loop_minus:
+	lda	sound_sel,x		;ノート番号読み出し
 	and	#$0f			;下位4bit抽出
-	beq	oct_minus		;ゼロなら−処理へ
-	dec	sound_sel,x		;でなければ音階−１
-	jmp	loop_2			;ループ処理２へ
-oct_minus:
-	lda	sound_sel,x		;音階データ読み出し
+	beq	.oct_minus		;ゼロならオクターブ−処理へ
+	dec	sound_sel,x		;でなければ音階-1
+	jmp	.loop_cond_minus	;ループ条件判定へ
+.oct_minus:
+	lda	sound_sel,x		;ノート番号読み出し
 	clc
-	adc	#$0b			;+b
+	adc	#$0b			;音階を11にする(音階部はもともと0)
 	sec
-	sbc	#$10			;-10
-	sta	sound_sel,x		;音階データ書き出し
-loop_2:
-	dec	<t0			;ループ回数−１
-	lda	<t0			;んで読み出し
-	bne	arpeggio_minus2		;ゼロならループ処理終わり
-note_enve_end:
-	clc				;発音処理は必要
-	rts				;
-;-------------------------------------------------------------------------------
-;oto_setで呼ばれる
+	sbc	#$10			;オクターブ-1
+	sta	sound_sel,x		;ノート番号書き出し
+.loop_cond_minus:
+	dec	<t0			;ループ回数-1
+	lda	<t0			;Zフラグへ反映
+	bne	.do_loop_minus		;ゼロでなければ続行
+
+.done:
+	clc				;発音処理が必要
+	rts
+
+
+;--------------------
 effect_init:
 ;ソフトウェアエンベロープ読み込みアドレス初期化
 	; 定義バンク切り替え
