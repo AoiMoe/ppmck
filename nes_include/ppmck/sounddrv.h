@@ -274,14 +274,24 @@ channel_sel_inc:
 ;initialize routine
 ;-------------------------------------------------------------------------------
 INITIAL_WAIT_FRM = $00 ;最初にこのフレーム数だけウェイト
-;初期化ルーチン
+
+;--------------------
+; sound_init : 初期化ルーチン
+;
+; 入力:
+;	a : 現在の曲番号(複数ある場合)
+;
 sound_init:
 	.if TOTAL_SONGS > 1
-	pha
+		;曲が複数ある場合、曲番号がAレジスタに入っているので
+		;スタックに保存する
+		pha
 	.endif
+
+	;ワークエリアのクリア
 	lda	#$00
 	ldx	#$00
-.memclear
+.memclear_loop:
 	sta	$0000,x
 	sta	$0200,x
 	sta	$0300,x
@@ -290,37 +300,42 @@ sound_init:
 	sta	$0600,x
 	sta	$0700,x
 	inx
-	bne	.memclear
+	bne	.memclear_loop
 
+	;初期ウェイト
 	lda	#INITIAL_WAIT_FRM
 	sta	initial_wait
 
-	lda	#$0f		;内蔵音源初期化
+	;内蔵音源初期化
+	;XXX:他の音源と同じようにinternal.hに移動すべきでは
+	lda	#$0f
 	sta	$4015		;チャンネル使用フラグ
-	lda	#$08		
+	lda	#$08
 	sta	$4001		;矩形波o2a以下対策
 	sta	$4005
 
 	.if (DPCM_BANKSWITCH)
-	ldx	#$4C		; X = "JMP Absolute"
-	stx	ram_nmi
-	lda	$FFFA		; NMI low
-	sta	ram_nmi+1
-	lda	$FFFB		; NMI high
-	sta	ram_nmi+2
+		;DPCMのバンクスイッチを許可している場合、
+		;各ベクタのthunkをRAM上に作る
+		ldx	#$4C		; X = "JMP Absolute"
+		stx	ram_nmi
+		lda	$FFFA		; NMI low
+		sta	ram_nmi+1
+		lda	$FFFB		; NMI high
+		sta	ram_nmi+2
 
-	stx	ram_reset
-	lda	$FFFC		; RESET low
-	sta	ram_reset+1
-	lda	$FFFD		; RESET high
-	sta	ram_reset+2
+		stx	ram_reset
+		lda	$FFFC		; RESET low
+		sta	ram_reset+1
+		lda	$FFFD		; RESET high
+		sta	ram_reset+2
 
-	stx	ram_irq
-	lda	$FFFE		; IRQ/BRK low
-	sta	ram_irq+1
-	lda	$FFFF		; IRQ/BRK high
-	sta	ram_irq+2
-	.endif
+		stx	ram_irq
+		lda	$FFFE		; IRQ/BRK low
+		sta	ram_irq+1
+		lda	$FFFF		; IRQ/BRK high
+		sta	ram_irq+2
+	.endif ; DPCM_BANKSWITCH
 
 
 	.if	SOUND_GENERATOR & __FME7
@@ -334,7 +349,7 @@ sound_init:
 	.if	SOUND_GENERATOR & __FDS
 	jsr	fds_sound_init
 	.endif
-	
+
 	.if	SOUND_GENERATOR & __N106
 	jsr	n106_sound_init
 	.endif
@@ -343,89 +358,92 @@ sound_init:
 	jsr	vrc6_sound_init
 	.endif
 
+	.if TOTAL_SONGS > 1
+		;曲が複数ある場合、曲番号に対応するテーブルの位置を求めておく
 ; use t0, t1, t2, t3
 .start_add_lsb	=	t0
 .start_add_lsb_hi=	t1
 .start_bank	=	t2
 .start_bank_hi	=	t3
 
-	.if TOTAL_SONGS > 1
-		pla
+		pla		; A=曲番号
 		asl	a
 		tax
-		
+
 		lda	song_addr_table,x
 		sta	<.start_add_lsb
 		lda	song_addr_table+1,x
-		sta	<.start_add_lsb+1
-		
+		sta	<.start_add_lsb_hi
+
 		.if (ALLOW_BANK_SWITCH)
 			lda	song_bank_table,x
 			sta	<.start_bank
 			lda	song_bank_table+1,x
-			sta	<.start_bank+1
+			sta	<.start_bank_hi
 		.endif
-	
+
 	.endif
-	
+
+	;チャンネル別の(音源非依存で基本的な)ワークエリアの初期化
+.do_channel_init:
 	lda	#$00
 	sta	<channel_sel
 	sta	<channel_selx2
 	sta	<channel_selx4
-.sound_channel_set:
+.channel_init_loop:
 	lda	<channel_sel
 	cmp	#PTR_TRACK_END		;終わり？
-	beq	.sound_init_end
-	
-	
+	beq	.done
+
 	.if TOTAL_SONGS > 1
+		;曲が複数ある
 		.if (ALLOW_BANK_SWITCH)
 			ldy	<channel_sel		; y = ch; x = ch<<1;
 			ldx	<channel_selx2
-			
+
 			lda	[.start_bank],y
 			sta	sound_bank,x
-			
+
 			ldy	<channel_selx2		; x = y = ch<<1;
 		.else
 			ldx	<channel_selx2		; x = y = ch<<1;
 			ldy	<channel_selx2
 		.endif
-				
 		lda	[.start_add_lsb],y
 		sta	<sound_add_low,x	;データ開始位置書き込み
 		iny
 		lda	[.start_add_lsb],y
-		sta	<sound_add_low+1,x	;データ開始位置書き込み
+		sta	<sound_add_high,x	;データ開始位置書き込み
 	.else
-		
+		;曲が1つだけ
 		ldy	<channel_sel		; y = ch; x = ch<<1;
 		ldx	<channel_selx2
-
 		.if (ALLOW_BANK_SWITCH)
 			lda	song_000_bank_table,y
 			sta	sound_bank,x
 		.endif
-		
 		lda	song_000_track_table,x
 		sta	<sound_add_low,x	;データ開始位置書き込み
 		lda	song_000_track_table+1,x
 		sta	<sound_add_low+1,x	;データ開始位置書き込み
 
 	.endif
-	; x = ch<<1; y = ?
-	
+
+	; x = channel_selx2
 	lda	#$ff
 	sta	sound_lasthigh,x
 	lda	#$00
 	sta	effect_flag,x
 	lda	#$01
 	sta	sound_counter,x
-	
+
 	jsr	channel_sel_inc
-	jmp	.sound_channel_set
-.sound_init_end:
+
+	jmp	.channel_init_loop
+
+.done:
 	rts
+
 
 ;-------------------------------------------------------------------------------
 ;main routine
