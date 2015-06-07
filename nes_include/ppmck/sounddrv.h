@@ -193,6 +193,8 @@ RESTF_REST		= %00000001 ; rest
 RESTF_KEYON		= %00000010 ; key on (if set, must do sound_data_write)
 
 ;command no.
+CMD_KEYON_BEGIN		= $00
+CMD_KEYON_END		= $8f
 CMD_LOOP1		= $a0
 CMD_LOOP2		= $a1
 CMD_FDS_MODFREQ		= $e6 ; fds
