@@ -779,7 +779,30 @@ bank_address_change:
 ;	lda	loop_point_table,x
 ;	sta	<sound_add_low,x	;ループ開始位置書き込み High
 ;	rts
-;-------------------------------------------------------------------------------
+
+
+;--------------------
+; volume_sub : 音源チップ非依存なソフトエンベロープ有効化コマンドの処理
+;
+; 入力:
+;	x : channel_selx2
+;	temporary : ソフトエンベロープ番号
+;	sound_add_{low,high},x : 現在のサウンドデータアドレス(XXX)
+;		<cmd> <number_of_env>
+;		      ↑ここを指す
+; 出力:
+;	sound_add_{low,high},x : 次のコマンドを指す
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+;	バンク : softenv_tableのあるバンク
+;	effect_flag,x : ソフトエンベロープフラグが立てられる
+;	softenve_sel,x : ソフトエンベロープ番号になる
+;	soft_add_{low,high},x : 所定のアドレスで初期化される
+; 備考:
+;	XXX:サブルーチン名なんとかならないか
+;	XXX:サブルーチン化が他のコマンドと比べて中途半端
+;
 volume_sub:
 	lda	effect_flag,x
 	ora	#EFF_SOFTENV_ENABLE
@@ -788,7 +811,7 @@ volume_sub:
 	lda	temporary
 	sta	softenve_sel,x
 	asl	a
-	tay
+	tay				;y = ソフトエンベロープ番号*2
 
 	lda	#bank(softenve_table)*2
 	jsr	change_bank
@@ -800,6 +823,9 @@ volume_sub:
 	jsr	sound_data_address
 	rts
 ;-------------------------------------------------------------------------------
+
+
+;--------------------
 lfo_set_sub:
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
