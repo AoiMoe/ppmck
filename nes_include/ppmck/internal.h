@@ -1,18 +1,23 @@
 ;-----------------------------------------------------------------------
 ;2a03 squ tri noise driver
 ;-----------------------------------------------------------------------
+
+;----------------------------------------------------------------------
+; NMI割り込みエントリポイント(内蔵音源)
+;
 sound_internal:
 	ldx	<channel_selx2
 	dec	sound_counter,x		;カウンタいっこ減らし
 	beq	.sound_read_go		;ゼロならサウンド読み込み
 	jsr	do_effect		;ゼロ以外ならエフェクトして
 	rts				;おわり
+
 .sound_read_go
 	jsr	sound_data_read
 	jsr	do_effect
 	lda	rest_flag,x
 	and	#RESTF_KEYON		;キーオンフラグ
-	beq	.end1			
+	beq	.end1
 	jsr	sound_data_write	;立っていたらデータ書き出し
 	lda	rest_flag,x
 	and	#~RESTF_KEYON		;キーオンフラグオフ
@@ -124,7 +129,7 @@ noise_frequency_get:
 sound_data_write:
 	ldx	<channel_selx2
 	ldy	<channel_selx4
-	
+
 	lda	register_low,x		;音量保持
 	ora	register_high,x
 	sta	$4000,y
