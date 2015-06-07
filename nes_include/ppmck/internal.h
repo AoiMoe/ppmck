@@ -313,7 +313,7 @@ duty_enverope_part:
 ;----------
 ;音量設定
 volume_set:
-	cmp	#$fd
+	cmp	#CMD_VOLUME
 	bne	rest_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
@@ -339,7 +339,7 @@ softenve_part:
 	jmp	sound_data_read
 ;----------
 rest_set:
-	cmp	#$fc
+	cmp	#CMD_REST
 	bne	lfo_set
 
 	lda	rest_flag,x
@@ -367,21 +367,21 @@ tri:
 	rts
 ;----------
 lfo_set:
-	cmp	#$fb
+	cmp	#CMD_SOFTLFO
 	bne	detune_set
 	jsr	lfo_set_sub
 	jmp	sound_data_read
 
 ;----------
 detune_set:
-	cmp	#$fa
+	cmp	#CMD_DETUNE
 	bne	sweep_set
 	jsr	detune_sub
 	jmp	sound_data_read
 
 ;----------
 sweep_set:
-	cmp	#$f9
+	cmp	#CMD_SWEEP
 	bne	pitch_set
 
 	jsr	sound_data_address
@@ -393,7 +393,7 @@ sweep_set:
 ;----------
 ;ピッチエンベロープ設定
 pitch_set:
-	cmp	#$f8
+	cmp	#CMD_PITCHENV
 	bne	arpeggio_set
 	jsr	pitch_set_sub
 	jmp	sound_data_read
@@ -401,7 +401,7 @@ pitch_set:
 ;----------
 ;ノートエンベロープ設定
 arpeggio_set:
-	cmp	#$f7
+	cmp	#CMD_NOTEENV
 	bne	freq_direct_set
 	jsr	arpeggio_set_sub
 	jmp	sound_data_read
@@ -409,7 +409,7 @@ arpeggio_set:
 ;----------
 ;再生周波数直接設定
 freq_direct_set:
-	cmp	#$f6
+	cmp	#CMD_DIRECT_FREQ
 	bne	y_command_set
 	jsr	direct_freq_sub
 	rts
@@ -417,7 +417,7 @@ freq_direct_set:
 ;----------
 ;ｙコマンド設定
 y_command_set:
-	cmp	#$f5
+	cmp	#CMD_WRITE_REG
 	bne	wait_set
 	jsr	y_sub
 	jmp	sound_data_read
@@ -425,12 +425,13 @@ y_command_set:
 ;----------
 ;ウェイト設定
 wait_set:
-	cmp	#$f4
+	cmp	#CMD_WAIT
 	bne	oto_set
 	jsr	wait_sub
 	rts
 ;----------
 oto_set:
+	; XXX:知らないコマンドが来たときの処理はあったほうが良い
 	sta	sound_sel,x		;処理はまた後で
 
 	lda	#$00
