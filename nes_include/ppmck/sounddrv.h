@@ -2422,92 +2422,161 @@ process_ps:
 
 
 ;--------------------
+; b_div : 符号無し16ビット除算 (C = A / B)
 ;
-; dest : almost all params
+; 入力:
+;	t1:t0 : 被除数(A)
+;	t3:t2 : 除数(B)
+; 出力:
+;	t7:t6 : 商(C)
+;	t1:t0 : 剰余(のはず/今のところ使われていない)
+; 副作用:
+;	t4 : 破壊
+;	t5 : 破壊
+; 備考:
+;	XXX:サブルーチン名
 ;
 b_div:
+;この別名はそのまま入出力に対応するため変更してはならない
+.A_lo	= t0
+.A_hi	= t1
+.B_lo	= t2
+.B_hi	= t3
+.tmp_lo	= t4
+.tmp_hi	= t5
+.C_lo	= t6
+.C_hi	= t7
+	;quotient = 0
 	lda  #$00
-	sta  <t6
-	sta  <t7
+	sta  <.C_lo
+	sta  <.C_hi
 
+	;tmp = 1
 	lda  #$01
-	sta  <t4
+	sta  <.tmp_lo
 	lda  #$00
-	sta  <t5
+	sta  <.tmp_hi
 
-	lda  <t2
-	ora  <t3
-	bne  b_div_lp1
-	rts  ; divided by zero
-
-b_div_lp1:
-	lda  <t3
-	and  #$80
-	bne  b_div_sub
-	asl  <t2 ; B <<=1
-	rol  <t3
-
-	; if ( A < B ) goto fin_ls else next_ls
-	lda	<t1
-	cmp	<t3
-	bcc	b_div_fin_ls  ; (A < B)
-	bne	b_div_next_ls ; (A > B)
-	lda	<t0 ; (A == B)
-	cmp	<t2
-	bcc	b_div_fin_ls ; (A < B)
-
-b_div_next_ls:
-	asl  <t4	; temp <<= 1
-	rol  <t5
-	jmp  b_div_lp1
-b_div_fin_ls:
-	lsr  <t3 ; B>>=1
-	ror  <t2
-;	lsr  <t5 ; temp >>= 1
-;	ror  <t4 ;
-b_div_sub:
-	lda  <t0 ; A-=B
-	sec
-	sbc  <t2
-	sta  <t0
-
-	lda  <t1
-	sbc  <t3
-	sta  <t1
-
-	; C += temp
-	clc
-	lda  <t6
-	adc  <t4
-	sta  <t6
-
-	lda  <t7
-	adc  <t5
-	sta  <t7
-
-b_div_shift:
-	; B >>= 1 
-	lsr  <t3
-	ror  <t2
-
-	; temp >>= 1 
-	lsr  <t5
-	ror  <t4
-	bcs  b_div_fin
-
-	; if ( A(t0) < B(t2) ) goto shift else sub
-	lda	<t1		  
-	cmp	<t3		  
-	bcc	b_div_shift       ; (t0 < t2)
-	bne	b_div_sub	  ; (t0 > t2)
-	lda	<t0
-	cmp	<t2
-	bcc	b_div_shift	  ; (t0 < t2)
-	jmp	b_div_sub
-
-
-b_div_fin:
+	;ゼロ除算の検査
+	lda  <.B_lo
+	ora  <.B_hi
+	bne  .do_phase1
 	rts
 
+.do_phase1:
+	;フェーズ1
+	;  B*2^(n+1) > A >= B*2^n となるようなnを探し、
+	;  B = B*2^n と tmp = 2^n を得る
+	;  while (!(B & 0x8000) && (B<<1) <= A) {
+	;    B <<= 1;
+	;    tmp <<= 1;
+	;  }
+	;  以下の実装では、次のようにBを使いまわしている
+	;  while (!(B & 0x8000)) {
+	;    B <<= 1;
+	;    if (B > A) {
+	;      B >>= 1;
+	;      break;
+	;    }
+	;    tmp <<= 1;
+	;  }
+	;  XXX:フェーズ2ともども、A == Bになったときに中断したほうが
+	;  いいのかもしれないし、トータルではよくないのかもしれない
+.phase1_loop:
+	lda  <.B_hi
+	and  #$80
+	bne  .phase1_done
 
+	;divider <<= 1
+	asl  <.B_lo
+	rol  <.B_hi
 
+	; if ( A < B ) goto break else goto next
+	lda	<.A_hi
+	cmp	<.B_hi
+	bcc	.phase1_break	; (A < B)
+	bne	.phase1_next	; (A > B)
+	lda	<.A_lo
+	cmp	<.B_lo
+	bcc	.phase1_break	; (A < B)
+
+.phase1_next:
+	;tmp <<= 1
+	asl  <.tmp_lo
+	rol  <.tmp_hi
+	jmp  .phase1_loop
+
+.phase1_break:
+	;B >>= 1
+	lsr  <.B_hi
+	ror  <.B_lo
+.phase1_done:
+
+.do_phase2:
+	;フェーズ2
+	;  二進で一桁ずつ引けるかどうか調べ、引けるなら商に加算する。
+	;  以下と等価
+	;  while (tmp != 0) {
+	;    if (A < B) {
+	;      B >>= 1;
+	;      tmp >>= 1;
+	;    } else {
+	;      A -= B;
+	;      C += tmp;
+	;    }
+	;  }
+	;  以下の実装では、フェーズ1の結果などを踏まえて、
+	;  評価順序を変えて次のように最適化されている
+	;  do {
+	;    A -= B;
+	;    C += tmp;
+	;    do {
+	;      B >>= 1;
+	;      tmp >>= 1;
+	;      if (tmp == 0)
+	;        goto done;
+	;    } while (B > A);
+	;  } while (true);
+	;  done:;
+.phase2_outerloop:
+	;A -= B
+	lda  <.A_lo
+	sec
+	sbc  <.B_lo
+	sta  <.A_lo
+	lda  <.A_hi
+	sbc  <.B_hi
+	sta  <.A_hi
+
+	;C += tmp
+	clc
+	lda  <.C_lo
+	adc  <.tmp_lo
+	sta  <.C_lo
+	lda  <.C_hi
+	adc  <.tmp_hi
+	sta  <.C_hi
+
+.phase2_innerloop:
+	;B >>= 1
+	lsr  <.B_hi
+	ror  <.B_lo
+
+	;tmp >>= 1
+	lsr  <.tmp_hi
+	ror  <.tmp_lo
+	bcs  .phase2_done
+
+	; if ( A < B ) goto innerloop else goto outerloop
+	lda	<.A_hi
+	cmp	<.B_hi
+	bcc	.phase2_innerloop	; (dividend < divider)
+	bne	.phase2_outerloop	; (dividend > divider)
+	lda	<.A_lo
+	cmp	<.B_lo
+	bcc	.phase2_innerloop	; (dividend < divider)
+	jmp	.phase2_outerloop
+
+.phase2_done:
+.done:
+	rts
