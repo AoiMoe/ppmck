@@ -249,7 +249,18 @@ indirect_lda	.macro
 	ldx	<channel_selx2	;XXX: 冗長?
 	.endm
 
-;--------------------------------------
+;--------------------
+; channel_sel_inc : チャンネル番号を一つ増やす
+;
+; 入力:
+;	channel_sel : チャンネル番号
+; 出力:
+;	channel_sel : 1増える
+;	channel_selx2 : channel_sel*2
+;	channel_selx4 : channel_sel*4
+; 副作用:
+;	a : 破壊
+;
 channel_sel_inc:
 	inc	<channel_sel
 	lda	<channel_sel
