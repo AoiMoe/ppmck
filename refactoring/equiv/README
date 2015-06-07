@@ -12,7 +12,7 @@
 ●使い方
   1. 信頼できるバージョンをこのディレクトリ直下のreliableディレクトリに
      コピーする。たとえば
-       git archive --format=tar --prefix=reliable/ --remote=../.. HEAD | tar xvf -
+       git archive --format=tar --prefix=reliable/ --remote=../.. master | tar xvf -
      などととする。必要なのはツリーのうち
        ./reliable/bin/nesasm.exe
        ./reliable/bin/ppmckc.exe
