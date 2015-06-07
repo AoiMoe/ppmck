@@ -448,98 +448,113 @@ sound_init:
 ;-------------------------------------------------------------------------------
 ;main routine
 ;-------------------------------------------------------------------------------
+
+;--------------------
+; sound_driver_start : フレーム処理のエントリポイント
+;
 sound_driver_start:
 	.ifdef USE_TOTAL_COUNT
-	; フレームカウンタ
-	inc	<total_count
-	bne .skip_tcount
-	inc	<total_count+1
-
+		;フレームカウンタ
+		inc	<total_count
+		bne	.skip_tcount
+		inc	<total_count+1
 .skip_tcount:
-	.endif
+	.endif ; USE_TOTAL_COUNT
 
+	;初期ウェイト
 	lda	initial_wait
-	beq	.gogo
+	beq	.initial_wait_done
 	dec	initial_wait
 	rts
-.gogo
+.initial_wait_done:
 
+	;チャンネル番号0からカウントアップしてゆく
 	lda	#$00
 	sta	<channel_sel
 	sta	<channel_selx2
 	sta	<channel_selx4
 
-internal_return:
+	; 各音源ごとの再生ルーチン
+	; 内蔵音源ループ
+.internal_loop:
 	jsr	sound_internal
 	jsr	channel_sel_inc
 	lda	<channel_sel
 	cmp	#$04
-	bne	internal_return		;戻す
+	bne	.internal_loop
 
+	; DPCM
 ;	.if	DPCMON
-sound_dpcm_part:
-	jsr	sound_dpcm
+		jsr	sound_dpcm
 ;	.endif
 	jsr	channel_sel_inc
 
+	; FDS
 	.if	SOUND_GENERATOR & __FDS
-	jsr	sound_fds		;FDS行ってこい
-	jsr	channel_sel_inc
+		jsr	sound_fds
+		jsr	channel_sel_inc
 	.endif
 
+	; VRC7
 	.if	SOUND_GENERATOR & __VRC7
-vrc7_return:
-	jsr	sound_vrc7		;vrc7行ってこい
-	jsr	channel_sel_inc
-	lda	<channel_sel
-	cmp	#PTRVRC7+$06		;vrc7は終わりか？
-	bne	vrc7_return		;まだなら戻れ
+.vrc7_loop:
+		jsr	sound_vrc7
+		jsr	channel_sel_inc
+		lda	<channel_sel
+		cmp	#PTRVRC7+$06
+		bne	.vrc7_loop
 	.endif
 
+	; VRC6
 	.if	SOUND_GENERATOR & __VRC6
-vrc6_return:
-	jsr	sound_vrc6		;vrc6行ってこい
-	jsr	channel_sel_inc
-	lda	<channel_sel
-	cmp	#PTRVRC6+$03		;vrc6は終わりか？
-	bne	vrc6_return		;まだなら戻れ
+.vrc6_loop:
+		jsr	sound_vrc6
+		jsr	channel_sel_inc
+		lda	<channel_sel
+		cmp	#PTRVRC6+$03
+		bne	.vrc6_loop
 	.endif
 
+	; N106
 	.if	SOUND_GENERATOR & __N106
-.rept:
-	jsr	sound_n106		;n106行ってこい
+.n106_loop:
+		jsr	sound_n106
 
-	; 定義バンク切り替え
-	lda	#bank(n106_channel)*2
-	jsr	change_bank
+		; 定義バンク切り替え
+		lda	#bank(n106_channel)*2
+		jsr	change_bank
 
-	jsr	channel_sel_inc
-	lda	<channel_sel
-	sec
-	sbc	#PTRN106
-	cmp	n106_channel		;n106は終わりか？
-	bne	.rept			;まだなら戻れ
+		jsr	channel_sel_inc
+		; N106チャンネル終了判定
+		lda	<channel_sel
+		sec
+		sbc	#PTRN106
+		cmp	n106_channel ; チャンネル数 XXX:何故equで定義しないのか
+		bne	.n106_loop
 	.endif
 
+	; FME7
 	.if	SOUND_GENERATOR & __FME7
-fme7_return:
-	jsr	sound_fme7		;fme7行ってこい
-	jsr	channel_sel_inc
-	lda	<channel_sel
-	cmp	#PTRFME7+$03		;fme7は終わりか？
-	bne	fme7_return		;まだなら戻れ
+.fme7_loop:
+		jsr	sound_fme7
+		jsr	channel_sel_inc
+		lda	<channel_sel
+		cmp	#PTRFME7+$03
+		bne	.fme7_loop
 	.endif
 
+	; MMC5
 	.if	SOUND_GENERATOR & __MMC5
-mmc5_return:
-	jsr	sound_mmc5		;mmc5行ってこい
-	jsr	channel_sel_inc
-	lda	<channel_sel
-	cmp	#PTRMMC5+$02		;mmc5は終わりか？
-	bne	mmc5_return		;まだなら戻れ
+.mmc5_loop:
+		jsr	sound_mmc5
+		jsr	channel_sel_inc
+		lda	<channel_sel
+		cmp	#PTRMMC5+$02
+		bne	.mmc5_loop
 	.endif
 
 	rts
+
 
 ;------------------------------------------------------------------------------
 ;command read sub routines
