@@ -1388,27 +1388,60 @@ __detune_through:
 	rts
 
 
-;-----------------------------------------------------------------------------
+;--------------------
+; sound_software_enverope : (内蔵音源専用)ソフトウェアエンベロープのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+;	register_low,x : 反映
+;	音量 : 反映
+;	(以下volume_enve_subからの間接的な副作用)
+;	soft_add_{low,high},x : 反映
+;	バンク : softenve_tableのあるバンク
+; 備考:
+;	XXX:internal.hへ移動すべきでは
+;	XXX:つづり
+;
 sound_software_enverope:
 	jsr	volume_enve_sub
 	sta	register_low,x
-	ora	register_high,x		;音色データ（上位4bit）と下位4bitで足し算
+	ora	register_high,x		;音色データ（上位4bit）と音量（下位4bit）を合成
 	ldy	<channel_selx4
-	sta	$4000,y			;書き込み〜
+	sta	$4000,y			;書き込み
 	jsr	enverope_address	;アドレス一個増やして
 	rts				;おしまい
 
+
+;--------------------
+; volume_enve_sub : ソフトウェアエンベロープのフレーム処理における音源非依存な音量値計算
+;
+; 出力:
+;	a : 音量値
+; 副作用:
+;	x : channel_selx2
+;	y : 破壊
+;	バンク : softenve_tableのあるバンク
+;	soft_add_{low,high},x : リピートマークを指していた場合には先頭に戻る
+; 備考:
+;	データを読み出した後、アドレス(soft_add_{low,high},x)を進めないので、
+;	呼び出し元で進める必要がある。
+;	実際にレジスタに書き込むのは呼び出し元の仕事。
+;
 volume_enve_sub:
 	lda	#bank(softenve_table)*2
 	jsr	change_bank
 
 	ldx	<channel_selx2
-	indirect_lda	soft_add_low		;エンベロープデータ読み込み
-	cmp	#$ff			;最後かどーか
-	beq	return3			;最後ならループ処理へ
+	indirect_lda	soft_add_low	;エンベロープデータ読み込み
+	cmp	#$ff			;エンベロープデータの末尾かどうか
+	beq	.do_repeat		;末尾ならリピート処理へ
 	rts
 
-return3:
+.do_repeat:
+	; リピートテーブルを参照してデータアドレスをリストアする
 	lda	softenve_sel,x
 	asl	a
 	tay
@@ -1417,14 +1450,28 @@ return3:
 	lda	softenve_lp_table+1,y
 	sta	soft_add_high,x
 	jmp	volume_enve_sub
-;------------------------------------------------
+
+
+;--------------------
+; enverope_address : ソフトウェアエンベロープアドレスを1を足す
+;
+; 入力:
+;	x : channel_selx2
+;	soft_add_{low,high},x : 足される前の値
+; 出力:
+;	soft_add_{low,high},x : 16bit値として1足される
+; 備考:
+;	XXX:つづり
+;
 enverope_address:
 	inc	soft_add_low,x
-	bne	return5
+	bne	.done
 	inc	soft_add_high,x
-return5:
+.done
 	rts
-;-------------------------------------------------------------------------------
+
+
+;--------------------
 sound_duty_enverope:
 	ldx	<channel_selx2
 
