@@ -954,26 +954,49 @@ lfo_initial_vector:
 
 
 ;--------------------
+; detune_sub : 音源チップ非依存なデチューンコマンドの処理
+;
+; 入力:
+;	x : channel_selx2
+;	sound_add_{low,high},x : 現在のサウンドデータアドレス
+;		<cmd> <detune_factor>
+;		↑ここを指す
+; 出力:
+;	sound_add_{low,high},x : 次のコマンドを指す
+; 副作用:
+;	a : 破壊
+;	y : 破壊 XXX:何故か分からない
+;	effect_flag,x : デチューンフラグが操作される
+;	(以下detune_factor != ffhのとき)
+;	detune_dat,x : デチューンファクター
+; 備考:
+;	XXX: サブルーチン名
+;
 detune_sub:
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
 	cmp	#$ff
-	bne	detune_data_set
+	bne	.detune_enable
 
+	; 無効化
 	lda	effect_flag,x
-	and	#~EFF_DETUNE_ENABLE	;detune無効処理
+	and	#~EFF_DETUNE_ENABLE
 	sta	effect_flag,x
 	jsr	sound_data_address
 	rts
-detune_data_set:
-	tay
+
+	; 有効化
+.detune_enable:
+	tay				; XXX: 不要(呼び出し元も参照してない)
 	sta	detune_dat,x
 	lda	effect_flag,x
-	ora	#EFF_DETUNE_ENABLE	;detune有効処理
+	ora	#EFF_DETUNE_ENABLE
 	sta	effect_flag,x
 	jsr	sound_data_address
 	rts
-;-------------------------------------------------------------------------------
+
+
+;--------------------
 pitch_set_sub:
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
