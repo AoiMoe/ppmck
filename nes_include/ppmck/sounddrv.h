@@ -1140,6 +1140,20 @@ direct_freq_sub:
 
 
 ;--------------------
+; y_sub : 音源チップ非依存なメモリ書き込みコマンド(y)の処理
+;
+; 入力:
+;	x : channel_selx2
+;	sound_add_{low,high},x : 現在のサウンドデータアドレス
+;		<cmd> <addr_low> <addr_high> <byte>
+;		↑ここを指す
+; 出力:
+;	sound_add_{low,high},x : 次のコマンドを指す
+; 副作用:
+;	a : 破壊
+; 備考:
+;	XXX: サブルーチン名
+;
 y_sub:
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
@@ -1154,7 +1168,9 @@ y_sub:
 	ldx	<channel_selx2
 	jsr	sound_data_address
 	rts
-;-------------------------------------------------------------------------------
+
+
+;--------------------
 wait_sub:
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
