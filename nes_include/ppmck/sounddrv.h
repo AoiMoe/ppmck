@@ -1472,27 +1472,43 @@ enverope_address:
 
 
 ;--------------------
+; sound_duty_enverope : (内蔵音源専用)デューティー比エンベロープのフレーム処理
+;
+; 副作用:
+;	a : 破壊
+;	x : channel_selx2
+;	y : 破壊
+;	duty_add_{low,high},x : 反映
+;	音色 : 反映
+;	register_high,x : 反映
+;	バンク : dutyenve_tableのあるバンク
+; 備考:
+;	XXX:つづり
+;	XXX:internal.hへ移動すべきでは
+;
 sound_duty_enverope:
 	ldx	<channel_selx2
 
 	lda	<channel_sel
 	cmp	#$02
-	beq	return21		;三角波なら飛ばし〜
+	beq	.done			;三角波なら飛ばし〜
 
 	lda	#bank(dutyenve_table)*2
 	jsr	change_bank
 
-	indirect_lda	duty_add_low		;エンベロープデータ読み込み
-	cmp	#$ff			;最後かどーか
-	beq	return22		;最後ならそのままおしまい
-	pha
+	indirect_lda	duty_add_low	;エンベロープデータ読み込み
+	cmp	#$ff			;末尾かどーか
+	beq	.do_repeat		;末尾ならリピート処理へ
 
+	; ハードウェアエンベロープをregister_high,xへ反映
+	pha
 	lda	effect2_flags,x         ; hw_envelope
 	and	#EFF2_HWENV_MASK
 	eor	#EFF2_HWENV_MASK
 	sta	register_high,x
-
 	pla
+
+	; デューティー比の値をregister_high,xの所定のビット位置へ反映
 	asl	a
 	asl	a
 	asl	a
@@ -1503,33 +1519,46 @@ sound_duty_enverope:
 	ora	register_high,x		;hw_envelope
 	sta	register_high,x
 
-	ora	register_low,x		;音色データ（上位4bit）と下位4bitで足し算
+	ora	register_low,x		;音色データ（上位4bit）と音量（下位4bit）を合成
 	ldy	<channel_selx4
-	sta	$4000,y			;書き込み〜
-	jsr	duty_enverope_address	;アドレス一個増やして
-return21:
-	rts				;おしまい
+	sta	$4000,y			;書き込み
+	jsr	duty_enverope_address	;アドレス一個増やす
+.done:
+	rts
 
-return22:
+.do_repeat:
+	; リピートテーブルを参照してデータアドレスをリストアする
 	lda	duty_sel,x
 	asl	a
 	tay
-	
-
 	lda	dutyenve_lp_table,y
 	sta	duty_add_low,x
 	lda	dutyenve_lp_table+1,y
 	sta	duty_add_high,x
 	jmp	sound_duty_enverope
 
-;--------------------------------------------------
+
+;--------------------
+; duty_enverope_address : デューティー比エンベロープアドレスを1つ進める
+;
+; 入力:
+;	x : channel_selx2
+;	duty_add_{low,high},x : 足される前の値
+; 出力:
+;	duty_add_{low,high},x : 16bit値として1足される
+; 備考:
+;	XXX:つづり
+;	XXX:internal.hへ移動すべきでは
+;
 duty_enverope_address:
 	inc	duty_add_low,x
-	bne	return23
+	bne	.done
 	inc	duty_add_high,x
-return23:
+.done:
 	rts
-;--------------------------------------	
+
+
+;--------------------
 sound_lfo:
 	lda	sound_freq_high,x
 	sta	temporary
