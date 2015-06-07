@@ -997,18 +997,41 @@ detune_sub:
 
 
 ;--------------------
+; pitch_set_sub : 音源チップ非依存なピッチエンベロープコマンドの処理
+;
+; 入力:
+;	x : channel_selx2
+;	sound_add_{low,high},x : 現在のサウンドデータアドレス
+;		<cmd> <penv_number>
+;		↑ここを指す
+; 出力:
+;	sound_add_{low,high},x : 次のコマンドを指す
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+;	effect_flag,x : ピッチエンベロープフラグが操作される
+;	(以下penv_number != ffhのとき)
+;	pitch_sel,x : ピッチエンベロープ番号
+;	バンク : pitchenve_tableのあるバンク
+;	pitch_add_{low,high},x : ピッチエンベロープデータアドレス
+; 備考:
+;	XXX: サブルーチン名
+;
 pitch_set_sub:
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
 	cmp	#$ff
-	bne	pitch_enverope_part
+	bne	.pitch_envelope_enable
+
+	; 無効化
 	lda	effect_flag,x
 	and	#~EFF_PITCHENV_ENABLE
 	sta	effect_flag,x
 	jsr	sound_data_address
 	rts
 
-pitch_enverope_part:
+	; 有効化
+.pitch_envelope_enable:
 	sta	pitch_sel,x
 	asl	a
 	tay
@@ -1021,12 +1044,15 @@ pitch_enverope_part:
 	sta	pitch_add_low,x
 	lda	pitchenve_table+1,y
 	sta	pitch_add_high,x
+
 	lda	effect_flag,x
 	ora	#EFF_PITCHENV_ENABLE
 	sta	effect_flag,x
 	jsr	sound_data_address
 	rts
-;-------------------------------------------------------------------------------
+
+
+;--------------------
 arpeggio_set_sub:
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
