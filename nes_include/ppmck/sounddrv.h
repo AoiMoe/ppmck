@@ -13,8 +13,8 @@ CH_COUNT	=	PTR_TRACK_END
 ;ゼロページメモリ定義
 	.zp
 	.org	$00
-	
-t0			.ds	1		; temp 
+
+t0			.ds	1		; temp
 t1			.ds	1		;
 t2			.ds	1		;
 t3			.ds	1		;
@@ -40,11 +40,11 @@ VRC6_DST_REG_LOW	.ds	1		; for vrc6.h
 VRC6_DST_REG_HIGH	.ds	1		;
 
 t4			.ds	1 ; for divider
-t5			.ds	1
-t6			.ds	1
-t7			.ds	1
+t5			.ds	1 ;
+t6			.ds	1 ;
+t7			.ds	1 ;
 
-ps_temp		.ds	1
+ps_temp			.ds	1 ; for PS command
 
 	.ifdef USE_TOTAL_COUNT
 total_count .ds 2
@@ -78,7 +78,7 @@ duty_add_high		.ds	1		;
 arpe_add_low		.ds	1		;note envelope (EN) address
 arpe_add_high		.ds	1		;
 			.ds	CH_COUNT*2 - 2
-lfo_reverse_counter	.ds	1		;
+lfo_reverse_counter	.ds	1		;vibrato (MP) parameters
 lfo_adc_sbc_counter	.ds	1		;
 			.ds	CH_COUNT*2 - 2
 lfo_start_counter	.ds	1		;
@@ -92,10 +92,10 @@ lfo_sel			.ds	1		;vibrato (MP) no
 			.ds	CH_COUNT*2 - 2
 detune_dat		.ds	1		;detune value
 fme7_tone
-register_high		.ds	1		;
+register_high		.ds	1		;$4001+ch*4(internal)
 			.ds	CH_COUNT*2 - 2
 fme7_volume
-register_low		.ds	1		;
+register_low		.ds	1		;$4000+ch*4(internal)
 duty_sel		.ds	1		;duty envelope no
 			.ds	CH_COUNT*2 - 2
 channel_loop		.ds	1		;|: :| loop counter
@@ -222,7 +222,6 @@ CMD_END			= $ff
 
 
 	.code
-
 
 ;-------------------------------------------------------------------------------
 ;macros and misc sub routines
