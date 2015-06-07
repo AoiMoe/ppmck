@@ -822,33 +822,62 @@ volume_sub:
 	sta	soft_add_high,x
 	jsr	sound_data_address
 	rts
-;-------------------------------------------------------------------------------
 
 
 ;--------------------
+; lfo_set_sub : 音源チップ非依存なピッチLFO有効化コマンドの処理
+;
+; 入力:
+;	x : channel_selx2
+;	sound_add_{low,high},x : 現在のサウンドデータアドレス
+;		<cmd> <number_of_lfo>
+;		↑ここを指す
+; 出力:
+;	sound_add_{low,high},x : 次のコマンドを指す
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+;	t0, t1 : 破壊
+;	effect_flag,x : LFO関連フラグが操作される
+;	(以下はLFO有効時のみ - LFO番号 != ffh)
+;	lfo_sel,x : LFO番号*4
+;	バンク : lfo_dataのあるバンク
+;	lfo_start_time,x
+;	lfo_start_counter,x
+;	lfo_reverse_time,x
+;	lfo_reverse_counter,x
+;	lfo_depth,x
+;	lfo_adc_sbc_time,x
+;	lfo_adc_sbc_counter,x : 適宜設定される
+; 備考:
+;	XXX:サブルーチン名なんとかならないか
+;
 lfo_set_sub:
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
 	cmp	#$ff
-	bne	lfo_data_set
+	bne	.lfo_enable
 
+	; 無効化
 	lda	effect_flag,x
-	and	#~EFF_SOFTLFO_MASK	;LFO無効処理
+	and	#~EFF_SOFTLFO_MASK
 	sta	effect_flag,x
 	jsr	sound_data_address
 	rts
-lfo_data_set:
+
+	; 有効化
+.lfo_enable:
 	asl	a
 	asl	a
 	sta	lfo_sel,x
 
-	tay
+	tay	; y = LFO番号*4
 
 	; 定義テーブルにバンクを切り替え
 	lda	#bank(lfo_data)*2
 	jsr	change_bank
-	
-	ldx	<channel_selx2
+
+	ldx	<channel_selx2	; XXX:change_bankでxは破壊されないので不要
 	lda	lfo_data,y
 	sta	lfo_start_time,x		;ディレイセット
 	sta	lfo_start_counter,x
@@ -864,32 +893,48 @@ lfo_data_set:
 	jsr	warizan_start
 
 	.if PITCH_CORRECTION
+		;変化方向を表引きして訂正する
 		lda	effect_flag,x
 		ora	#EFF_SOFTLFO_ENABLE	;LFO有効フラグセット
 		sta	effect_flag,x
 		jsr	lfo_initial_vector
 	.else
-		lda	<channel_sel		;なぜこの処理を入れているかというと
-		sec				;内蔵音源と拡張音源で+-が逆だからである
+		;内蔵音源かどうかでしか判定しない簡易ルーチン
+		lda	<channel_sel
+		sec
 		sbc	#$05
-		bcc	urararara2
+		bcc	.for_external_chip
 
+		;内蔵音源
 		lda	effect_flag,x
 		ora	#EFF_SOFTLFO_DIR | EFF_SOFTLFO_ENABLE
 		sta	effect_flag,x
-		jmp	ittoke2
-urararara2:
+		jmp	.dir_done
+
+		;拡張音源では値の変化方向を逆にする
+.for_external_chip
 		lda	effect_flag,x
 		and	#~EFF_SOFTLFO_DIR	;波形−処理
 		ora	#EFF_SOFTLFO_ENABLE	;LFO有効フラグセット
 		sta	effect_flag,x
-ittoke2:
-	.endif
+.dir_done:
+	.endif	; PITCH_CORRECTION
+
 	jsr	sound_data_address
 	rts
 
+
 	.if PITCH_CORRECTION
-; チャンネルによるピッチの方向性
+;--------------------
+; 音源チップの違いによるピッチ変化の方向を補正するサブルーチン
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	effect_flag,x : EFF_SOFTLFO_DIRビットが「音程上昇方向」に設定される
+; 備考:
+;	#PITCH-CORRECTIONモードでのみ有効。
+;
 lfo_initial_vector:
 	lda	freq_vector_table,x
 	bmi	.increasing_function
@@ -897,16 +942,18 @@ lfo_initial_vector:
 .decreasing_function:
 	lda	effect_flag,x
 	and	#~EFF_SOFTLFO_DIR	;LFOは最初減算
-	jmp	.ittoke2
+	jmp	.done
 ; FDSなど
 .increasing_function:
 	lda	effect_flag,x
 	ora	#EFF_SOFTLFO_DIR	;LFOは最初加算
-.ittoke2:
+.done:
 	sta	effect_flag,x
 	rts
-	.endif
-;-------------------------------------------------------------------------------
+	.endif	; PITCH_CORRECTION
+
+
+;--------------------
 detune_sub:
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
