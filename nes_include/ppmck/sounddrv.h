@@ -603,28 +603,36 @@ sound_data_address_add_a:
 	rts
 
 
-;-------------------------------------------------------------------------------
+;--------------------
+; change_bank : バンク切り替え
+;
+; 入力:
+;	a : バンク番号
+; 副作用:
+;	現在対応しているマッパはNSFのみ
+;	  → 対応マッパが増えると下記ウィンドウのアドレスが変わる可能性がある
+;	A000h-AFFFh : バンク a   に切り替わる if a   <= BANK_MAX_IN_4KB
+;	B000h-BFFFh : バンク a+1 に切り替わる if a+1 <= BANK_MAX_IN_4KB
+;
 change_bank:
-;バンクをReg.Aに変えます〜
-;変更されるバンクアドレスはバンクコントローラによる
-;現在はNSFのみ。
 	if (ALLOW_BANK_SWITCH)
-;バンク切り替えできるcondition: A <= BANK_MAX_IN_4KB
-;i.e. A < BANK_MAX_IN_4KB + 1
-;i.e. A - (BANK_MAX_IN_4KB+1) < 0
-;i.e. NOT ( A - (BANK_MAX_IN_4KB+1) >= 0 )
-;skipするcondition: A - (BANK_MAX_IN_4KB+1) >= 0
-	cmp	#BANK_MAX_IN_4KB+1
-	bcs	.avoidbankswitch
-	sta	$5ffa ; A000h-AFFFh
-	clc
-	adc	#$01
-	cmp	#BANK_MAX_IN_4KB+1
-	bcs	.avoidbankswitch
-	sta	$5ffb ; B000h-BFFFh
+		;バンク切り替えできるcondition: A <= BANK_MAX_IN_4KB
+		;i.e. A < BANK_MAX_IN_4KB + 1
+		;i.e. A - (BANK_MAX_IN_4KB+1) < 0
+		;i.e. NOT ( A - (BANK_MAX_IN_4KB+1) >= 0 )
+		;skipするcondition: A - (BANK_MAX_IN_4KB+1) >= 0
+		cmp	#BANK_MAX_IN_4KB+1
+		bcs	.avoidbankswitch
+		sta	$5ffa ; A000h-AFFFh
+		clc
+		adc	#$01
+		cmp	#BANK_MAX_IN_4KB+1
+		bcs	.avoidbankswitch
+		sta	$5ffb ; B000h-BFFFh
 .avoidbankswitch
 	endif
 	rts
+
 
 ;-------------------------------------------------------------------------------
 ; リピート終了コマンド
