@@ -2025,9 +2025,22 @@ note_enve_sub:
 
 
 ;--------------------
+; effect_init - 音源非依存なキーオン処理(各エフェクトのリセットを伴う)
+;
+; 入力:
+;	x : channel_selx2
+;	*_sel,x : 現在選択されている各エフェクト番号
+; 出力:
+;	*_add_{low,higi},x : 各エフェクトデータの先頭アドレスに初期化
+; 副作用:
+;	a : 破壊
+;	バンク : 変更される
+; 備考:
+;	実際にレジスタに書き込むのは呼び出し元の仕事。
+;	XXX:サブルーチン名。処理内容ではなく「キーオン処理」という用途を反映すべし
+;
 effect_init:
-;ソフトウェアエンベロープ読み込みアドレス初期化
-	; 定義バンク切り替え
+	;ソフトウェアエンベロープ読み込みアドレス初期化
 	lda	#bank(softenve_table)*2
 	jsr	change_bank
 
@@ -2039,8 +2052,7 @@ effect_init:
 	lda	softenve_table+1,y
 	sta	soft_add_high,x
 
-;ピッチエンベロープ読み込みアドレス初期化
-	; 定義バンク切り替え
+	;ピッチエンベロープ読み込みアドレス初期化
 	lda	#bank(pitchenve_table)*2
 	jsr	change_bank
 
@@ -2052,8 +2064,7 @@ effect_init:
 	lda	pitchenve_table+1,y
 	sta	pitch_add_high,x
 
-;デューティエンベロープ読み込みアドレス初期化
-	; 定義バンク切り替え
+	;デューティエンベロープ読み込みアドレス初期化
 	lda	#bank(dutyenve_table)*2
 	jsr	change_bank
 
@@ -2065,8 +2076,7 @@ effect_init:
 	lda	dutyenve_table+1,y
 	sta	duty_add_high,x
 
-;ノートエンベロープ読み込みアドレス初期化
-	; 定義バンク切り替え
+	;ノートエンベロープ読み込みアドレス初期化
 	lda	#bank(arpeggio_table)*2
 	jsr	change_bank
 
@@ -2077,7 +2087,8 @@ effect_init:
 	sta	arpe_add_low,x
 	lda	arpeggio_table+1,y
 	sta	arpe_add_high,x
-;ソフトウェアLFO初期化
+
+	;ソフトウェアLFO初期化
 	lda	lfo_start_time,x
 	sta	lfo_start_counter,x
 	lda	lfo_adc_sbc_time,x
@@ -2086,80 +2097,46 @@ effect_init:
 	sta	lfo_reverse_counter,x
 
 	.if PITCH_CORRECTION
+		;変化方向を表引きして訂正する
 		jsr	lfo_initial_vector
 	.else
+		;内蔵音源かどうかでしか判定しない簡易ルーチン
 		lda	<channel_sel
 		sec
 		sbc	#$04
-		bmi	urararara
+		bmi	.not_invert
 
 		lda	effect_flag,x
 		and	#~EFF_SOFTLFO_VSPEED
 		ora	#EFF_SOFTLFO_DIR
 		sta	effect_flag,x
-		jmp	ittoke
-urararara:
+		jmp	.invert_done
+.not_invert:
 		lda	effect_flag,x
 		and	#~(EFF_SOFTLFO_VSPEED | EFF_SOFTLFO_DIR)
 		sta	effect_flag,x
-ittoke:	
+.invert_done:
 	.endif
-;休符フラグクリア&Key Onフラグ書き込み
-sound_flag_clear_key_on
-	lda	#RESTF_KEYON ; XXX: rest_flagにフラグが増えたとき破綻
+	;fallthrough
+
+;-----------------------------
+; sound_flag_clear_key_on - 音源非依存なキーオン処理(各エフェクトのリセットを伴わない)
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	a : 破壊
+;	rest_flag,x : 反映
+; 備考:
+;	XXX:サブルーチン名。処理内容ではなく「スラー時のキーオン」という用途を反映すべし
+;
+sound_flag_clear_key_on:
+	lda	#RESTF_KEYON ; XXX: rest_flagにフラグが増えたとき破綻する
 	sta	rest_flag,x
 	rts
-;
-;-------------------------
-;
-; curfreq = freq
-; call frequency_set
-; oldfreq = freq
-;
-; t_note = note
-;
-; read note
-; read count
-;
-; call frequency_set
-;
-; if (oldfreq < freq)
-;  { nega = 0, diff = freq - oldfreq }
-; else
-;  { nega = 1, diff = oldfreq - freq }
-;
-; note = t_note
-; freq = curfreq
-;
-; if (diff < count)
-; {
-;   step = count / diff
-;   addfreq = 1
-; }
-; else
-; {
-;   step = 1
-;   addfreq = diff / count
-; }
-;
-; if (nega) addfreq = 0 - addfreq
-; count = step
-;
 
-; proc_addfreq
-; if (!step) return
-; count--
-; if (count) return
-; count = step
-; freq += addfreq
-; return
-; 
-;
-;-------------------------
-;pitchshift_setup
-;
-; t4 = curfreq , t2 = oldfreq
-; t6 = t_note
+
+;--------------------
 ;
 ; dest : t0,t1
 ; Note that t0 and t1 might be used in a subroutine
