@@ -2,8 +2,11 @@
 ;2a03 squ tri noise driver
 ;-----------------------------------------------------------------------
 
-;----------------------------------------------------------------------
-; NMI割り込みエントリポイント(内蔵音源)
+;--------------------
+; sound_internal : NMI割り込みエントリポイント(内蔵音源)
+;
+; 備考:
+;	XXX: サブルーチン名
 ;
 sound_internal:
 	ldx	<channel_selx2
@@ -12,17 +15,17 @@ sound_internal:
 	jsr	do_effect		;ゼロ以外ならエフェクトして
 	rts				;おわり
 
-.sound_read_go
+.sound_read_go:
 	jsr	sound_data_read
 	jsr	do_effect
 	lda	rest_flag,x
 	and	#RESTF_KEYON		;キーオンフラグ
-	beq	.end1
+	beq	.done
 	jsr	sound_data_write	;立っていたらデータ書き出し
 	lda	rest_flag,x
 	and	#~RESTF_KEYON		;キーオンフラグオフ
 	sta	rest_flag,x
-.end1
+.done:
 	rts
 
 ;-------
