@@ -475,13 +475,34 @@ sound_mmc5_write:
 	sta	MMC5_REG_FREQ_H-MMC5_START_CH*4,y
 
 	rts
-;-----------------------------------------------------
+
+
+;-------------------------------------------------------------------------------
+;各エフェクトのフレーム処理サブルーチン
+;-------------------------------------------------------------------------------
+
+;--------------------
+;sound_mmc5_softenve : ソフトウェアエンベロープのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+;	register_low,x : 反映
+;	音量 : 反映
+;	(以下volume_enve_subからの間接的な副作用)
+;	soft_add_{low,high},x : 反映
+;	バンク : softenve_tableのあるバンク
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_mmc5_softenve:
 	jsr	volume_enve_sub
 	sta	register_low,x
-	ora	register_high,x		;音色データ（上位4bit）と下位4bitで足し算
+	ora	register_high,x		;音色データ（上位4bit）と音量（下位4bit）を合成
 	ldy	<channel_selx4
-	sta	MMC5_REG_CTRL-MMC5_START_CH*4,y			;書き込み〜
+	sta	MMC5_REG_CTRL-MMC5_START_CH*4,y	;書き込み
 	jsr	enverope_address	;アドレス一個増やして
 	rts				;おしまい
 ;-------------------------------------------------------------------------------
