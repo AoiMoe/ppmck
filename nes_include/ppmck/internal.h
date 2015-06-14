@@ -161,32 +161,56 @@ frequency_set:
 	sta	sound_freq_high,x	;書き込み
 	rts
 
-;-----------------------
+
+;--------------------
+; sound_data_write - 音量レジスタおよび分周器レジスタへ書き込む
+;
+; 入力:
+;	channel_selx2 :
+;	channel_selx4 :
+;	register_{low,high},x : 音量レジスタの値
+;	sound_freq_{low,high},x : 分周器レジスタの値
+; 副作用:
+;	a : 破壊
+;	x : channel_selx2になる
+;	y : 破壊
+;	sound_lasthigh,x : 分周器レジスタの上位8bitの現在値を反映
+;	音源 : 反映
+; 備考:
+;	XXX: サブルーチン名
+;
 sound_data_write:
 	ldx	<channel_selx2
 	ldy	<channel_selx4
 
-	lda	register_low,x		;音量保持
-	ora	register_high,x
+	;音量レジスタ
+	lda	register_low,x		;音量
+	ora	register_high,x		;デューティー比など
 	sta	$4000,y
-	lda	sound_freq_low,x	;Low Write
+
+	;分周器の下位8bit
+	lda	sound_freq_low,x
 	sta	$4002,y
 
+	;スムース処理が有効か否か
 	lda	effect2_flags,x
 	and	#EFF2_SMOOTH_ENABLE
-	bne	sound_write_smooth
-	lda	sound_freq_high,x	;High Write
+	bne	.smooth
+
+	;スムース処理が無効ならば、常に分周器の上位8bitを更新する
+	lda	sound_freq_high,x
 	sta	$4003,y
 	sta	sound_lasthigh,x
 	rts
 
-sound_write_smooth:
-	lda	sound_freq_high,x	;High Write
+	;スムース処理が有効ならば、分周器の上位8bitが変化した時だけ更新する
+.smooth:
+	lda	sound_freq_high,x
 	cmp	sound_lasthigh,x
-	beq	sound_data_skip_high
+	beq	.done
 	sta	$4003,y
 	sta	sound_lasthigh,x
-sound_data_skip_high:
+.done:
 	rts
 
 ;-------------------------------------------------------------------------------
