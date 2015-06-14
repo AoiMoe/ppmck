@@ -19,24 +19,31 @@ mmc5_sound_init:
 	lda	#$03
 	sta	$5015
 	rts
-;-----------------------------------------------------------
+
+
+;--------------------
+; sound_mmc5 - NMI割り込みエントリポイント(MMC5)
+;
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_mmc5:
 	ldx	<channel_selx2
 	dec	sound_counter,x		;カウンタいっこ減らし
 	beq	.sound_read_go		;ゼロならサウンド読み込み
 	jsr	mmc5_do_effect		;ゼロ以外ならエフェクトして
 	rts				;おわり
-.sound_read_go
+.sound_read_go:
 	jsr	sound_mmc5_read
 	jsr	mmc5_do_effect
 	lda	rest_flag,x
 	and	#RESTF_KEYON		;キーオンフラグ
-	beq	.end1			
+	beq	.end
 	jsr	sound_mmc5_write	;立っていたらデータ書き出し
 	lda	rest_flag,x
 	and	#~RESTF_KEYON		;キーオンフラグオフ
 	sta	rest_flag,x
-.end1
+.end
 	rts
 
 ;-------
