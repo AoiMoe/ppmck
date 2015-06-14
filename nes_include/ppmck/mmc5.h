@@ -538,21 +538,38 @@ sound_mmc5_lfo:
 	sta	MMC5_REG_FREQ_H-MMC5_START_CH*4,y
 .done:
 	rts
-;-------------------------------------------------------------------------------
+
+
+;--------------------
+; sound_mmc5_pitch_enve : ピッチエンベロープのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	y : 破壊
+;	temporary : 破壊
+;	pitch_add_{low,high},x : 反映
+;	sound_freq_{low,high},x : 反映
+;	音程 : 反映
+;	(以下pitch_subからの間接的な副作用)
+;	バンク : #bank(pitchenve_table)
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_mmc5_pitch_enve:
 	lda	sound_freq_high,x
 	sta	temporary
 	jsr	pitch_sub
-mmc5_pitch_write:
+
 	lda	sound_freq_low,x
 	ldy	<channel_selx4
 	sta	MMC5_REG_FREQ_L-MMC5_START_CH*4,y
 	lda	sound_freq_high,x
 	cmp	temporary
-	beq	mmc5_end3
+	beq	.done
 	sta	MMC5_REG_FREQ_H-MMC5_START_CH*4,y
-mmc5_end3:
-	jsr	pitch_enverope_address
+.done:
+	jsr	pitch_enverope_address	;アドレス一個増やす
 	rts
 ;-------------------------------------------------------------------------------
 sound_mmc5_note_enve
