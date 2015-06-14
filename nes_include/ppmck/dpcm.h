@@ -2,12 +2,18 @@
 ;DPCM driver
 ;-----------------------------------------------------------------------
 
+;--------------------
+; sound_dpcm - NMI割り込みエントリポイント(DPCM)
+;
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_dpcm:
 	ldx	<channel_selx2
 	dec	sound_counter,x		;カウンタいっこ減らし
-	bne	.dpcm_end
+	bne	.done
 	jsr	sound_dpcm_play
-.dpcm_end
+.done:
 	rts
 
 sound_dpcm_play:
