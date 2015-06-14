@@ -8,6 +8,13 @@ MMC5_REG_FREQ_H	=	$5003	; 周波数(H)レジスタ
 MMC5_START_CH	=	PTRMMC5	; 開始ch
 
 
+;--------------------
+; mmc5_sound_init - MMC5の初期化
+;
+; 副作用:
+;	a : 破壊
+;	MMC5 : 初期化
+;
 mmc5_sound_init:
 	lda	#$03
 	sta	$5015
