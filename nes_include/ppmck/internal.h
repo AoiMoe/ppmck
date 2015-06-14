@@ -92,49 +92,68 @@ do_effect:
 .done:
 	rts
 
+
 ;-------------------------------------------------------------------------------
 ;register write sub routines
 ;-------------------------------------------------------------------------------
-frequency_set:
 
+;--------------------
+; frequency_set : ノート番号を周波数データに変換する
+;
+; 入力:
+;	x : channel_selx2
+;	sound_sel,x : 現在のノート番号
+;	detune_dat,x : 符号付きデチューン値(detune_write_subへの間接的入力)
+; 出力:
+;	sound_freq_{low,high},x : 周波数データ
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+; 備考:
+;	このサブルーチンは音源レジスタへの書き込みは行わない
+;	XXX: サブルーチン名
+;
+frequency_set:
 	ldx	<channel_selx2
-	lda	sound_sel,x		;音階データ読み出し
-	and	#%00001111		;下位4bitを取り出して
-	asl	a
-	tay
+
+	;音階→周波数変換テーブルのオフセット計算
+	lda	sound_sel,x		;ノート番号を読み取って
+	and	#%00001111		;下位4bitを取り出し
+	asl	a			;2バイト単位の配列オフセットに変換し
+	tay				;インデックスレジスタyへ格納
 
 	lda	<channel_sel
 	cmp	#$03
-	beq	noise_frequency_get	;４チャンネル目ならノイズ周波数取得へ
+	beq	.noise_ch		;ノイズチャンネルの処理へ
 
+	;PSG/三角波
 	lda	psg_frequency_table,y	;PSG周波数テーブルからLowを読み出す
 	sta	sound_freq_low,x	;書き込み
 	lda	psg_frequency_table+1,y	;PSG周波数テーブルからHighを読み出す
 	sta	sound_freq_high,x	;書き込み
 
-oct_set1:
-
+	;オクターブ処理
 	lda	sound_sel,x		;音階データ読み出し
 	lsr	a			;上位4bitを取り出し
 	lsr	a			;
 	lsr	a			;
 	lsr	a			;
-	beq	freq_end		;ゼロならそのまま終わり
-	tay				;
+	beq	.done			;ゼロならそのまま終わり
 
-oct_set2:
+	tay				;y=オクターブ値(ループ回数)
+.oct_loop:
+	;1オクターブ上がるごとに分周器の設定値を1/2する
+	lsr	sound_freq_high,x	;符号なし16bit右シフト
+	ror	sound_freq_low,x	;
+	dey
+	bne	.oct_loop		;オクターブ分繰り返す
 
-	lsr	sound_freq_high,x	;右シフト　末尾はCへ
-	ror	sound_freq_low,x	;Cから持ってくるでよ　右ローテイト
-	dey				;
-	bne	oct_set2		;オクターブ分繰り返す
-
-freq_end:
+.done:
 	jsr	detune_write_sub
 	rts
 
-
-noise_frequency_get:
+	;ノイズチャンネルの処理
+.noise_ch:
 	lda	noise_frequency_table,y	;周波数テーブルからLowを読み出す
 	sta	sound_freq_low,x	;書き込み
 	jsr	detune_write_sub
