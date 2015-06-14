@@ -16,80 +16,104 @@ sound_dpcm:
 .done:
 	rts
 
+;-------------------------------------------------------------------------------
+;command read routine
+;-------------------------------------------------------------------------------
+
+;--------------------
+; sound_dpcm_read : 演奏データの解釈
+;
+; 備考:
+;	XXX:音源非依存な形での共通化
+;
 sound_dpcm_play:
+.next_cmd:
 	ldx	<channel_selx2
 
 	lda	sound_bank,x
 	jsr	change_bank
 
 	lda	[sound_add_low,x]
+
 ;----------
 ;ループ処理1
 	cmp	#CMD_LOOP1
-	bne	dmc_loop_program2
+	bne	.loop_program2
 	jsr	loop_sub
-	jmp	sound_dpcm_play
+	jmp	.next_cmd
+
 ;----------
 ;ループ処理2(分岐)
-dmc_loop_program2
+.loop_program2:
 	cmp	#CMD_LOOP2
-	bne	dmc_bank_command
+	bne	.bank_command
 	jsr	loop_sub2
-	jmp	sound_dpcm_play
+	jmp	.next_cmd
+
 ;----------
 ;バンク切り替え
-dmc_bank_command
+.bank_command:
 	cmp	#CMD_BANK_SWITCH
-	bne	slur_dpcm
+	bne	.slur
 	jsr	data_bank_addr
-	jmp	sound_dpcm_play
+	jmp	.next_cmd
+
 ;----------
-;dmc_data_end:
+;データエンド設定
+;.data_end:
 ;	cmp	#CMD_END
-;	bne	no_dpcm
+;	bne	.no_dpcm
 ;	jsr	data_end_sub
-;	jmp	sound_dpcm_play
+;	jmp	.next_cmd
+
 ;----------
 ;スラーコマンド（DPCMの為、発音時間を伸ばすのみ)
-slur_dpcm:
+.slur:
 	cmp	#CMD_SLUR
-	bne	no_dpcm
+	bne	.rest_set
 
 	lda	effect2_flags,x
 	ora	#EFF2_SLUR_ENABLE
 	sta	effect2_flags,x
 
 	jsr	sound_data_address
-	jmp	sound_dpcm_play
+	jmp	.next_cmd
 
-no_dpcm:
+;----------
+;休符
+.rest_set:
 	cmp	#CMD_REST
-	bne	dmc_y_command_set
+	bne	.y_command_set
 	.if	DPCM_RESTSTOP
 	lda	#$0F		;この2行を有効にすると
 	sta	$4015		;rでDPCM停止
 	.endif
-	jmp	ontyou2
+	jmp	.do_wait
+
 ;----------
 ;ｙコマンド設定
-dmc_y_command_set:
+.y_command_set:
 	cmp	#CMD_WRITE_REG
-	bne	wait_set2
+	bne	.wait_set
 	jsr	y_sub
-	jmp	sound_dpcm_play
+	jmp	.next_cmd
 
-wait_set2:
+;----------
+;ウェイト設定
+.wait_set:
 	cmp	#CMD_WAIT
-	bne	dpcm_set
+	bne	.keyon_set
 	jsr	wait_sub
 	rts
 
-dpcm_set:
+;----------
+;キーオンコマンド
+.keyon_set:
 	pha
 
 	lda	effect2_flags,x		;スラーフラグのチェック
 	and	#EFF2_SLUR_ENABLE
-	beq	no_slur_dpcm
+	beq	.no_slur
 
 	lda	effect2_flags,x
 	and	#~EFF2_SLUR_ENABLE
@@ -98,8 +122,7 @@ dpcm_set:
 	pla
 	jmp	ontyou2			;カウンタのみ変更
 
-no_slur_dpcm:
-
+.no_slur:
 	lda	#$0F
 	sta	$4015		;DPCM stop
 ;;;;;;;;;; 無理矢理改造 "MCK virtual keyboard" by Norix
@@ -133,33 +156,33 @@ no_slur_dpcm:
 		cmp	#BANK_MAX_IN_4KB+1
 		bcs	.avoidbankswitch
 		sta	$5fff ; F000h-FFFFh
-.avoidbankswitch
+.avoidbankswitch:
 		pla
 	endif
-	
+
 	asl	a
 	asl	a
 	tax
 
 	lda	dpcm_data,x		;DPCM control
 	sta	$4010
-	inx	
+	inx
 	lda	dpcm_data,x		;DPCM delta counter initialize
 	cmp	#$FF
-	beq	.skip
+	beq	.skip_set_delta_counter_reg
 	sta	$4011
-.skip
-	inx	
+.skip_set_delta_counter_reg:
+	inx
 	lda	dpcm_data,x		;DPCM address set
 	sta	$4012
-	inx	
+	inx
 	lda	dpcm_data,x		;DPCM length set
 	sta	$4013
 
 	lda	#$1F
 	sta	$4015
 
-ontyou2:
+.do_wait:
 	ldx	<channel_selx2
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
