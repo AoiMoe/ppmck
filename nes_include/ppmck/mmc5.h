@@ -437,19 +437,43 @@ sound_mmc5_read:
 .no_slur:
 	jmp	effect_init
 
+
 ;-------------------------------------------------------------------------------
+;register write sub routines
+;-------------------------------------------------------------------------------
+
+;--------------------
+; sound_mmc5_write - 音量レジスタおよび分周器レジスタへ書き込む
+;
+; 入力:
+;	channel_selx2 :
+;	channel_selx4 :
+;	register_{low,high},x : 音量レジスタの値
+;	sound_freq_{low,high},x : 分周器レジスタの値
+; 副作用:
+;	a : 破壊
+;	x : channel_selx2になる
+;	y : 破壊
+;	sound_lasthigh,x : 分周器レジスタの上位8bitの現在値を反映
+;	音源 : 反映
+; 備考:
+;	XXX: サブルーチン名
+;
 sound_mmc5_write:
 	ldx	<channel_selx2
 	ldy	<channel_selx4
 
-	lda	register_low,x		;音量保持
-	ora	register_high,x
+	;音量レジスタ
+	lda	register_low,x		;音量
+	ora	register_high,x		;デューティー比など
 	sta	MMC5_REG_CTRL-MMC5_START_CH*4,y
 
+	;分周器
 	lda	sound_freq_low,x	;Low Write
 	sta	MMC5_REG_FREQ_L-MMC5_START_CH*4,y
 	lda	sound_freq_high,x	;High Write
 	sta	MMC5_REG_FREQ_H-MMC5_START_CH*4,y
+
 	rts
 ;-----------------------------------------------------
 sound_mmc5_softenve:
