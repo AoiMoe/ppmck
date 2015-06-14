@@ -505,7 +505,26 @@ sound_mmc5_softenve:
 	sta	MMC5_REG_CTRL-MMC5_START_CH*4,y	;書き込み
 	jsr	enverope_address	;アドレス一個増やして
 	rts				;おしまい
-;-------------------------------------------------------------------------------
+
+
+;--------------------
+; sound_mmc5_lfo : ピッチLFOのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	y : 破壊
+;	temporary : 破壊
+;	音程 : 反映
+;	(以下lfo_subからの間接的な副作用)
+;	sound_freq_{low,high,n106},x : 反映
+;	lfo_start_counter,x : 反映
+;	lfo_reverse_counter,x : 反映
+;	lfo_adc_sbc_counter,x : 反映
+;	effect_flag,x : EFF_SOFTLFO_DIRビットが影響を受ける
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_mmc5_lfo:
 	lda	sound_freq_high,x
 	sta	temporary
@@ -515,9 +534,9 @@ sound_mmc5_lfo:
 	sta	MMC5_REG_FREQ_L-MMC5_START_CH*4,y
 	lda	sound_freq_high,x
 	cmp	temporary
-	beq	mmc5_end4
+	beq	.done
 	sta	MMC5_REG_FREQ_H-MMC5_START_CH*4,y
-mmc5_end4:
+.done:
 	rts
 ;-------------------------------------------------------------------------------
 sound_mmc5_pitch_enve:
