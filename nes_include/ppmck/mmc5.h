@@ -612,7 +612,22 @@ sound_mmc5_note_enve:
 ;	jsr	mmc5_freq_set
 	jsr	arpeggio_address
 	rts
-;-------------------------------------------------------------------------------
+
+
+;--------------------
+; sound_mmc5_dutyenve : デューティー比エンベロープのフレーム処理
+;
+; 副作用:
+;	a : 破壊
+;	x : channel_selx2
+;	y : 破壊
+;	duty_add_{low,high},x : 反映
+;	音色 : 反映
+;	register_high,x : 反映
+;	バンク : dutyenve_tableのあるバンク
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_mmc5_dutyenve:
 	ldx	<channel_selx2
 
@@ -620,9 +635,11 @@ sound_mmc5_dutyenve:
 	lda	#bank(dutyenve_table)*2
 	jsr	change_bank
 
-	indirect_lda	duty_add_low		;エンベロープデータ読み込み
-	cmp	#$ff			;最後かどーか
-	beq	mmc5_return22		;最後ならそのままおしまい
+	indirect_lda	duty_add_low	;エンベロープデータ読み込み
+	cmp	#$ff			;末尾かどーか
+	beq	.do_repeat		;末尾ならリピート処理へ
+
+	; ハードウェアエンベロープをregister_high,xへ反映
 	asl	a
 	asl	a
 	asl	a
@@ -631,13 +648,15 @@ sound_mmc5_dutyenve:
 	asl	a
 	ora	#EFF2_HWENV_MASK	;waveform hold on & hardware envelope off
 	sta	register_high,x
-	ora	register_low,x		;音色データ（上位4bit）と下位4bitで足し算
-	ldy	<channel_selx4
-	sta	MMC5_REG_CTRL-MMC5_START_CH*4,y			;書き込み〜
-	jsr	duty_enverope_address	;アドレス一個増やして
-	rts				;おしまい
 
-mmc5_return22:
+	ora	register_low,x		;音色データ（上位4bit）と音量（下位4bit）を合成
+	ldy	<channel_selx4
+	sta	MMC5_REG_CTRL-MMC5_START_CH*4,y	;書き込み
+	jsr	duty_enverope_address	;アドレス一個増やす
+	rts
+
+.do_repeat:
+	; リピートテーブルを参照してデータアドレスをリストアする
 	lda	duty_sel,x
 	asl	a
 	tay
@@ -646,4 +665,3 @@ mmc5_return22:
 	lda	dutyenve_lp_table+1,y
 	sta	duty_add_high,x
 	jmp	sound_mmc5_dutyenve
-;-------------------------------------------------------------------------------
