@@ -571,27 +571,44 @@ sound_mmc5_pitch_enve:
 .done:
 	jsr	pitch_enverope_address	;アドレス一個増やす
 	rts
-;-------------------------------------------------------------------------------
-sound_mmc5_note_enve
+
+
+;--------------------
+; sound_mmc5_note_enve : ノートエンベロープのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+;	temporary2 : 破壊
+;	sound_freq_{low,high},x : 反映
+;	sound_lasthigh,x : 反映
+;	音程 : 反映
+;	arpe_add_{low,high},x : 反映
+; 備考:
+;	XXX:サブルーチン名
+;
+sound_mmc5_note_enve:
 ;	lda	sound_freq_high,x
 ;	sta	temporary2
 	jsr	note_enve_sub
-	bcs	.end4			;0なので書かなくてよし
+	bcs	.done			;0なので書かなくてよし
+
 	jsr	mmc5_freq_set
-;.mmc5_note_freq_write:
 	ldx	<channel_selx2
 	ldy	<channel_selx4
-
 	lda	sound_freq_low,x
 	sta	MMC5_REG_FREQ_L-MMC5_START_CH*4,y
 	lda	sound_freq_high,x
 ;	cmp	temporary2
-;	beq	.mmc5_end2
+;	beq	.done2
 	sta	MMC5_REG_FREQ_H-MMC5_START_CH*4,y
-;.mmc5_end2:
+;.done2:
 	jsr	arpeggio_address
 	rts
-.end4
+
+.done:
 ;	jsr	mmc5_freq_set
 	jsr	arpeggio_address
 	rts
