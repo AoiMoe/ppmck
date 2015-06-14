@@ -108,9 +108,31 @@ mmc5_do_effect:
 .done:
 	rts
 
-;------------------------------------------------
+
+;-------------------------------------------------------------------------------
+;register write sub routines
+;-------------------------------------------------------------------------------
+
+;--------------------
+; mmc5_freq_set : ノート番号を周波数データに変換する
+;
+; 入力:
+;	sound_sel,x : 現在のノート番号
+;	detune_dat,x : 符号付きデチューン値(detune_write_subへの間接的入力)
+; 出力:
+;	sound_freq_{low,high},x : 周波数データ
+; 副作用:
+;	a : 破壊
+;	x : channel_selx2
+;	y : 破壊
+; 備考:
+;	このサブルーチンは音源レジスタへの書き込みは行わない
+;	XXX:内蔵音源と共通化可能っぽい
+;
 mmc5_freq_set:
 	ldx	<channel_selx2
+
+	;音階→周波数変換テーブルのオフセット計算
 	lda	sound_sel,x		;音階データ読み出し
 	and	#%00001111		;下位4bitを取り出して
 	asl	a
@@ -121,28 +143,29 @@ mmc5_freq_set:
 	lda	psg_frequency_table+1,y	;PSG周波数テーブルからHighを読み出す
 	sta	sound_freq_high,x	;書き込み
 
-mmc5_oct_set1:
-
+	;オクターブ処理
 	lda	sound_sel,x		;音階データ読み出し
 	lsr	a			;上位4bitを取り出し
 	lsr	a			;
 	lsr	a			;
 	lsr	a			;
 
-	sec				;オクターブ下げる
+	;内蔵音源との実オクターブ差の調整
+	sec
 	sbc	#$02
 
-	beq	mmc5_freq_end		;ゼロならそのまま終わり
-	tay
+	;XXX:オクターブ値が負になった場合のチェックが必要
+	beq	.done			;ゼロならそのまま終わり
 
-mmc5_oct_set2:
+	tay				;y=オクターブ値(ループ回数)
+.oct_loop:
+	;1オクターブ上がるごとに分周器の設定値を1/2する
+	lsr	sound_freq_high,x	;符号なし16bit右シフト
+	ror	sound_freq_low,x	;
+	dey
+	bne	.oct_loop		;オクターブ分繰り返す
 
-	lsr	sound_freq_high,x	;右シフト　末尾はCへ
-	ror	sound_freq_low,x	;Cから持ってくるでよ　右ローテイト
-	dey				;
-	bne	mmc5_oct_set2		;オクターブ分繰り返す
-
-mmc5_freq_end:
+.done:
 	jsr	detune_write_sub
 	rts
 ;---------------------------------------------------------------
