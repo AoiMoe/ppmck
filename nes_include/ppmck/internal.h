@@ -28,26 +28,34 @@ sound_internal:
 .done:
 	rts
 
-;-------
+
+;--------------------
+; do_effect : 各エフェクトのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 備考:
+;	XXX: サブルーチン名
+;
 do_effect:
 	lda	rest_flag,x
 	and	#RESTF_REST
-	beq	.duty_write2
+	beq	.duty_write
 	rts				;休符なら終わり
 
-.duty_write2:
+.duty_write:
 	lda	effect_flag,x
 	and	#EFF_DUTYENV_ENABLE
-	beq	.enve_write2
+	beq	.enve_write
 	jsr	sound_duty_enverope
 
-.enve_write2:
+.enve_write:
 	lda	effect_flag,x
 	and	#EFF_SOFTENV_ENABLE
-	beq	.lfo_write2
+	beq	.lfo_write
 	jsr	sound_software_enverope
 
-.lfo_write2:
+.lfo_write:
 	lda	effect_flag,x
 	and	#EFF_SOFTLFO_ENABLE
 	beq	.ps_process
@@ -56,26 +64,32 @@ do_effect:
 .ps_process:
 	jsr	process_ps
 
-.pitchenve_write2:
+.pitchenve_write:
 	lda	effect_flag,x
 	and	#EFF_PITCHENV_ENABLE
-	beq	.arpeggio_write2
+	beq	.arpeggio_write
 	jsr	sound_pitch_enverope
 
-.arpeggio_write2:
+.arpeggio_write:
 	lda	effect_flag,x
 	and	#EFF_NOTEENV_ENABLE
-	beq	.return7
-	lda	rest_flag,x		;キーオンのときとそうでないときでアルペジオの挙動はちがう
-	and	#RESTF_KEYON		;キーオンフラグ
+	beq	.done
+	; 同一フレームのsound_data_readの処理でキーオンが行われたかどうかで
+	; ノートエンベロープの処理が異なる
+	lda	rest_flag,x
+	and	#RESTF_KEYON
 	bne	.arpe_key_on
-	jsr	sound_high_speed_arpeggio	;キーオンじゃないとき通常はこれ
-	jmp	.return7
-.arpe_key_on				;キーオンも同時の場合
-	jsr	note_enve_sub		;メモリ調整だけで、ここでは書き込みはしない
+	; キーオンが行われてないフレームは通常の処理
+	jsr	sound_high_speed_arpeggio
+	jmp	.done
+.arpe_key_on:
+	; キーオンが行われたフレームはワークエリアの調整のみ行う
+	; 実際にレジスタに反映するのは sound_internal の最後
+	jsr	note_enve_sub
 	jsr	frequency_set
 	jsr	arpeggio_address
-.return7:
+
+.done:
 	rts
 
 ;-------------------------------------------------------------------------------
