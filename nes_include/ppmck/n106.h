@@ -622,17 +622,37 @@ n106_write_sub:
 	adc	<t0
 	sta	$f800		;アドレスポート
 	rts
-;-----------------------------------------------------
+
+;-------------------------------------------------------------------------------
+;各エフェクトのフレーム処理サブルーチン
+;-------------------------------------------------------------------------------
+
+;--------------------
+;sound_n106_softenve : ソフトウェアエンベロープのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+;	register_low,x : 反映
+;	音量 : 反映
+;	(以下volume_enve_subからの間接的な副作用)
+;	soft_add_{low,high},x : 反映
+;	バンク : softenve_tableのあるバンク
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_n106_softenve:
 	jsr	volume_enve_sub
 	sta	temporary
-	lda	#$7f
+	lda	#$7f			;$7F - 音量レジスタ
 	jsr	n106_write_sub
-	lda	n106_7f
+	lda	n106_7f			;チャンネル数ビットを重畳
 	ora	temporary
 	sta	$4800
-	jmp	enverope_address
-;-------------------------------------------------------------------------------
+	jmp	enverope_address	;アドレス1個増やす
+
 sound_n106_lfo:
 	jsr	lfo_sub
 	jmp	sound_n106_write
