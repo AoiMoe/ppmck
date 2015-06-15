@@ -2,30 +2,59 @@
 ;NAMCOT163(a.k.a.N106) driver
 ;-----------------------------------------------------------------------
 
+;--------------------
+; n106_sound_init - N163の初期化
+;
+; 副作用:
+;	a : 破壊
+;	N163 : 初期化
+;
 n106_sound_init:
+	;$E000の設定
+	;Sunsoft5Bを使用する場合はアドレスが重複しているので書かない
+	;NSFプレイヤーのほうで良きに計らってくれるのだろう
+	;XXX:.if でよさそう
 	lda	# (SOUND_GENERATOR & __FME7)
-	bne	.t			;Sunsoft5Bを使用する場合は書かない
+	bne	.skip_enable
 
-	lda	#$20
-	sta	$E000			;音源有効化？
-.t:
-	ldx	#$7f
-	lda	#$80
-	sta	$f800
+	;マッパーのセット/音源無効化フラグのクリア
+	lda	#%00100000
+		; .SPPPPPP
+		;  |||||||
+		;  |++++++-- select 8kb page of PRG-ROM at $8000
+		;  +-------- disable sound if set
+		;  (from nesdev.com)
+	sta	$E000
+.skip_enable:
+
+	;N163内部メモリの初期化
+	;アドレス$00-$7Eまでをゼロクリアしている
+	ldx	#$7f		;XXX:ループ1回足りないと思う
+	lda	#%10000000	;$00から自動インクリメントで書き込む
+		; IAAAAAAA
+		; ||||||||
+		; |+++++++-- address of n163 internal memory
+		; +--------- auto increment
+		;  (from nesdev.com)
+	sta	$f800		;address port
 	lda	#$00
-.soresore
-	sta	$4800
+.init_loop:
+	sta	$4800		;data port
 	dex
-	bne	.soresore
+	bne	.init_loop
 
+	;チャンネル数の設定
+	;有効なチャンネル数は、内部メモリアドレス$7Fのbit4-6に設定する
+	;(0:1ch, 1:2ch, ... 7:8ch)
 	lda	#$7f
 	sta	$f800
 
-	; 定義バンク切り替え
+	;バンクを切り替えてn106_channelを読み込む
 	lda	#bank(n106_channel)*2
 	jsr	change_bank
-
 	lda	n106_channel
+
+	;n106_channelの値を1引いて4ビット左にシフトする
 	sec
 	sbc	#$01
 	asl	a
@@ -33,7 +62,10 @@ n106_sound_init:
 	asl	a
 	asl	a
 	sta	$4800
+
+	;$7Fのbit0-4はch1の音量レジスタでもあるので、orするために保存する
 	sta	n106_7f
+
 	rts
 
 
