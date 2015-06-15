@@ -38,12 +38,12 @@ sound_mmc5:
 	jsr	mmc5_do_effect
 	lda	rest_flag,x
 	and	#RESTF_KEYON		;キーオンフラグ
-	beq	.end
+	beq	.done
 	jsr	sound_mmc5_write	;立っていたらデータ書き出し
 	lda	rest_flag,x
 	and	#~RESTF_KEYON		;キーオンフラグオフ
 	sta	rest_flag,x
-.end
+.done
 	rts
 
 
@@ -90,7 +90,7 @@ mmc5_do_effect:
 	lda	effect_flag,x
 	and	#EFF_NOTEENV_ENABLE
 	beq	.done
-	; 同一フレームのsound_data_readの処理でキーオンが行われたかどうかで
+	; 同一フレームのsound_mmc5_readの処理でキーオンが行われたかどうかで
 	; ノートエンベロープの処理が異なる
 	lda	rest_flag,x
 	and	#RESTF_KEYON
@@ -306,6 +306,7 @@ sound_mmc5_read:
 	jsr	sound_data_address
 	jmp	.next_cmd
 
+	;ソフトエンベ有効化
 .softenve_part:
 	jsr	volume_sub
 	jmp	.next_cmd
@@ -330,6 +331,7 @@ sound_mmc5_read:
 	lda	register_high,x
 	ldy	<channel_selx4
 	sta	MMC5_REG_CTRL-MMC5_START_CH*4,y
+
 	jsr	sound_data_address
 	rts				;音長を伴うコマンドなのでこのまま終了
 
