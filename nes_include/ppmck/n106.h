@@ -674,11 +674,27 @@ sound_n106_softenve:
 sound_n106_lfo:
 	jsr	lfo_sub
 	jmp	sound_n106_write
-;-------------------------------------------------------------------------------
+
+;--------------------
+; sound_n106_pitch_enve : ピッチエンベロープのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	y : 破壊
+;	pitch_add_{low,high},x : 反映
+;	sound_freq_{low,high},x : 反映
+;	音程 : 反映
+;	(以下pitch_subからの間接的な副作用)
+;	バンク : #bank(pitchenve_table)
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_n106_pitch_enve:
 	jsr	pitch_sub
 	jsr	sound_n106_write
-	jmp	pitch_enverope_address
+	jmp	pitch_enverope_address	;アドレス1個増やす
+
 ;--------------------
 ; sound_n106_note_enve : ノートエンベロープのフレーム処理
 ;
