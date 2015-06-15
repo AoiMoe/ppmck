@@ -679,16 +679,30 @@ sound_n106_pitch_enve:
 	jsr	pitch_sub
 	jsr	sound_n106_write
 	jmp	pitch_enverope_address
-;-------------------------------------------------------------------------------
-sound_n106_note_enve
+;--------------------
+; sound_n106_note_enve : ノートエンベロープのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+;	temporary2 : 破壊
+;	sound_freq_{low,high},x : 反映
+;	sound_lasthigh,x : 反映
+;	音程 : 反映
+;	arpe_add_{low,high},x : 反映
+; 備考:
+;	XXX:サブルーチン名
+;
+sound_n106_note_enve:
 	jsr	note_enve_sub
-	bcs	.end4			;0なので書かなくてよし
+	bcs	.done			;0なので書かなくてよし
 	jsr	n106_freq_set
 	jsr	sound_n106_write
-	jsr	arpeggio_address
+	jsr	arpeggio_address	;アドレス1個増やす
 	rts
-.end4
+.done
 ;	jsr	n106_freq_set
-	jsr	arpeggio_address
+	jsr	arpeggio_address	;アドレス1個増やす
 	rts
-;-------------------------------------------------------------------------------
