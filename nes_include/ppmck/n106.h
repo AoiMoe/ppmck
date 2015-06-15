@@ -557,6 +557,22 @@ sound_n106_read:
 
 
 ;-------------------------------------------------------------------------------
+;register write sub routines
+;-------------------------------------------------------------------------------
+
+;--------------------
+; sound_n106_write - 分周器レジスタへ書き込む
+;
+; 入力:
+;	sound_freq_{low,high,n106},x : 分周器レジスタの値
+; 副作用:
+;	a : 破壊
+;	x : channel_selx2になる
+;	t0 : 破壊
+;	音源 : 反映
+; 備考:
+;	XXX: サブルーチン名
+;
 sound_n106_write:
 	ldx	<channel_selx2
 
@@ -572,7 +588,7 @@ sound_n106_write:
 
 	lda	#$7c
 	jsr	n106_write_sub
-	lda	n106_7c,x
+	lda	n106_7c,x		;波形長を重畳
 	ora	sound_freq_n106,x
 	sta	$4800
 	rts
