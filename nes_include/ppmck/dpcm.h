@@ -120,7 +120,7 @@ sound_dpcm_play:
 	sta	effect2_flags,x		;スラーフラグのクリア
 
 	pla
-	jmp	ontyou2			;カウンタのみ変更
+	jmp	.do_wait		;カウンタのみ変更
 
 .no_slur:
 	lda	#$0F
