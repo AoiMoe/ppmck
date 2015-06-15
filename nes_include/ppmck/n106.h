@@ -653,6 +653,24 @@ sound_n106_softenve:
 	sta	$4800
 	jmp	enverope_address	;アドレス1個増やす
 
+
+;--------------------
+; sound_n106_lfo : ピッチLFOのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	y : 破壊
+;	音程 : 反映
+;	(以下lfo_subからの間接的な副作用)
+;	sound_freq_{low,high,n106},x : 反映
+;	lfo_start_counter,x : 反映
+;	lfo_reverse_counter,x : 反映
+;	lfo_adc_sbc_counter,x : 反映
+;	effect_flag,x : EFF_SOFTLFO_DIRビットが影響を受ける
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_n106_lfo:
 	jsr	lfo_sub
 	jmp	sound_n106_write
