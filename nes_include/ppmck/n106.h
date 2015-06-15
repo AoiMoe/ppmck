@@ -69,23 +69,29 @@ n106_sound_init:
 	rts
 
 
+;--------------------
+; sound_n106 - NMI割り込みエントリポイント
+;
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_n106:
 	ldx	<channel_selx2
 	dec	sound_counter,x		;カウンタいっこ減らし
 	beq	.sound_read_go		;ゼロならサウンド読み込み
 	jsr	n106_do_effect		;ゼロ以外ならエフェクトして
 	rts				;おわり
-.sound_read_go
+.sound_read_go:
 	jsr	sound_n106_read
 	jsr	n106_do_effect
 	lda	rest_flag,x
 	and	#RESTF_KEYON		;キーオンフラグ
-	beq	.end1			
+	beq	.done
 	jsr	sound_n106_write	;立っていたらデータ書き出し
 	lda	rest_flag,x
 	and	#~RESTF_KEYON		;キーオンフラグオフ
 	sta	rest_flag,x
-.end1
+.done
 	rts
 
 ;-------
