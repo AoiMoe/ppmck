@@ -152,24 +152,45 @@ n106_do_effect:
 
 .done:
 	rts
-;------------------------------------------------
+
+
+;-------------------------------------------------------------------------------
+;register write sub routines
+;-------------------------------------------------------------------------------
+
+;--------------------
+; n106_freq_set : ノート番号を周波数データに変換する
+;
+; 入力:
+;	sound_sel,x : 現在のノート番号
+;	detune_dat,x : 符号付きデチューン値(detune_write_subへの間接的入力)
+; 出力:
+;	sound_freq_{low,high,n106},x : 周波数データ
+; 副作用:
+;	a : 破壊
+;	x : channel_selx2
+;	y : 破壊
+; 備考:
+;	このサブルーチンは音源レジスタへの書き込みは行わない
+;
 n106_freq_set:
 	ldx	<channel_selx2
+
+	;音階→周波数変換テーブルのオフセット計算
 	lda	sound_sel,x		;音階データ読み出し
 	and	#%00001111		;下位4bitを取り出して
 	asl	a
 	asl	a
 	tay
 
-	lda	n106_frequency_table,y	;n106周波数テーブルからLowを読み出す
+	lda	.frequency_table,y	;n106周波数テーブルからLowを読み出す
 	sta	sound_freq_low,x	;書き込み
-	lda	n106_frequency_table+1,y	;n106周波数テーブルからMidleを読み出す
+	lda	.frequency_table+1,y	;n106周波数テーブルからMidleを読み出す
 	sta	sound_freq_high,x	;書き込み
-	lda	n106_frequency_table+2,y	;n106周波数テーブルからHighを読み出す
+	lda	.frequency_table+2,y	;n106周波数テーブルからHighを読み出す
 	sta	sound_freq_n106,x	;書き込み
 
-n106_oct_set1:
-
+	;オクターブ処理 - 内蔵音源とは方向が逆
 	lda	sound_sel,x		;音階データ読み出し
 	lsr	a			;上位4bitを取り出し
 	lsr	a			;
@@ -177,30 +198,32 @@ n106_oct_set1:
 	lsr	a			;
 	sta	<drvtmp0
 	cmp	#$08
-	beq	n106_freq_end		;ゼロならそのまま終わり
-	tay
+	beq	.done			;8ならそのまま終わり
 
-n106_oct_set2:
-
-	lsr	sound_freq_n106,x	;右シフト　末尾はCへ
-	ror	sound_freq_high,x	;Cから持ってくるでよ　右ローテイト
-	ror	sound_freq_low,x	;Cから持ってくるでよ　右ローテイト
+	tay				;y=オクターブ値(ループ変数)
+.oct_loop:
+	;o8を基準に、1オクターブ下がるごとに分周器の設定値を1/2する
+	lsr	sound_freq_n106,x	;符号なし24bit右シフト
+	ror	sound_freq_high,x	;
+	ror	sound_freq_low,x	;
 	iny				;
 	cpy	#$08
-	bne	n106_oct_set2		;オクターブ分繰り返す
+	bne	.oct_loop		;オクターブ分繰り返す
 
-n106_freq_end:
+.done:
 	.if PITCH_CORRECTION
-	jsr	detune_write_sub
+		;detune_write_sub側で補正する
+		jsr	detune_write_sub
 	.else
-n106_detune_loop:
-	jsr	detune_write_sub
-	dec	<drvtmp0
-	bne	n106_detune_loop
+		;オクターブに比例してデチューン量を加重する
+.detune_loop:
+		jsr	detune_write_sub
+		dec	<drvtmp0
+		bne	.detune_loop
 	.endif
 	rts
-;---------
-n106_frequency_table:
+
+.frequency_table:
 	db	$cc,$3e,$02,$00	; c	$023ECB
 	db	$fa,$60,$02,$00	; c+	$0260F7
 	db	$30,$85,$02,$00	; d	$02852B
