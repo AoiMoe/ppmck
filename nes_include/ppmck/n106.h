@@ -254,128 +254,166 @@ n106_freq_set:
 ;ピッチベンドもLFOも　ｘ　オクターブにすれば大体115を指定すると次の音だなぁ
 ;良い具合になるな。やっぱそうするかなぁ〜
 
-;---------------------------------------------------------------
+
+;-------------------------------------------------------------------------------
+;command read routine
+;-------------------------------------------------------------------------------
+
+;--------------------
+; sound_n106_read : 演奏データの解釈
+;
+; 備考:
+;	XXX:音源非依存な形での共通化
+;
 sound_n106_read:
+.next_cmd:
 	ldx	<channel_selx2
 
 	lda	sound_bank,x
 	jsr	change_bank
 
 	lda	[sound_add_low,x]
+
 ;----------
 ;ループ処理1
-n106_loop_program
+.loop_program:
 	cmp	#CMD_LOOP1
-	bne	n106_loop_program2
+	bne	.loop_program2
 	jsr	loop_sub
-	jmp	sound_n106_read
+	jmp	.next_cmd
+
 ;----------
 ;ループ処理2(分岐)
-n106_loop_program2
+.loop_program2:
 	cmp	#CMD_LOOP2
-	bne	n106_bank_command
+	bne	.bank_command
 	jsr	loop_sub2
-	jmp	sound_n106_read
+	jmp	.next_cmd
+
 ;----------
 ;バンク切り替え
-n106_bank_command
+.bank_command:
 	cmp	#CMD_BANK_SWITCH
-	bne	n106_slur
+	bne	.slur
 	jsr	data_bank_addr
-	jmp	sound_n106_read
+	jmp	.next_cmd
+
 ;----------
 ;データエンド設定
-;n106_data_end:
+;.data_end:
 ;	cmp	#CMD_END
-;	bne	n106_wave_set
+;	bne	.wave_set
 ;	jsr	data_end_sub
-;	jmp	sound_n106_read
+;	jmp	.next_cmd
 
 ;----------
 ;スラー
-n106_slur:
+.slur:
 	cmp	#CMD_SLUR
-	bne	n106_wave_set
+	bne	.wave_set
 	lda	effect2_flags,x
 	ora	#EFF2_SLUR_ENABLE
 	sta	effect2_flags,x
 	jsr	sound_data_address
-	jmp	sound_n106_read
+	jmp	.next_cmd
 
 ;----------
 ;音色設定
-n106_wave_set:
+;XXX:サブルーチン化したほうがいい
+.wave_set:
 	cmp	#CMD_TONE
-	bne	n106_volume_set
+	bne	.volume_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
 
+	;16bit配列のオフセットに変換してインデックスレジスタXに格納する
 	asl	a
-	tax				;何番目の波形を使うかの設定開始
+	tax
 
-	; 定義バンク切り替え
+	;バンクをN163音色テーブルに切り替える
 	lda	#bank(n106_wave_init)*2
 	jsr	change_bank
 
-	lda	n106_wave_init,x	;;波形データ長リード
+	;波形データ長(L)を読み込み、2ビット左シフトしてtemporaryへ
+	;Lは実データ長ではなく、レジスタへ設定する値
+	lda	n106_wave_init,x
 	asl	a
 	asl	a
 	sta	temporary
 
+	;波形データソース開始アドレスをtemp_data_add(16bit)に格納する
 	lda	n106_wave_table,x
 	sta	<temp_data_add
 	inx
 	lda	n106_wave_table,x
-	sta	<temp_data_add+1	;波形データ開始アドレスセット
+	sta	<temp_data_add+1
 
-	lda	n106_wave_init,x	;波形データオフセットアドレスリード
+	;波形データオフセット(ニブル単位)を読み込み、スタックに積む
+	;XXX:レジスタにはニブル単位で設定できるが、このドライバは
+	;バイト境界でしか扱えないため、常にLSBは0でないと齟齬が出る
+	lda	n106_wave_init,x
 	pha
 
+	;波形長の設定
+	;$7C - LLLLLLFF
+	;      ||||||||
+	;      ||||||++-- 分周器の最上位2ビット
+	;      ++++++---- 波形長 (64-L)*4 samples
 	lda	#$7c
-	jsr	n106_write_sub
+	jsr	n106_write_sub		;アドレスポートの設定
 	ldx	<channel_selx2
 	lda	temporary
-	ora	#%11100000		;上位3bitを1で埋める
-	sta	n106_7c,x
+	ora	#%11100000		;上位3bitを1で埋める(波形長4-32に制限)
+	sta	n106_7c,x		;周波数設定と共用なので保存しておく
 	sta	$4800			;波形データ長セット
+
+	;Lから波形データ長(バイト単位)を算出してtemporaryへ格納
+	;  L  バイト数   サンプル数
+	;  0        16           32
+	;  1        14           28
+	;  ...
+	;  7         2            4
 	lsr	temporary
 	lda	#$10
 	sec
 	sbc	temporary
-	sta	temporary		;波形データ長算出
+	sta	temporary
 
-	lda	#$7e
+	;波形データアドレスレジスタセット
+	lda	#$7e			;波形データオフセットレジスタ
 	jsr	n106_write_sub
 	pla
-	sta	$4800			;波形データオフセットアドレスセット
+	sta	$4800
 
-	lsr	a
+	;波形データを音源内部メモリへ転送
+	lsr	a			;ニブルアドレス→バイトアドレス
 	ora	#%10000000		;自動インクリメントオン
-	sta	$f800
-
+	sta	$f800			;転送先の先頭アドレスを設定
 	ldy	#$00
-n106_wave_data_set:
+.wave_loop:
 	lda	[temp_data_add],y
-	sta	$4800			;波形書き込み（wave data write)
+	sta	$4800			;データポートに波形データを書き込み
 	iny
-	cpy	temporary
-	bmi	n106_wave_data_set
+	cpy	temporary		;temporary=データ長(バイト単位)
+	bmi	.wave_loop
 
 	ldx	<channel_selx2
 	jsr	sound_data_address
-	jmp	sound_n106_read
+	jmp	.next_cmd
+
 ;----------
 ;音量設定
-n106_volume_set:
+.volume_set:
 	cmp	#CMD_VOLUME
-	bne	n106_rest_set
+	bne	.rest_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
 
 	sta	temporary
-	bpl	n106_softenve_part	;ソフトエンベ処理へ
+	bpl	.softenve_part		;ソフトエンベ処理へ
 
-n106_volume_part:
+	;音量直接指定
+.volume_part:
 	lda	effect_flag,x
 	and	#~EFF_SOFTENV_ENABLE
 	sta	effect_flag,x		;ソフトエンベ無効指定
@@ -383,98 +421,117 @@ n106_volume_part:
 	lda	temporary
 	and	#%00001111
 	sta	n106_volume,x
-	lda	#$7f
 
+	lda	#$7f			;$7F : 音量レジスタ
 	jsr	n106_write_sub
-	lda	n106_7f
-	ora	n106_volume,x
+	lda	n106_7f			;ch1の上位2bitは総チャンネル数なので
+	ora	n106_volume,x		;音量と重畳する。ch1以外では単に無視
 	sta	$4800
 
 	jsr	sound_data_address
-	jmp	sound_n106_read
+	jmp	.next_cmd
 
-n106_softenve_part:
+	;ソフトエンベ有効化
+.softenve_part:
 	jsr	volume_sub
 	jmp	sound_n106_read
-;----------
-n106_rest_set:
-	cmp	#CMD_REST
-	bne	n106_lfo_set
 
+;----------
+;休符
+.rest_set:
+	cmp	#CMD_REST
+	bne	.lfo_set
+
+	;休符フラグを立てる
 	lda	rest_flag,x
 	ora	#RESTF_REST
 	sta	rest_flag,x
 
+	;ウェイトを設定
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
 	sta	sound_counter,x
 
-	lda	#$7f
+	;音を停止する
+	lda	#$7f			;$7F : 音量レジスタ
 	jsr	n106_write_sub
-	lda	n106_7f
+	lda	n106_7f			;音量0 + 総チャンネル数重畳
 	sta	$4800
 
 	jsr	sound_data_address
-	rts
+	rts				;音長を伴うコマンドなのでこのまま終了
+
 ;----------
-n106_lfo_set:
+;ピッチLFO設定
+.lfo_set:
 	cmp	#CMD_SOFTLFO
-	bne	n106_detune_set
+	bne	.detune_set
 	jsr	lfo_set_sub
-	jmp	sound_n106_read
+	jmp	.next_cmd
+
 ;----------
-n106_detune_set:
+;デチューン設定
+.detune_set:
 	cmp	#CMD_DETUNE
-	bne	n106_pitch_set
+	bne	.pitch_set
 	jsr	detune_sub
-	jmp	sound_n106_read
+	jmp	.next_cmd
+
 ;----------
 ;ピッチエンベロープ設定
-n106_pitch_set:
+.pitch_set:
 	cmp	#CMD_PITCHENV
-	bne	n106_arpeggio_set
+	bne	.arpeggio_set
 	jsr	pitch_set_sub
-	jmp	sound_n106_read
+	jmp	.next_cmd
+
 ;----------
 ;ノートエンベロープ設定
-n106_arpeggio_set:
+.arpeggio_set:
 	cmp	#CMD_NOTEENV
-	bne	n106_freq_direct_set
+	bne	.freq_direct_set
 	jsr	arpeggio_set_sub
-	jmp	sound_n106_read
+	jmp	.next_cmd
+
 ;----------
 ;再生周波数直接設定
-n106_freq_direct_set:
+.freq_direct_set:
 	cmp	#CMD_DIRECT_FREQ
-	bne	n106_y_command_set
+	bne	.y_command_set
 	jsr	direct_freq_sub
-	rts
+	rts				;音長を伴うコマンドなのでこのまま終了
+
 ;----------
 ;ｙコマンド設定
-n106_y_command_set:
+.y_command_set:
 	cmp	#CMD_WRITE_REG
-	bne	n106_wait_set
+	bne	.wait_set
 	jsr	y_sub
-	jmp	sound_n106_read
+	jmp	.next_cmd
+
 ;----------
 ;ウェイト設定
-n106_wait_set:
+.wait_set:
 	cmp	#CMD_WAIT
-	bne	n106_shift_amount_set
+	bne	.shift_amount_set
 	jsr	wait_sub
-	rts
+	rts				;音長を伴うコマンドなのでこのまま終了
+
 ;----------
 ;ピッチシフト量設定
-n106_shift_amount_set:
+.shift_amount_set:
 	cmp	#CMD_PITCH_SHIFT_AMOUNT
-	bne	n106_oto_set
+	bne	.keyon_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
 	sta	pitch_shift_amount,x
 	jsr	sound_data_address
-	jmp	sound_n106_read
+	jmp	.next_cmd
+
 ;----------
-n106_oto_set:
+;キーオンコマンド
+.keyon_set:
+	;XXX:知らないコマンドが来たときの処理はあったほうが良いかも
 	sta	sound_sel,x		;処理はまた後で
 	jsr	sound_data_address
 	lda	[sound_add_low,x]	;音長読み出し
@@ -484,22 +541,21 @@ n106_oto_set:
 
 	lda	effect2_flags,x		;スラーフラグのチェック
 	and	#EFF2_SLUR_ENABLE
-	beq	no_slur_n106
-
+	beq	.no_slur
 	lda	effect2_flags,x
 	and	#~EFF2_SLUR_ENABLE
 	sta	effect2_flags,x		;スラーフラグのクリア
 	jmp	sound_flag_clear_key_on
-
-no_slur_n106:
-;volume
-	lda	#$7f
+.no_slur:
+	lda	#$7f			;$7F - 音量レジスタ
 	jsr	n106_write_sub
 	lda	n106_7f
 	ora	n106_volume,x
 	sta	$4800
 	jsr	effect_init
-	rts
+	rts				;音長を伴うコマンドなのでこのまま終了
+
+
 ;-------------------------------------------------------------------------------
 sound_n106_write:
 	ldx	<channel_selx2
