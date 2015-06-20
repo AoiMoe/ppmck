@@ -552,6 +552,21 @@ sound_fds_read:
 
 
 ;-------------------------------------------------------------------------------
+;register write sub routines
+;-------------------------------------------------------------------------------
+
+;--------------------
+; sound_fds_write : 分周器レジスタへ書き込む
+;
+; 入力:
+;	sound_freq_{low,high,n106},x : 分周器レジスタの値
+; 副作用:
+;	a : 破壊
+;	x : channel_selx2になる
+;	音源 : 反映
+; 備考:
+;	XXX: サブルーチン名
+;
 sound_fds_write:
 	ldx	<channel_selx2
 	lda	sound_freq_low,x	;Low Write
@@ -559,6 +574,8 @@ sound_fds_write:
 	lda	sound_freq_high,x	;High Write
 	sta	$4083
 	rts
+
+
 ;-------------------------------------------------------------------------------
 sound_fds_softenve:
 	jsr	volume_enve_sub
