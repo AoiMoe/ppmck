@@ -27,7 +27,7 @@ sound_fds:
 	jsr	fds_do_effect
 	lda	rest_flag,x
 	and	#RESTF_KEYON		;キーオンフラグ
-	beq	.end1			
+	beq	.end1
 	jsr	sound_fds_write	;立っていたらデータ書き出し
 	lda	rest_flag,x
 	and	#~RESTF_KEYON		;キーオンフラグオフ
@@ -134,9 +134,9 @@ fds_frequency_table:
 
 ;平均律（に近い数値）を基準にしています
 ;式は以下な感じで
-;              111860.8 Hz  
+;              111860.8 Hz
 ;再生周波数 = ------------- x n(周波数用データ)
-;	  	64 x 4096
+;		64 x 4096
 ;o6aより上の音はでません（テーブルはo6のモノ）
 ;音程が下がるほど音痴になります？
 
@@ -148,11 +148,11 @@ fds_frequency_table:
 ;        完全４度：	x1.3348
 ;        増４度(減５度):x1.4142
 ;        完全５度：	x1.4983
-;        増５度(短６度):x1.5874 
+;        増５度(短６度):x1.5874
 ;        長６度：	x1.6818
 ;        減７度：	x1.7818
 ;        長７度：	x1.8877
-;        オクターブ ：	x2.0000 
+;        オクターブ ：	x2.0000
 
 
 ;---------------------------------------------------------------
@@ -246,7 +246,7 @@ fds_volume_part:
 	lda	effect_flag,x
 	and	#~EFF_SOFTENV_ENABLE
 	sta	effect_flag,x		;ソフトエンベ無効指定
-	
+
 	jsr	sound_data_address
 	jmp	sound_fds_read
 
@@ -262,11 +262,11 @@ fds_softenve_part:
 	sta	soft_add_low,x
 	lda	softenve_table+1,y
 	sta	soft_add_low+1,x
-	
+
 	lda	effect_flag,x
 	ora	#EFF_SOFTENV_ENABLE
 	sta	effect_flag,x		;ソフトエンベ有効指定
-	
+
 	jsr	sound_data_address
 	jmp	sound_fds_read
 ;----------
