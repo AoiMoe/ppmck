@@ -93,7 +93,7 @@ fds_do_effect:
 .arpeggio_write:
 	lda	effect_flag,x
 	and	#EFF_NOTEENV_ENABLE
-	beq	.hardenve_write
+	beq	.hwlfo_write
 	; 同一フレームのsound_fds_readの処理でキーオンが行われたかどうかで
 	; ノートエンベロープの処理が異なる
 	lda	rest_flag,x
@@ -101,7 +101,7 @@ fds_do_effect:
 	bne	.arpe_key_on
 	; キーオンが行われてないフレームは通常の処理
 	jsr	sound_fds_note_enve
-	jmp	.hardenve_write
+	jmp	.hwlfo_write
 .arpe_key_on:
 	; キーオンが行われたフレームはワークエリアの調整のみ行う
 	; 実際にレジスタに反映するのは sound_fds の最後
@@ -109,9 +109,9 @@ fds_do_effect:
 	jsr	fds_freq_set
 	jsr	arpeggio_address
 
-.hardenve_write:
+.hwlfo_write:
 	lda	effect_flag,x
-	and	#EFF_DUTYENV_ENABLE
+	and	#EFF_FDS_HWLFO_ENABLE
 	beq	.done
 	jsr	sound_fds_hard_enve
 	ldx	<channel_selx2
@@ -427,7 +427,7 @@ sound_fds_read:
 	rts				;音長を伴うコマンドなのでこのまま終了
 
 ;----------
-;FDSハードウェアエフェクト設定
+;FDSハードウェアLFO設定
 .hard_lfo_set:
 	cmp	#CMD_FDS_HWLFO
 	bne	.hwenv_set
@@ -440,7 +440,7 @@ sound_fds_read:
 	;ハードウェアLFOの無効化
 	ldx	<channel_selx2
 	lda	effect_flag,x
-	and	#~EFF_DUTYENV_ENABLE
+	and	#~EFF_FDS_HWLFO_ENABLE
 	sta	effect_flag,x
 
 	jsr	sound_data_address
@@ -464,12 +464,13 @@ sound_fds_read:
 
 	;ディレイカウント
 	lda	fds_effect_select,y
-	sta	fds_hard_count_1
-	sta	fds_hard_count_2
+	sta	fds_hwlfo_delay_counter
+	sta	fds_hwlfo_delay_time
 
+	;ハードウェアLFOの有効化
 	ldx	<channel_selx2
 	lda	effect_flag,x
-	ora	#EFF_DUTYENV_ENABLE
+	ora	#EFF_FDS_HWLFO_ENABLE
 	sta	effect_flag,x
 
 	jsr	sound_data_address
@@ -540,8 +541,8 @@ sound_fds_read:
 	ldx	<channel_selx2
 
 	;ハードウェアLFOの設定
-	lda	fds_hard_count_2	;ディレイカウントの初期化
-	sta	fds_hard_count_1	;
+	lda	fds_hwlfo_delay_time	;ディレイカウンターの初期化
+	sta	fds_hwlfo_delay_counter	;
 	lda	#$00
 	sta	$4084			;LFO無効化 - ディレイ後に有効化
 	sta	$4085			;
@@ -689,11 +690,11 @@ sound_fds_note_enve:
 ;
 sound_fds_hard_enve:
 	;エフェクトディレイ処理
-	lda	fds_hard_count_1
+	lda	fds_hwlfo_delay_counter
 	beq	.process_mod_param	;fds_hard_count_1が0ならエフェクト開始
 	cmp	#$ff
 	beq	.done			;fds_hard_count_1が$ffなら、既にエフェクトを開始してるので何もしない
-	dec	fds_hard_count_1	;ディレイカウントを減らす
+	dec	fds_hwlfo_delay_counter	;ディレイカウントを減らす
 .done:
 	rts
 
@@ -732,7 +733,7 @@ sound_fds_hard_enve:
 	;変調パラメータ設定終了
 	;XXX:短いものの分かりにくいコード
 .done_interpreter:
-	dec	fds_hard_count_1	;fds_hard_count_1 = $ff
+	dec	fds_hwlfo_delay_counter	;fds_hwlfo_delay_counter = $ff
 	rts
 
 .set_wavetable:

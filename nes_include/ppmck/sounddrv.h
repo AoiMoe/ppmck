@@ -154,8 +154,8 @@ fds_volume		.ds	1		;
 
 n106_7f			.ds	1		;
 
-fds_hard_count_1	.ds	1		;
-fds_hard_count_2	.ds	1		;
+fds_hwlfo_delay_counter	.ds	1		;
+fds_hwlfo_delay_time	.ds	1		;
 
 initial_wait		.ds	1		;
 
@@ -178,7 +178,8 @@ EFF_SOFTLFO_VSPEED	= %01000000 ; software LFOスピード可変フラグ（予�
 EFF_SOFTLFO_DIR		= %00100000 ; software LFO方向フラグ0=- 1=+
 EFF_SOFTLFO_ENABLE	= %00010000 ; software LFO flag
 EFF_NOTEENV_ENABLE	= %00001000 ; note envelope flag
-EFF_DUTYENV_ENABLE	= %00000100 ; duty envelope flag / FDS hardware effect flag
+EFF_DUTYENV_ENABLE	= %00000100 ; (internal)duty envelope flag (shared)
+EFF_FDS_HWLFO_ENABLE	= %00000100 ; (FDS)hardware effect flag (shared)
 EFF_PITCHENV_ENABLE	= %00000010 ; pitch envelope flag
 EFF_SOFTENV_ENABLE	= %00000001 ; software envelope flag
 EFF_SOFTLFO_MASK	= EFF_SOFTLFO_VSPEED | EFF_SOFTLFO_DIR | EFF_SOFTLFO_ENABLE
