@@ -203,89 +203,115 @@ fds_freq_set:
 ;        オクターブ ：	x2.0000
 
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
+;command read routine
+;-------------------------------------------------------------------------------
+
+;--------------------
+; sound_fds_read : 演奏データの解釈
+;
+; 備考:
+;	XXX:音源非依存な形での共通化
+;
 sound_fds_read:
+.next_cmd:
 	ldx	<channel_selx2
 
 	lda	sound_bank,x
 	jsr	change_bank
 
 	lda	[sound_add_low,x]
+
 ;----------
 ;ループ処理1
-fds_loop_program
+.loop_program:
 	cmp	#CMD_LOOP1
-	bne	fds_loop_program2
+	bne	.loop_program2
 	jsr	loop_sub
-	jmp	sound_fds_read
+	jmp	.next_cmd
+
 ;----------
 ;ループ処理2(分岐)
-fds_loop_program2
+.loop_program2:
 	cmp	#CMD_LOOP2
-	bne	fds_bank_set
+	bne	.bank_set
 	jsr	loop_sub2
-	jmp	sound_fds_read
+	jmp	.next_cmd
+
 ;----------
-;バンクを切り替えます〜FDS版
-fds_bank_set
+;バンク切り替え
+.bank_set:
 	cmp	#CMD_BANK_SWITCH
-	bne	fds_wave_set
+	bne	.wave_set
 	jsr	data_bank_addr
-	jmp	sound_fds_read
+	jmp	.next_cmd
+
 ;----------
 ;データエンド設定
-;fds_data_end:
+;.data_end:
 ;	cmp	#CMD_END
-;	bne	fds_wave_set
+;	bne	.wave_set
 ;	jsr	data_end_sub
-;	jmp	sound_fds_read
+;	jmp	.next_cmd
+
 ;----------
 ;音色設定
-fds_wave_set:
+;XXX:サブルーチン化したほうがいい
+.wave_set:
 	cmp	#CMD_TONE
-	bne	fds_volume_set
+	bne	.volume_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
 
+	;16bit配列のオフセットに変換してインデックスレジスタXに格納する
 	asl	a
 	tax
 
-	; 定義バンク切り替え
+	;バンクをFDS音色テーブルに切り替える
 	lda	#bank(fds_data_table)*2
 	jsr	change_bank
 
+	;波形データソース開始アドレスをtemp_data_add(16bit)に格納する
 	lda	fds_data_table,x
 	sta	<temp_data_add
 	inx
 	lda	fds_data_table,x
 	sta	<temp_data_add+1
 
-	ldy	#$00
-	ldx	#$00
-	lda	#$80
-	sta	$4089
-wave_data_set:
+	;波形データ転送
+	ldy	#$00			;オフセット
+	ldx	#$00			;XXX:無駄
+	lda	#%10000000		;波形テーブルRAMへの書き込み許可
+	sta	$4089			;
+	;64バイト分繰り返す
+.wave_loop:
 	lda	[temp_data_add],y
 	sta	$4040,y
 	iny
 	cpy	#$40
-	bne	wave_data_set
+	bne	.wave_loop
 
-	lda	#$00
-	sta	$4089
+	lda	#%00000000		;波形テーブルRAMへの書き込み禁止
+	sta	$4089			;
+
 	ldx	<channel_selx2
 	jsr	sound_data_address
-	jmp	sound_fds_read
+	jmp	.next_cmd
+
 ;----------
 ;音量設定
-fds_volume_set:
+.volume_set:
 	cmp	#CMD_VOLUME
-	bne	fds_rest_set
+	bne	.rest_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
-	bpl	fds_softenve_part	;bit7が0ならソフトエンベ処理へ
+	bpl	.softenve_part		;ソフトエンベ処理へ
 
-fds_volume_part:
+	;音量直接指定
+.volume_part:
+	;XXX:おそらく以前はコメントアウトされたコードが生きていたが、
+	;    ハードウェアレジスタへの反映を後回しにするよう変更された模様。
+	;    綺麗に書き直すべし。
 ;	ora	#%10000000		;常に直接モード
 	and	#%10111111
 	sta	fds_volume
@@ -296,13 +322,16 @@ fds_volume_part:
 	sta	effect_flag,x		;ソフトエンベ無効指定
 
 	jsr	sound_data_address
-	jmp	sound_fds_read
+	jmp	.next_cmd
 
-fds_softenve_part:
-	sta	softenve_sel,x		;0 〜 127の番号
-	asl	a
-	tay
-	; 定義バンク切り替え
+	;ソフトエンベ有効化
+	;XXX:全く同じことをしているのでvolume_subを使うべし
+.softenve_part:
+	sta	softenve_sel,x		;128-255が格納される
+	asl	a			;どうせMSBはここで失われる
+	tay				;y = ソフトエンベロープ番号*2
+
+	;バンクをソフトエンベテーブルに切り替える
 	lda	#bank(softenve_table)*2
 	jsr	change_bank
 
@@ -316,147 +345,182 @@ fds_softenve_part:
 	sta	effect_flag,x		;ソフトエンベ有効指定
 
 	jsr	sound_data_address
-	jmp	sound_fds_read
-;----------
-fds_rest_set:
-	cmp	#CMD_REST
-	bne	fds_lfo_set
+	jmp	.next_cmd
 
+;----------
+;休符
+.rest_set:
+	cmp	#CMD_REST
+	bne	.lfo_set
+
+	;休符フラグを立てる
 	lda	rest_flag,x
 	ora	#RESTF_REST
 	sta	rest_flag,x
 
+	;ウェイトを設定
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
 	sta	sound_counter,x
 
+	;音を停止する
 	lda	#$00
 	sta	$4080
+
 	jsr	sound_data_address
-	rts
+	rts				;音長を伴うコマンドなのでこのまま終了
+
 ;----------
-fds_lfo_set:
+;ピッチLFO設定
+.lfo_set:
 	cmp	#CMD_SOFTLFO
-	bne	fds_detune_set
+	bne	.detune_set
 	jsr	lfo_set_sub
-	jmp	sound_fds_read
+	jmp	.next_cmd
+
 ;----------
-fds_detune_set:
+;デチューン設定
+.detune_set:
 	cmp	#CMD_DETUNE
-	bne	fds_pitch_set
+	bne	.pitch_set
 	jsr	detune_sub
-	jmp	sound_fds_read
+	jmp	.next_cmd
+
 ;----------
 ;ピッチエンベロープ設定
-fds_pitch_set:
+.pitch_set:
 	cmp	#CMD_PITCHENV
-	bne	fds_arpeggio_set
+	bne	.arpeggio_set
 	jsr	pitch_set_sub
-	jmp	sound_fds_read
+	jmp	.next_cmd
+
 ;----------
 ;ノートエンベロープ設定
-fds_arpeggio_set:
+.arpeggio_set:
 	cmp	#CMD_NOTEENV
-	bne	fds_freq_direct_set
+	bne	.freq_direct_set
 	jsr	arpeggio_set_sub
-	jmp	sound_fds_read
+	jmp	.next_cmd
+
 ;----------
 ;再生周波数直接設定
-fds_freq_direct_set:
+.freq_direct_set:
 	cmp	#CMD_DIRECT_FREQ
-	bne	fds_y_command_set
+	bne	.y_command_set
 	jsr	direct_freq_sub
-	rts
+	rts				;音長を伴うコマンドなのでこのまま終了
+
 ;----------
 ;ｙコマンド設定
-fds_y_command_set:
+.y_command_set:
 	cmp	#CMD_WRITE_REG
-	bne	fds_wait_set
+	bne	.wait_set
 	jsr	y_sub
-	jmp	sound_fds_read
+	jmp	.next_cmd
+
 ;----------
 ;ウェイト設定
-fds_wait_set:
+.wait_set:
 	cmp	#CMD_WAIT
-	bne	fds_hard_lfo_set
+	bne	.hard_lfo_set
 	jsr	wait_sub
-	rts
+	rts				;音長を伴うコマンドなのでこのまま終了
+
 ;----------
-;FDS音源ハードウェアエフェクト設定
-fds_hard_lfo_set:
+;FDSハードウェアエフェクト設定
+.hard_lfo_set:
 	cmp	#CMD_FDS_HWLFO
-	bne	fds_hwenv_set
+	bne	.hwenv_set
 
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
 	cmp	#$ff
-	bne	fds_hard_lfo_data_set
+	bne	.hard_lfo_data_set
 
+	;ハードウェアLFOの無効化
 	ldx	<channel_selx2
 	lda	effect_flag,x
 	and	#~EFF_DUTYENV_ENABLE
 	sta	effect_flag,x
-	jsr	sound_data_address
-	jmp	sound_fds_read
-fds_hard_lfo_data_set:
-	asl	a
-	asl	a
-	asl	a
-	asl	a
-	tay
 
-	; 定義バンク切り替え
+	jsr	sound_data_address
+	jmp	.next_cmd
+
+	;ハードウェアLFOデータの設定
+.hard_lfo_data_set:
+	asl	a
+	asl	a
+	asl	a
+	asl	a
+	tay				;y = LFOデータ番号*16
+
+	;バンクをハードウェアLFOデータに切り替える
 	lda	#bank(fds_effect_select)*2
 	jsr	change_bank
 
+	;XXX:壊れている。fds_hard_selectにはLFOデータ番号*16+1を格納しないといけないが、バンク切り替えのコードでaレジスタは破壊されている。つまり、staをstyにすべし。
 	sta	fds_hard_select
 	inc	fds_hard_select
+
+	;ディレイカウント
 	lda	fds_effect_select,y
 	sta	fds_hard_count_1
 	sta	fds_hard_count_2
+
 	ldx	<channel_selx2
 	lda	effect_flag,x
 	ora	#EFF_DUTYENV_ENABLE
 	sta	effect_flag,x
+
 	jsr	sound_data_address
-	jmp	sound_fds_read
+	jmp	.next_cmd
+
 ;----------
 ;ハードウェアボリュームエンベロープ
-fds_hwenv_set:
+.hwenv_set:
 	cmp	#CMD_HWENV
-	bne	fds_modfreq_set
+	bne	.modfreq_set
+
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
 
+	;XXX:おそらく以前はコメントアウトされたコードが生きていたが、
+	;    ハードウェアレジスタへの反映を後回しにするよう変更された模様。
+	;    綺麗に書き直すべし。
 	and	#%01111111		;一応
 	sta	fds_volume
 ;	sta	$4080			;ボリューム＆ハードエンベ書き込み
 
+	;ソフトエンベ無効指定
 	lda	effect_flag,x
 	and	#~EFF_SOFTENV_ENABLE
-	sta	effect_flag,x		;ソフトエンベ無効指定
+	sta	effect_flag,x
+
 	jsr	sound_data_address
-	jmp	sound_fds_read
+	jmp	.next_cmd
+
 ;----------
-;MOD周波数設定
-fds_modfreq_set:
-    cmp	#CMD_FDS_MODFREQ
-    bne	fds_oto_set
+;変調周波数設定
+;XXX:サブルーチン化したほうがいい
+.modfreq_set:
+	cmp	#CMD_FDS_MODFREQ
+	bne	.keyon_set
 
-    jsr	sound_data_address
-    lda	[sound_add_low,x]
-    sta	$4086 ; MOD freq low
+	jsr	sound_data_address
+	lda	[sound_add_low,x]
+	sta	$4086			; MOD freq low
 
-    jsr	sound_data_address
-    lda	[sound_add_low,x]
+	jsr	sound_data_address
+	lda	[sound_add_low,x]
 	and	#%00001111
-    sta	$4087 ; MOD freq high
+	sta	$4087			; MOD freq high
 
-    jsr	sound_data_address
-    jmp	sound_fds_read
+	jsr	sound_data_address
+	jmp	.next_cmd
 
 ;----------
-fds_oto_set:
+.keyon_set:
+	;XXX:知らないコマンドが来たときの処理はあったほうが良いかも
 	sta	sound_sel,x		;処理はまた後で
 	jsr	sound_data_address
 	lda	[sound_add_low,x]	;音長読み出し
@@ -466,20 +530,27 @@ fds_oto_set:
 	sta	$4083
 ;	sta	rest_flag,x		;effect_initでやってるのでいらない
 	jsr	fds_freq_set		;周波数セットへ
+
+	;音量レジスタの設定
+	;(.volume_setや.hwenv_setから遅延された処理)
 	lda	fds_volume
 	sta	$4080
+
 	jsr	effect_init
 	ldx	<channel_selx2
-;hard enveope init
 
-	lda	fds_hard_count_2
-	sta	fds_hard_count_1
+	;ハードウェアLFOの設定
+	lda	fds_hard_count_2	;ディレイカウントの初期化
+	sta	fds_hard_count_1	;
 	lda	#$00
-	sta	$4084
-	sta	$4085
-	sta	$4086
-	sta	$4087
-	rts
+	sta	$4084			;LFO無効化 - ディレイ後に有効化
+	sta	$4085			;
+	sta	$4086			;
+	sta	$4087			;
+
+	rts				;音長を伴うコマンドなのでこのまま終了
+
+
 ;-------------------------------------------------------------------------------
 sound_fds_write:
 	ldx	<channel_selx2
