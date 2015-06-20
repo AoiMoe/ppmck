@@ -644,15 +644,32 @@ sound_fds_pitch_enve:
 	jsr	sound_fds_write
 	jsr	pitch_enverope_address
 	rts
-;-------------------------------------------------------------------------------
-sound_fds_note_enve
+
+
+;--------------------
+; sound_fds_note_enve : ノートエンベロープのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+;	temporary2 : 破壊
+;	sound_freq_{low,high},x : 反映
+;	sound_lasthigh,x : 反映
+;	音程 : 反映
+;	arpe_add_{low,high},x : 反映
+; 備考:
+;	XXX:サブルーチン名
+;
+sound_fds_note_enve:
 	jsr	note_enve_sub
-	bcs	.end4			;0なので書かなくてよし
+	bcs	.done			;0なので書かなくてよし
 	jsr	fds_freq_set
 	jsr	sound_fds_write
 	jsr	arpeggio_address
 	rts
-.end4
+.done:
 ;	jsr	fds_freq_set
 	jsr	arpeggio_address
 	rts
