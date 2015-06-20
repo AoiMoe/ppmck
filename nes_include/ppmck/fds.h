@@ -673,37 +673,71 @@ sound_fds_note_enve:
 ;	jsr	fds_freq_set
 	jsr	arpeggio_address
 	rts
-;-------------------------------------------------------------------------------
+
+
+;--------------------
+; sound_fds_hard_enve : ハードウェアLFOのフレーム処理
+;
+; 副作用:
+;	temporary : 破壊
+;	音源 : 反映
+;	バンク : 切り替え
+; 備考:
+;	XXX:エフェクトデータの読み出し前にバンク切り替えが行われていないので、
+;	    最悪の場合暴走する。そもそもコマンド処理におけるfds_hard_selectの
+;	    格納値も間違っているので、そちらも直す必要がある。
+;
 sound_fds_hard_enve:
+	;エフェクトディレイ処理
 	lda	fds_hard_count_1
-	beq	start_effect
+	beq	.process_mod_param	;fds_hard_count_1が0ならエフェクト開始
 	cmp	#$ff
-	beq	return6809
-	dec	fds_hard_count_1
-return6809:
+	beq	.done			;fds_hard_count_1が$ffなら、既にエフェクトを開始してるので何もしない
+	dec	fds_hard_count_1	;ディレイカウントを減らす
+.done:
 	rts
-start_effect:
+
+	;変調パラメータの解釈
+	;fds_hard_selectは1変調パラメータセットあたり16バイト確保されている
+	;各変調パラメータセットの先頭バイトはディレイカウント(0-254)
+	;その次のバイトからは、レジスタ書き込みインタプリタコードで、
+	;   1. レジスタオフセット1バイト+データ1バイトのペア (計2バイト)
+	;   2. 88h+変調波形番号 (計2バイト)
+	;   3. ffh (計1バイト)
+	;を任意のパターンで計15バイト以下並べることができる。
+	;(ただし、mckcが実際に吐くパターンは固定されている)
+	;1.は、$4000+オフセットの位置に書き込む($4084-$4087の設定に使う)
+	;2.は、番号に対応する変調波形データの書き込みを指示する
+	;3.は、エフェクトデータの終端を意味する
+	;書き込まれている順番で処理される。
+	;
+	;XXX:どうせ定型処理なので、もっと単純なパラメータ構造でいいと思うし、
+	;    この手のインタプリタはバグに対して脆弱。
+.process_mod_param:
 	lda	fds_hard_select
 	tax
-start_effect_2:
-	lda	fds_effect_select,x
+.interpreter_loop:
+	lda	fds_effect_select,x	;XXX:バンク切り替えてない
 	tay
 	inx
 	cmp	#$ff
-	beq	count_effect
+	beq	.done_interpreter
 	cmp	#$88
-	beq	set_4088
+	beq	.set_wavetable
 	lda	fds_effect_select,x
 	sta	$4000,y
 	inx
-	jmp	start_effect_2
+	jmp	.interpreter_loop
 
-count_effect:
-	dec	fds_hard_count_1
+	;変調パラメータ設定終了
+	;XXX:短いものの分かりにくいコード
+.done_interpreter:
+	dec	fds_hard_count_1	;fds_hard_count_1 = $ff
 	rts
-set_4088:
-	lda	fds_effect_select,x
-	stx	temporary
+
+.set_wavetable:
+	lda	fds_effect_select,x	;a = 波形データ番号
+	stx	temporary		;XXX:phx/plxのほうがいい
 
 	asl	a
 	asl	a
@@ -711,21 +745,24 @@ set_4088:
 	asl	a
 	asl	a
 	tay
+
+	;変調テーブル(32バイト)の転送
 	ldx	#$00
-fds_4088_write:
-	; 定義バンク切り替え
+.wave_write_loop:
+	;バンク切り替え
+	;XXX:ループの外に出すべし
 	lda	#bank(fds_4088_data)*2
 	jsr	change_bank
-
+	;データ転送
 	lda	fds_4088_data,y
 	sta	$4088
 	iny
 	inx
 	cpx	#$20
-	beq	oshimai
-	jmp	fds_4088_write
-oshimai:
+	beq	.wave_write_done	;XXX:bne .wave_write_loopで良い
+	jmp	.wave_write_loop		;
+
+.wave_write_done:
 	ldx	temporary
 	inx
-	jmp	start_effect_2
-;-------------------------------------------------------------------------------
+	jmp	.interpreter_loop
