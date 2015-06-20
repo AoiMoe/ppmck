@@ -27,23 +27,30 @@ fds_sound_init:
 	sta	$408a
 	rts
 
+
+;--------------------
+; sound_fds : NMI割り込みエントリポイント
+;
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_fds:
 	ldx	<channel_selx2
 	dec	sound_counter,x		;カウンタいっこ減らし
 	beq	.sound_read_go		;ゼロならサウンド読み込み
 	jsr	fds_do_effect		;ゼロ以外ならエフェクトして
 	rts				;おわり
-.sound_read_go
+.sound_read_go:
 	jsr	sound_fds_read
 	jsr	fds_do_effect
 	lda	rest_flag,x
 	and	#RESTF_KEYON		;キーオンフラグ
-	beq	.end1
-	jsr	sound_fds_write	;立っていたらデータ書き出し
+	beq	.done
+	jsr	sound_fds_write		;立っていたらデータ書き出し
 	lda	rest_flag,x
 	and	#~RESTF_KEYON		;キーオンフラグオフ
 	sta	rest_flag,x
-.end1
+.done
 	rts
 
 ;-------
