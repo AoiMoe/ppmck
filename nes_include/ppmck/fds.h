@@ -623,7 +623,22 @@ sound_fds_lfo:
 	jsr	lfo_sub
 	jsr	sound_fds_write
 	rts
-;-------------------------------------------------------------------------------
+
+
+;--------------------
+; sound_fds_pitch_enve : ピッチエンベロープのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	音程 : 反映
+;	(以下pitch_subからの間接的な副作用)
+;	pitch_add_{low,high},x : 反映
+;	sound_freq_{low,high},x : 反映
+;	バンク : #bank(pitchenve_table)
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_fds_pitch_enve:
 	jsr	pitch_sub
 	jsr	sound_fds_write
