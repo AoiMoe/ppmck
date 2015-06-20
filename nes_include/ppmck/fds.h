@@ -120,8 +120,25 @@ fds_do_effect:
 	rts
 
 
+;-------------------------------------------------------------------------------
+;register write sub routines
+;-------------------------------------------------------------------------------
 
-;------------------------------------------------
+;--------------------
+; fds_freq_set : ノート番号を周波数データに変換する
+;
+; 入力:
+;	sound_sel,x : 現在のノート番号
+;	detune_dat,x : 符号付きデチューン値(detune_write_subへの間接的入力)
+; 出力:
+;	sound_freq_{low,high},x : 周波数データ
+; 副作用:
+;	a : 破壊
+;	x : channel_selx2
+;	y : 破壊
+; 備考:
+;	このサブルーチンは音源レジスタへの書き込みは行わない
+;
 fds_freq_set:
 	ldx	<channel_selx2
 	lda	sound_sel,x		;音階データ読み出し
@@ -129,36 +146,35 @@ fds_freq_set:
 	asl	a
 	tay
 
-	lda	fds_frequency_table,y	;PSG周波数テーブルからLowを読み出す
+	;音階→周波数変換テーブルのオフセット計算
+	lda	.frequency_table,y	;FDS周波数テーブルからLowを読み出す
 	sta	sound_freq_low,x	;書き込み
-	lda	fds_frequency_table+1,y	;PSG周波数テーブルからHighを読み出す
+	lda	.frequency_table+1,y	;FDS周波数テーブルからHighを読み出す
 	sta	sound_freq_high,x	;書き込み
 
-fds_oct_set1:
-
+	;オクターブ処理 - 内蔵音源とは方向が逆
 	lda	sound_sel,x		;音階データ読み出し
 	lsr	a			;上位4bitを取り出し
 	lsr	a			;
 	lsr	a			;
 	lsr	a			;
 	cmp	#$06
-	beq	fds_freq_end		;ゼロならそのまま終わり
+	beq	.done			;6ならそのまま終わり
+
 	tay
-
-fds_oct_set2:
-
-	lsr	sound_freq_high,x	;右シフト　末尾はCへ
-	ror	sound_freq_low,x	;Cから持ってくるでよ　右ローテイト
+.oct_loop:
+	;o6を基準に、1オクターブ下がるごとに分周器の設定値を1/2する
+	lsr	sound_freq_high,x	;符号なし16bit右シフト
+	ror	sound_freq_low,x	;
 	iny				;
 	cpy	#$06
-	bne	fds_oct_set2		;オクターブ分繰り返す
+	bne	.oct_loop		;オクターブ分繰り返す
 
-fds_freq_end:
+.done:
 	jsr	detune_write_sub
 	rts
 
-;-------------------------------------------------------------------------------
-fds_frequency_table:
+.frequency_table:
 	dw	$0995,$0a26,$0ac0,$0b64	;c ,c+,d ,d+
 	dw	$0c11,$0cc9,$0d8c,$0e5a	;e ,f ,f+,g
 	dw	$0f35,$101c,$1110,$1214	;g+,a ,a+,b
@@ -171,7 +187,7 @@ fds_frequency_table:
 ;		64 x 4096
 ;o6aより上の音はでません（テーブルはo6のモノ）
 ;音程が下がるほど音痴になります？
-
+;
 ;        ユニゾン：	x1.0000
 ;        短２度：	x1.0595
 ;        長２度：	x1.1225
