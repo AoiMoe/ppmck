@@ -601,7 +601,24 @@ sound_fds_softenve:
 	sta	$4080
 	jsr	enverope_address	;アドレス1個増やす
 	rts
-;-------------------------------------------------------------------------------
+
+
+;--------------------
+; sound_n106_lfo : ピッチLFOのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	音程 : 反映
+;	(以下lfo_subからの間接的な副作用)
+;	sound_freq_{low,high,n106},x : 反映
+;	lfo_start_counter,x : 反映
+;	lfo_reverse_counter,x : 反映
+;	lfo_adc_sbc_counter,x : 反映
+;	effect_flag,x : EFF_SOFTLFO_DIRビットが影響を受ける
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_fds_lfo:
 	jsr	lfo_sub
 	jsr	sound_fds_write
