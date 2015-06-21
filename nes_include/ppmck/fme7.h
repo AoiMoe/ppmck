@@ -707,11 +707,28 @@ sound_fme7_softenve:
 	tay
 	jsr	fme7_volume_write_sub
 	jmp	enverope_address
-;-------------------------------------------------------------------------------
+
+
+;--------------------
+; sound_fme7_lfo : ピッチLFOのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	音程 : 反映
+;	(以下lfo_subからの間接的な副作用)
+;	sound_freq_{low,high,n106},x : 反映
+;	lfo_start_counter,x : 反映
+;	lfo_reverse_counter,x : 反映
+;	lfo_adc_sbc_counter,x : 反映
+;	effect_flag,x : EFF_SOFTLFO_DIRビットが影響を受ける
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_fme7_lfo:
 	jsr	lfo_sub
-	jmp	fme7_write
-;-------------------------------------------------------------------------------
+	jmp	_fme7_write
+
 sound_fme7_pitch_enve:
 	jsr	pitch_sub
 	jsr	fme7_write
