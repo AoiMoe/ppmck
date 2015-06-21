@@ -314,71 +314,90 @@ FREQ_ROUND = 0
 	dw	$0000,$0FE4,$0EFF,$0E28	; o-1  a  a+ b
 ; 再生周波数 = 1789772.5 / (n*32) [Hz]
 
-;------------------------------------------------
+
+;-------------------------------------------------------------------------------
+;command read routine
+;-------------------------------------------------------------------------------
+
+;--------------------
+; sound_fme7_read : 演奏データの解釈
+;
+; 備考:
+;	XXX:音源非依存な形での共通化
+;
 sound_fme7_read:
+__fme7_next_cmd:
+.next_cmd:
 	ldx	<channel_selx2
-	
+
 	lda	sound_bank,x
 	jsr	change_bank
-	
+
 	lda	[sound_add_low,x]
+
 ;----------
 ;ループ処理1
-fme7_loop_program:
+.loop_program:
 	cmp	#CMD_LOOP1
-	bne	fme7_loop_program2
+	bne	.loop_program2
 	jsr	loop_sub
-	jmp	sound_fme7_read
+	jmp	.next_cmd
+
 ;----------
 ;ループ処理2(分岐)
-fme7_loop_program2:
+.loop_program2:
 	cmp	#CMD_LOOP2
-	bne	fme7_bank_command
+	bne	.bank_command
 	jsr	loop_sub2
-	jmp	sound_fme7_read
+	jmp	.next_cmd
+
 ;----------
 ;バンク切り替え
-fme7_bank_command:
+.bank_command:
 	cmp	#CMD_BANK_SWITCH
-	bne	fme7_wave_set
+	bne	.wave_set
 	jsr	data_bank_addr
-	jmp	sound_fme7_read
+	jmp	.next_cmd
+
 ;----------
 ;データエンド設定
-;fme7_data_end:
+;.data_end:
 ;	cmp	#CMD_END
-;	bne	fme7_wave_set
+;	bne	.wave_set
 ;	jsr	data_end_sub
-;	jmp	sound_fme7_read
+;	jmp	.next_cmd
+
 ;----------
 ;音色設定
-fme7_wave_set:
+;XXX:サブルーチン化したほうがいい
+.wave_set:
 	cmp	#CMD_TONE
-	bne	fme7_volume_set
+	bne	__fme7_volume_set
 
 	jsr	sound_data_address
 	lda	[sound_add_low,x]	;音色データ読み出し
 	pha
-	bpl	fme7_tone_env_set ; 音色エンベロープ処理
-	
+	bpl	.tone_env_set		;音色エンベロープ処理へ
+
+	;音色直接指定($80-$83)
 	lda	effect_flag,x
 	and	#~EFF_DUTYENV_ENABLE
 	sta	effect_flag,x		;音色エンベロープ無効指定
-	
+
 	pla
 	and	#%00000011
 	sta	fme7_tone,x
 
 	jsr	fme7_tone_set_sub
 	jsr	sound_data_address
-	jmp	sound_fme7_read
+	jmp	.next_cmd
 
-fme7_tone_env_set: ; 音色エンベロープ
-
+.tone_env_set:
+	;音色エンベロープ
 	lda	effect_flag,x
 	ora	#EFF_DUTYENV_ENABLE
 	sta	effect_flag,x		;音色エンベロープ有効指定
-	
+
 	pla
 	sta	duty_sel,x
 	asl	a
@@ -392,21 +411,34 @@ fme7_tone_env_set: ; 音色エンベロープ
 	lda	dutyenve_table+1,y
 	sta	duty_add_high,x
 	jsr	sound_data_address
-	jmp	sound_fme7_read
+	jmp	.next_cmd
 
+;--------------------
+; fme7_tone_set_sub - 音色を音源レジスタに設定する
+;
+; 入力:
+;	a : 音色番号(0:ミュート, 1:トーン, 2:ノイズ, 3:トーン+ノイズ)
+;	fme7_ch_selx4 : fme7チャンネル番号*4
+; 副作用:
+;	y : 破壊
+;	音源 : 反映
+; 備考:
+;	XXX:移動すべし
+;
 fme7_tone_set_sub: ; 音色セットサブルーチン(A=音色)
+	;まずノイズビット、トーンビットの両方を0にする
 	pha
 	ldy	fme7_ch_selx4
-	lda	fme7_enable_bit_tbl,y	;まずノイズビット、トーンビットの両方を0にする
-	eor	#$FF
+	lda	.enable_bit_tbl,y	;@0に対応するビットパターン
+	eor	#$FF			;反転するとマスクになる
 	and	fme7_reg7
 	sta	fme7_reg7
 	pla
-	
+
 	clc
 	adc	fme7_ch_selx4
 	tay
-	lda	fme7_enable_bit_tbl,y	;ビット読み出し
+	lda	.enable_bit_tbl,y	;ビット読み出し
 	ora	fme7_reg7		;1のを1にする(Disable)
 	sta	fme7_reg7		;
 	ldy	#$07
@@ -414,23 +446,24 @@ fme7_tone_set_sub: ; 音色セットサブルーチン(A=音色)
 	sta	FME7_DATA
 	rts
 
-	
-fme7_enable_bit_tbl:
+.enable_bit_tbl:
 ;		       @0   @1(tone)  @2(noise)   @3(both)
 	db	%00001001, %00001000, %00000001, %00000000	; ch A
 	db	%00010010, %00010000, %00000010, %00000000	; ch B
 	db	%00100100, %00100000, %00000100, %00000000	; ch C
+
 ;----------
 ;音量設定
-fme7_volume_set:
+__fme7_volume_set:
 	cmp	#CMD_VOLUME
-	bne	fme7_rest_set
+	bne	.rest_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
 	sta	temporary
-	bpl	fme7_softenve_part	;ソフトエンベ処理へ
+	bpl	.softenve_part		;ソフトエンベ処理へ
 
-fme7_volume_part:
+	;音量直接指定
+.volume_part:
 	lda	effect_flag,x
 	and	#~EFF_SOFTENV_ENABLE
 	sta	effect_flag,x		;ソフトエンベ無効指定
@@ -442,81 +475,97 @@ fme7_volume_part:
 	jsr	fme7_volume_write_sub
 
 	jsr	sound_data_address
-	jmp	sound_fme7_read
+	jmp	__fme7_next_cmd
 
-fme7_softenve_part:
+	;ソフトエンベ有効化
+.softenve_part:
 	jsr	volume_sub
-	jmp	sound_fme7_read
-;----------
-fme7_rest_set:
-	cmp	#CMD_REST
-	bne	fme7_lfo_set
+	jmp	__fme7_next_cmd
 
+;----------
+;休符
+.rest_set:
+	cmp	#CMD_REST
+	bne	.lfo_set
+
+	;休符フラグを立てる
 	lda	rest_flag,x
 	ora	#RESTF_REST
 	sta	rest_flag,x
 
+	;ウェイトを設定
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
 	sta	sound_counter,x
 
+	;音を停止する
 	ldy	#$00			;ボリューム0を書き込み
 	jsr	fme7_volume_write_sub
 
 	jsr	sound_data_address
-	rts
+	rts				;音長を伴うコマンドなのでこのまま終了
+
 ;----------
-fme7_lfo_set:
+;ピッチLFO設定
+.lfo_set:
 	cmp	#CMD_SOFTLFO
-	bne	fme7_detune_set
+	bne	.detune_set
 	jsr	lfo_set_sub
-	jmp	sound_fme7_read
+	jmp	__fme7_next_cmd
+
 ;----------
-fme7_detune_set:
+;デチューン設定
+.detune_set:
 	cmp	#CMD_DETUNE
-	bne	fme7_pitch_set
+	bne	.pitch_set
 	jsr	detune_sub
-	jmp	sound_fme7_read
+	jmp	__fme7_next_cmd
+
 ;----------
 ;ピッチエンベロープ設定
-fme7_pitch_set:
+.pitch_set:
 	cmp	#CMD_PITCHENV
-	bne	fme7_arpeggio_set
+	bne	.arpeggio_set
 	jsr	pitch_set_sub
-	jmp	sound_fme7_read
+	jmp	__fme7_next_cmd
+
 ;----------
 ;ノートエンベロープ設定
-fme7_arpeggio_set:
+.arpeggio_set:
 	cmp	#CMD_NOTEENV
-	bne	fme7_freq_direct_set
+	bne	.freq_direct_set
 	jsr	arpeggio_set_sub
-	jmp	sound_fme7_read
+	jmp	__fme7_next_cmd
+
 ;----------
 ;再生周波数直接設定
-fme7_freq_direct_set:
+.freq_direct_set:
 	cmp	#CMD_DIRECT_FREQ
-	bne	fme7_y_command_set
+	bne	.y_command_set
 	jsr	direct_freq_sub
-	rts
+	rts				;音長を伴うコマンドなのでこのまま終了
+
 ;----------
 ;ｙコマンド設定
-fme7_y_command_set:
+.y_command_set:
 	cmp	#CMD_WRITE_REG
-	bne	fme7_wait_set
+	bne	.wait_set
 	jsr	y_sub
-	jmp	sound_fme7_read
+	jmp	__fme7_next_cmd
+
 ;----------
 ;ウェイト設定
-fme7_wait_set:
+.wait_set:
 	cmp	#CMD_WAIT
-	bne	fme7_hard_speed_set
+	bne	.hwenv_speed_set
 	jsr	wait_sub
-	rts
+	rts				;音長を伴うコマンドなのでこのまま終了
+
 ;----------
 ;ハードウェアエンベロープ速度設定
-fme7_hard_speed_set:
+.hwenv_speed_set:
 	cmp	#CMD_FME7_HWENV_SPEED
-	bne	fme7_noise_set
+	bne	.noise_set
 	jsr	sound_data_address
 	ldy	#$0B
 	lda	[sound_add_low,x]
@@ -528,21 +577,25 @@ fme7_hard_speed_set:
 	sty	FME7_ADDR
 	sta	FME7_DATA
 	jsr	sound_data_address
-	jmp	sound_fme7_read
+	jmp	__fme7_next_cmd
+
 ;----------
 ;ノイズ周波数設定
-fme7_noise_set:
+.noise_set:
 	cmp	#CMD_FME7_NOISE_FREQ
-	bne	fme7_oto_set
+	bne	.keyon_set
 	jsr	sound_data_address
 	ldy	#$06
 	lda	[sound_add_low,x]
 	sty	FME7_ADDR
 	sta	FME7_DATA
 	jsr	sound_data_address
-	jmp	sound_fme7_read
+	jmp	__fme7_next_cmd
+
 ;----------
-fme7_oto_set:
+;キーオンコマンド
+.keyon_set:
+	;XXX:知らないコマンドが来たときの処理はあったほうが良いかも
 	sta	sound_sel,x		;処理はまた後で
 	jsr	sound_data_address
 	lda	[sound_add_low,x]	;音長読み出し
@@ -550,7 +603,8 @@ fme7_oto_set:
 	jsr	sound_data_address
 	jsr	fme7_freq_set		;周波数セットへ
 	jsr	effect_init
-	rts
+	rts				;音長を伴うコマンドなのでこのまま終了
+
 ;-------------------------------------------------------------------------------
 sound_fme7_write:
 	ldy	fme7_volume,x
