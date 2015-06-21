@@ -200,29 +200,49 @@ vrc6_frq_high_reg_write:
 	sta	[VRC6_DST_REG_LOW],y
 	rts
 
-vrc6_mute_write:
-	ldy	#$00
-	ldx	<channel_selx2
-	cpx	#(PTRVRC6+2)*2
-	beq	.saw
-	lda	register_low,x
-	ora	register_high,x
-	and	#%01110000
-	sta	[VRC6_DST_REG_LOW],y
-	rts
-.saw
-	lda	#$00
-	sta	[VRC6_DST_REG_LOW],y
-	rts
-	
-	;lda	sound_freq_high,x
-	;and	#%01111111		;channel disable
-	;ldy	#VRC6_REG_FREQ_H
-	;sta	[VRC6_DST_REG_LOW],y
-	;rts
-	
 
-;----------------------------------------
+;--------------------
+; vrc6_mute_write : 音を止める
+;
+; 入力:
+;	channel_selx2 : グローバルチャンネル番号*2
+;	VRC6_DST_REG_LOW(2バイト) : レジスタベースアドレス
+; 副作用:
+;	a : 破壊
+;	x : channel_selx2になる
+;	y : 破壊
+;	音源 : 反映
+;
+vrc6_mute_write:
+	.if 1
+		;音量を0にする
+		ldy	#$00
+		ldx	<channel_selx2
+		cpx	#(PTRVRC6+2)*2
+		beq	.saw
+
+		;ch1,2
+		;XXX:単純に0を書いたらダメなの?
+		lda	register_low,x
+		ora	register_high,x
+		and	#%01110000
+		sta	[VRC6_DST_REG_LOW],y
+		rts
+
+		;ch3
+.saw:
+		lda	#$00
+		sta	[VRC6_DST_REG_LOW],y
+		rts
+	.else
+		;チャンネルイネーブルを0にする
+		lda	sound_freq_high,x
+		and	#%01111111		;channel disable
+		ldy	#VRC6_REG_FREQ_H
+		sta	[VRC6_DST_REG_LOW],y
+		rts
+	.endif
+
 sound_vrc6:
 	lda	<channel_sel
 	cmp	#PTRVRC6+3
