@@ -679,7 +679,22 @@ sound_vrc6_read:
 
 
 ;-------------------------------------------------------------------------------
-sound_vrc6_write:
+;register write sub routines
+;-------------------------------------------------------------------------------
+
+;--------------------
+; vrc6_write_volume_and_freq : 音量レジスタと分周器レジスタへ書き込む
+;
+; 入力:
+;	x : channel_selx2
+;	fme7_volume,x : ボリューム値
+;	sound_freq_{low,high,n106},x : 分周器レジスタの値
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+;	音源 : 反映
+;
+vrc6_write_volume_and_freq:
 	jsr	vrc6_ctrl_reg_write
 	jsr	vrc6_frq_reg_write
 	rts
