@@ -212,7 +212,7 @@ fme7_do_effect:
 	lda	effect_flag,x
 	and	#EFF_NOTEENV_ENABLE
 	beq	.done
-	; 同一フレームのsound_fds_readの処理でキーオンが行われたかどうかで
+	; 同一フレームのsound_fme7_readの処理でキーオンが行われたかどうかで
 	; ノートエンベロープの処理が異なる
 	lda	rest_flag,x
 	and	#RESTF_KEYON
