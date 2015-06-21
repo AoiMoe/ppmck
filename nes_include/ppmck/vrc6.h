@@ -826,18 +826,26 @@ sound_vrc6_note_enve
 ;	jsr	vrc6_freq_set
 	jsr	arpeggio_address
 	rts
-;-------------------------------------------------------------------------------
+
+
+;--------------------
+; sound_vrc6_tone_enve : 音色エンベロープの処理
+;
+; 副作用:
+;	音色 : 反映
+;	バンク : dutyenve_tableのあるバンク
+; 備考:
+;	XXX:sound_duty_enveropeと共通化できそう
+;
 sound_vrc6_dutyenve:
 	ldx	<channel_selx2
 
-	; 定義バンク切り替え
 	lda	#bank(dutyenve_table)*2
 	jsr	change_bank
 
-
-	indirect_lda	duty_add_low		;エンベロープデータ読み込み
-	cmp	#$ff			;最後かどーか
-	beq	vrc6_return22		;最後ならそのままおしまい
+	indirect_lda	duty_add_low	;エンベロープデータ読み込み
+	cmp	#$ff			;末尾かどうか
+	beq	.do_repeat		;末尾ならばリピート処理へ
 	asl	a
 	asl	a
 	asl	a
@@ -847,7 +855,7 @@ sound_vrc6_dutyenve:
 	jsr	duty_enverope_address	;アドレス一個増やして
 	rts				;おしまい
 
-vrc6_return22:
+.do_repeat:
 	lda	duty_sel,x
 	asl	a
 	tay
