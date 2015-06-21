@@ -76,9 +76,17 @@
 FME7_ADDR	=	$C000
 FME7_DATA	=	$E000
 
-;----------------------------------------
+
+;--------------------
+; fme7_sound_init : Sunsoft 5Bの初期化
+;
+; 副作用:
+;	a : 破壊
+;	音源 : 初期化
+;
 fme7_sound_init:
-	ldy	#$0A			;Volumeを0に
+	;音量(レジスタ$8-$A)を0に
+	ldy	#$0A
 	lda	#$00
 .loop:
 	sty	FME7_ADDR
@@ -86,7 +94,9 @@ fme7_sound_init:
 	dey
 	cpy	#$07
 	bne	.loop
-	lda	#%11111000		;ToneをEnableに
+
+	;各チャンネルのtoneを許可、ノイズを不許可
+	lda	#%11111000
 	sty	FME7_ADDR
 	sta	FME7_DATA
 	sta	fme7_reg7
