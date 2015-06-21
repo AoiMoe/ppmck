@@ -729,9 +729,24 @@ sound_fme7_lfo:
 	jsr	lfo_sub
 	jmp	_fme7_write
 
+
+;--------------------
+; sound_fme7_pitch_enve : ピッチエンベロープのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	音程 : 反映
+;	(以下pitch_subからの間接的な副作用)
+;	pitch_add_{low,high},x : 反映
+;	sound_freq_{low,high},x : 反映
+;	バンク : #bank(pitchenve_table)
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_fme7_pitch_enve:
 	jsr	pitch_sub
-	jsr	fme7_write
+	jsr	_fme7_write
 	jmp	pitch_enverope_address
 ;-------------------------------------------------------------------------------
 sound_fme7_tone_enve:
