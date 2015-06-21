@@ -1,19 +1,51 @@
-;memo
+;-----------------------------------------------------------------------
+;VRC6 sound driver
+;-----------------------------------------------------------------------
+
 ;
-;9000, a000 :GDDDVVVV 
-;	G=0 normal, G=1 digitized
-;	D duty cycle
-;	V volume
-;9001, a001, b001 :FFFFFFFF
-;	F lower 8 bits of freq data
-;9002, a002, b002 :X---FFFF
-;	X=0 channel disable, X=1 channel enable
-;	F higher 4 bits of freq data
-;b000 :--PPPPPP
-;	P Phaser accumulator input bits
+;レジスタマップ(VRC6a:KONAMI PCB 351951)
 ;
-;9003
-;	Sound initialize?
+;$9000, $a000 : 音量など(ch1,2)
+;	GDDDVVVV
+;	||||||||
+;       ||||++++-- volume
+;	|+++------ duty cycle
+;	+--------- mode 0:normal, 1:digitized(unused in mck)
+;
+;$b000 : のこぎり波掃引用アキュムレータ増分(ch3)
+;	--PPPPPP
+;	  ||||||
+;	  ++++++-- Phaser accumulator input bits
+;	ch3は8カウントで一周期ののこぎり波を生成する。
+;	1カウントごとにこの増分値が8bitのアキュムレータに足されてゆき、
+;	8カウントごとに0に戻される。ミキサーへの出力値はアキュムレータの
+;	上位5bitとなる。1カウントは分周器出力の2クロックに相当する。
+;	実質的に音量レジスタとなる。
+;
+;$9001, $a001, $b001 : 分周器カウンタ(下位8ビット) (ch1,2,3)
+;	LLLLLLLL
+;	||||||||
+;	++++++++-- lower 8 bits of freq data
+;
+;$9002, $a002, $b002 : 分周器カウンタ(上位4ビット)など (ch1,2,3)
+;	X---FFFF
+;	|   ||||
+;	|   ++++-- higher 4 bits of freq data
+;	+--------- 0:channel disable, 1:channel enable
+;;
+;$9003 : プリスケーラーなど
+;	-----ABH
+;	     |||
+;	     ||+-- 1:halt master clock
+;	     |+--- 1:bypass the latter prescaler
+;	     +---- 1:bypass all prescalers
+;	プリスケーラーとして1/16が2段あり、都合1/256される。
+;	Bビットを1にすると後段をバイパスし、Aビットを1にすると全段バイパスする。
+;	これらの結果が反映されたものが各チャンネルの分周器に入力される。
+;	Hビットが1の場合にはマスタークロックが停止する。
+;
+;なお、VRC6b(KONAMI PCB 351949A)では、$x001と$x002が入れ替わっている。
+;
 
 	.ifndef	VRC6_BOARD_TYPE
 VRC6_BOARD_TYPE	=	0		;351949A基板を使用する場合1に
