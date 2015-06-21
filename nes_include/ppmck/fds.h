@@ -520,6 +520,7 @@ sound_fds_read:
 	jmp	.next_cmd
 
 ;----------
+;キーオンコマンド
 .keyon_set:
 	;XXX:知らないコマンドが来たときの処理はあったほうが良いかも
 	sta	sound_sel,x		;処理はまた後で
