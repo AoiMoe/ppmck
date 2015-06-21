@@ -73,12 +73,17 @@ vrc6_sound_init:
 	sta	$9003
 	rts
 
-;-----------------------------------------------------------
-;channel_selを読んで
-;VRC6の1番目なら[VRC6_DST_REG_LOW],yで9000+yを指すようにする
-;VRC6の2番目なら[VRC6_DST_REG_LOW],yでa000+yを指すようにする
-;VRC6の3番目なら[VRC6_DST_REG_LOW],yでb000+yを指すようにする
 
+;--------------------
+; vrc6_dst_adr_set : チャンネルに対応するレジスタベースアドレスを計算する
+;
+; 入力:
+;	channel_sel : 現在のグローバルなチャンネル番号
+; 出力:
+;	VRC6_DST_REG_LOW(2バイト) : レジスタベースアドレス($9000/$a000/$b000)
+; 副作用:
+;	a : 破壊
+;
 vrc6_dst_adr_set:
 	lda	<channel_sel
 	clc				;VRC6の何チャンネル目か？
