@@ -96,21 +96,37 @@ vrc6_dst_adr_set:
 	lda	#0
 	sta	VRC6_DST_REG_LOW	;毎回0しか入らないので無駄かも
 	rts
-;-----------------------------------------------------------
 
-;レジスタ書き込み
 
+;--------------------
+; vrc6_ctrl_reg_write : 音量レジスタ(+$00)書き込み
+;
+; 入力:
+;	channel_selx2 : グローバルチャンネル番号*2
+;	register_low,x : 音量
+;	register_high,x : デューティー比(ch1,2)
+;	VRC6_DST_REG_LOW(2バイト) : レジスタベースアドレス
+; 副作用:
+;	a : 破壊
+;	x : channel_selx2になる
+;	y : 破壊
+;	音源 : 反映
+;
 vrc6_ctrl_reg_write:
 	ldy	#$00
 	ldx	<channel_selx2
 	cpx	#(PTRVRC6+2)*2
 	beq	.saw
+
+	;ch1,2
 	lda	register_low,x
 	ora	register_high,x
 	and	#%01111111
 	sta	[VRC6_DST_REG_LOW],y
 	rts
-.saw
+
+	;ch3
+.saw:
 	lda	register_low,x
 	and	#%00111111
 	sta	[VRC6_DST_REG_LOW],y
