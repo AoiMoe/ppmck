@@ -748,7 +748,14 @@ sound_fme7_pitch_enve:
 	jsr	pitch_sub
 	jsr	_fme7_write
 	jmp	pitch_enverope_address
-;-------------------------------------------------------------------------------
+
+
+;--------------------
+; sound_fme7_tone_enve : 音色エンベロープの処理
+;
+; 備考:
+;	実体はfme7_tone_enve_subなのでそちらを参照
+;
 sound_fme7_tone_enve:
 	jmp	fme7_tone_enve_sub
 ;-------------------------------------------------------------------------------
