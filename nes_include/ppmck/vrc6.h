@@ -338,61 +338,99 @@ vrc6_do_effect:
 .done:
 	rts
 
-;------------------------------------------------
+
+;-------------------------------------------------------------------------------
+;register write sub routines
+;-------------------------------------------------------------------------------
+
+;--------------------
+; vrc6_freq_set : ノート番号を周波数データに変換する
+;
+; 入力:
+;	sound_sel,x : 現在のノート番号
+;	detune_dat,x : 符号付きデチューン値(detune_write_subへの間接的入力)
+; 出力:
+;	sound_freq_{low,high},x : 周波数データ
+; 副作用:
+;	a : 破壊
+;	x : channel_selx2
+;	y : 破壊
+; 備考:
+;	このサブルーチンは音源レジスタへの書き込みは行わない
+;
 vrc6_freq_set:
 	ldx	<channel_selx2
 	lda	sound_sel,x		;音階データ読み出し
+
+	;音階→周波数変換テーブルのオフセット計算
 	and	#%00001111		;下位4bitを取り出して
-	asl	a
-	tay
+	asl	a			;16bit配列オフセットに変換し
+	tay				;yへ格納
+
+	;矩形波とのこぎり波でテーブルを切り替える
+	;XXX:もっと単純に「ch3のときはyに32を足す」みたいなコードでいいと思う
+	;XXX:他の音源と同様に、テーブルはこのサブルーチン内に局所化すべし
 	lda	<channel_sel
 	cmp	#PTRVRC6+2
-	beq	.vrc6_saw_frequency_get
+	beq	.saw
 
-	lda	vrc6_pls_frequency_table,y	;PSG周波数テーブルからLowを読み出す
-	sta	sound_freq_low,x	;書き込み
-	lda	vrc6_pls_frequency_table+1,y	;PSG周波数テーブルからHighを読み出す
-	sta	sound_freq_high,x	;書き込み
-	jmp	.vrc6_oct_set1
-	
-.vrc6_saw_frequency_get:
-	lda	vrc6_saw_frequency_table,y	;周波数テーブルからLowを読み出す
-	sta	sound_freq_low,x	;書き込み
-	lda	vrc6_saw_frequency_table+1,y	;周波数テーブルからHighを読み出す
-	sta	sound_freq_high,x	;書き込み
-	
-.vrc6_oct_set1:
+	;ch1,2
+	lda	vrc6_pls_frequency_table,y	;テーブルからLowを読み出す
+	sta	sound_freq_low,x		;書き込み
+	lda	vrc6_pls_frequency_table+1,y	;テーブルからHighを読み出す
+	sta	sound_freq_high,x		;書き込み
+	jmp	.do_oct
 
+	;ch3
+.saw:
+	lda	vrc6_saw_frequency_table,y	;テーブルからLowを読み出す
+	sta	sound_freq_low,x		;書き込み
+	lda	vrc6_saw_frequency_table+1,y	;テーブルからHighを読み出す
+	sta	sound_freq_high,x		;書き込み
+
+	;オクターブ処理
+.do_oct:
 	lda	sound_sel,x		;音階データ読み出し
 	lsr	a			;上位4bitを取り出し
 	lsr	a			;
 	lsr	a			;
 	lsr	a			;
-;	pha				;一旦避難
-;	lda	<channel_sel
-;	cmp	#PTRVRC6+2
-;	beq	.saw_skip
-;.squ_oct_adjust				;矩形波 オクターブ下げ
-;	pla				;コンパイラ側でやったほうがいいのか？
-	sec
-	sbc	#$01
-;	jmp	.branch_end
-;.saw_skip				;ノコギリ波 オクターブ下げ
-;	pla				;
-;	sec
-;	sbc	#$
-;.branch_end
-	beq	vrc6_freq_end		;ゼロならそのまま終わり
+
+	;オクターブ調整(mckcでやるべきか?)
+	.if	1
+		;無条件に1オクターブ下げる
+		sec
+		sbc	#$01
+	.else
+		;チャンネルごとにオクターブ調整するコード(無効)
+		pha
+		lda	<channel_sel
+		cmp	#PTRVRC6+2
+		beq	.oct_saw
+
+		;矩形波
+		pla
+		sec
+		sbc	#$01
+		jmp	.oct_arrange_done
+		;ノコギリ波
+.oct_saw:
+		pla
+		sec
+		sbc	#$01
+.oct_arrange_done:
+	.endif
+
+	beq	.done			;ゼロならそのまま終わり
 	tay
 
-vrc6_oct_set2:
-
-	lsr	sound_freq_high,x	;右シフト　末尾はCへ
-	ror	sound_freq_low,x	;Cから持ってくるでよ　右ローテイト
+.oct_loop:
+	lsr	sound_freq_high,x	;符号なし16bit右シフト
+	ror	sound_freq_low,x	;
 	dey				;
-	bne	vrc6_oct_set2		;オクターブ分繰り返す
+	bne	.oct_loop		;オクターブ分繰り返す
 
-vrc6_freq_end:
+.done:
 	jsr	detune_write_sub
 	rts
 ;---------------------------------------------------------------
