@@ -1485,7 +1485,7 @@ enverope_address:
 ;	バンク : dutyenve_tableのあるバンク
 ; 備考:
 ;	XXX:つづり
-;	XXX:internal.hへ移動すべきでは
+;	XXX:レジスタ書き込み部分を分離すればfme7_tone_enve_subと共通化できそう
 ;
 sound_duty_enverope:
 	ldx	<channel_selx2
