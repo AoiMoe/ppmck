@@ -228,57 +228,86 @@ fme7_do_effect:
 	jsr	arpeggio_address
 .done:
 	rts
-;------------------------------------------------
+
+
+;-------------------------------------------------------------------------------
+;register write sub routines
+;-------------------------------------------------------------------------------
+
+;--------------------
+; fme7_freq_set : ノート番号を周波数データに変換する
+;
+; 入力:
+;	sound_sel,x : 現在のノート番号
+;	detune_dat,x : 符号付きデチューン値(detune_write_subへの間接的入力)
+; 出力:
+;	sound_freq_{low,high},x : 周波数データ
+; 副作用:
+;	a : 破壊
+;	x : channel_selx2
+;	y : 破壊
+; 備考:
+;	このサブルーチンは音源レジスタへの書き込みは行わない
+;
 fme7_freq_set:
+	;トーンかノイズかのチェック
+	;XXX:この音源では本来、ノイズジェネレータは全チャンネルで
+	;共有されるのと、トーンとノイズが同時に出せるので、
+	;内蔵音源と同じ方法でノイズ周波数を指定するのは無理があるのだが。
 	ldx	<channel_selx2
 	lda	fme7_tone,x
 	cmp	#$02			;ノイズなら
-	beq	fme7_noise_freq_set	;飛ぶ
+	beq	.noise_freq_set		;飛ぶ
+
+	;トーン周波数の処理
 	lda	sound_sel,x		;音階データ読み出し
 	and	#%00001111		;下位4bitを取り出して
 	asl	a
 	tay
 
-	lda	fme7_frequency_table,y	;Sun5B周波数テーブルからLowを読み出す
+	;音階→周波数変換テーブルのオフセット計算
+	lda	.frequency_table,y	;Sun5B周波数テーブルからLowを読み出す
 	sta	sound_freq_low,x	;書き込み
-	lda	fme7_frequency_table+1,y	;Sun5B周波数テーブルからHighを読み出す
+	lda	.frequency_table+1,y	;Sun5B周波数テーブルからHighを読み出す
 	sta	sound_freq_high,x	;書き込み
 
+	;オクターブ処理
 	lda	sound_sel,x		;音階データ読み出し
 	lsr	a			;上位4bitを取り出し
 	lsr	a			;
 	lsr	a			;
 	lsr	a			;
-	beq	fme7_freq_end		;ゼロならそのまま終わり
+	beq	.done			;ゼロならそのまま終わり
+
 	tay
-
-fme7_oct_set2:
-
-	lsr	sound_freq_high,x	;右シフト　末尾はCへ
-	ror	sound_freq_low,x	;Cから持ってくるでよ　右ローテイト
+.oct_loop:
+	;1オクターブ上がるごとに分周器の設定値を1/2する
+	lsr	sound_freq_high,x	;符号なし16bit右シフト
+	ror	sound_freq_low,x	;
 	dey				;
-	bne	fme7_oct_set2		;オクターブ分繰り返す
+	bne	.oct_loop		;オクターブ分繰り返す
 
 FREQ_ROUND = 0
+	;四捨五入
 	.if	FREQ_ROUND
 	lda	sound_freq_low,x
-	adc	#$00			;最後に切り捨てたCを足す(四捨五入)
+	adc	#$00			;上のrorからのキャリーを足す
 	sta	sound_freq_low,x
-	bcc	fme7_freq_end
+	bcc	.done
 	inc	sound_freq_high,x
 	.endif
 
-fme7_freq_end:
+.done:
 	jsr	detune_write_sub
 	rts
 
-;----
-fme7_noise_freq_set:
+	;ノイズ周波数の処理
+.noise_freq_set:
 	lda	sound_sel,x		;音階データ読み出し
 	sta	sound_freq_low,x	;そのまま
 	rts
-;------------------------------------------------
-fme7_frequency_table:
+
+.frequency_table:
 	dw	$0D5C,$0C9D,$0BE7,$0B3C	; o0c  c+ d  d+
 	dw	$0A9B,$0A02,$0973,$08EB	;   e  f  f+ g
 	dw	$086B,$07F2,$0780,$0714	;   g+ a  a+ b
