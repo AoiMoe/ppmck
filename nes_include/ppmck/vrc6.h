@@ -698,14 +698,33 @@ vrc6_write_volume_and_freq:
 	jsr	vrc6_ctrl_reg_write
 	jsr	vrc6_frq_reg_write
 	rts
-;-----------------------------------------------------
+
+
+;-------------------------------------------------------------------------------
+;各エフェクトのフレーム処理サブルーチン
+;-------------------------------------------------------------------------------
+
+;--------------------
+;sound_vrc6_softenve : ソフトウェアエンベロープのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	a : 破壊
+;	音量 : 反映
+;	(以下volume_enve_subからの間接的な副作用)
+;	soft_add_{low,high},x : 反映
+;	バンク : softenve_tableのあるバンク
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_vrc6_softenve:
 	jsr	volume_enve_sub
 	sta	register_low,x
 	jsr	vrc6_ctrl_reg_write
-	jsr	enverope_address	;アドレス一個増やして
-	rts				;おしまい
-;-------------------------------------------------------------------------------
+	jsr	enverope_address
+	rts
+
 sound_vrc6_lfo:
 	lda	sound_freq_high,x
 	sta	temporary
