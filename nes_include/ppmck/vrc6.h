@@ -243,27 +243,39 @@ vrc6_mute_write:
 		rts
 	.endif
 
+
+;--------------------
+; sound_vrc6 : NMI割り込みエントリポイント
+;
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_vrc6:
+	;チャンネル番号チェック。
+	;XXX:不要だと思う
 	lda	<channel_sel
 	cmp	#PTRVRC6+3
-	beq	.end1
+	beq	.done
+
 	jsr	vrc6_dst_adr_set
+
 	ldx	<channel_selx2
 	dec	sound_counter,x		;カウンタいっこ減らし
 	beq	.sound_read_go		;ゼロならサウンド読み込み
 	jsr	vrc6_do_effect		;ゼロ以外ならエフェクトして
 	rts				;おわり
-.sound_read_go
+.sound_read_go:
 	jsr	sound_vrc6_read
 	jsr	vrc6_do_effect
 	lda	rest_flag,x
 	and	#RESTF_KEYON		;キーオンフラグ
-	beq	.end1			
-	jsr	sound_vrc6_write	;立っていたらデータ書き出し
+	beq	.done
+	;キーオンフラグが立っていたらデータ書き出し
+	jsr	vrc6_write_volume_and_freq	;立っていたらデータ書き出し
 	lda	rest_flag,x
 	and	#~RESTF_KEYON		;キーオンフラグオフ
 	sta	rest_flag,x
-.end1
+.done:
 	rts
 
 ;-------
