@@ -1,9 +1,10 @@
-;Sunsoft 5B (Gimmick!)
+;-----------------------------------------------------------------------
+;Sunsoft 5B driver (Gimmick!) - superset of Sunsoft FME-7 (no sound).
 ;
-;Sunsoft 5B supports noise and envelope generator.
+;Sunsoft 5B supports AY 3-8910 compatible noise and envelope generator.
 ;
 ;C000 :AY 3-8910 address(W)
-;E000 :data(W)
+;E000 :AY 3-8910 data(W) (original AY 3-8910 can be read, too)
 ;
 ;Reference: http://www.howell1964.freeserve.co.uk/parts/ay3891x_datasheet.htm
 ;           http://www.breezer.demon.co.uk/spec/tech/ay-3-8912.html etc...
@@ -15,7 +16,7 @@
 ;	----FFFF
 ;	freq=1.79/(F*16) Mhz
 ;
-;	
+;
 ;02	Ch. B freq data lower bits
 ;03	Ch. B freq data higher bits
 ;04	Ch. C freq data lower bits
@@ -37,8 +38,8 @@
 ;	||||+----------- Ch A Noise
 ;	|||+------------ Ch B Noise
 ;	||+------------- Ch C Noise
-;	|+-------------- 
-;	+--------------- 
+;	|+-------------- (GPIO A direction - unused)
+;	+--------------- (GPIO B direction - unused)
 ;
 ;
 ;08	Ch. A volume
@@ -68,8 +69,9 @@
 ;	    +----------- Continue
 ;
 ;
-;0e	
-;0f	
+;0e	GPIO A (unused)
+;0f	GPIO B (unused)
+;-----------------------------------------------------------------------
 
 FME7_ADDR	=	$C000
 FME7_DATA	=	$E000
