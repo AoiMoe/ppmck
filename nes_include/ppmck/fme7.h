@@ -261,12 +261,12 @@ fme7_freq_set:
 	beq	.noise_freq_set		;飛ぶ
 
 	;トーン周波数の処理
+	;音階→周波数変換テーブルのオフセット計算
 	lda	sound_sel,x		;音階データ読み出し
 	and	#%00001111		;下位4bitを取り出して
 	asl	a
 	tay
 
-	;音階→周波数変換テーブルのオフセット計算
 	lda	.frequency_table,y	;Sun5B周波数テーブルからLowを読み出す
 	sta	sound_freq_low,x	;書き込み
 	lda	.frequency_table+1,y	;Sun5B周波数テーブルからHighを読み出す
