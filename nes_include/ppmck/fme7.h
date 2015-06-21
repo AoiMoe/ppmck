@@ -102,10 +102,23 @@ fme7_sound_init:
 	sta	fme7_reg7
 	rts
 
-;----------------------------------------
+
+;--------------------
+; fme7_dst_adr_set : チャンネルに対応するオフセットを計算する
+;
+; 入力:
+;	channel_sel : 現在のグローバルなチャンネル番号
+; 出力:
+;	fme7_ch_sel : Sunsoft 5Bチャンネル番号(0-2)
+;	fme7_ch_selx2 : fme7_ch_sel * 2
+;	fme7_ch_selx4 : fme7_ch_sel * 4
+;	fme7_vol_regno : 音量レジスタ番号(8-10)
+; 副作用:
+;	a : 破壊
+;
 fme7_dst_adr_set:
 	lda	<channel_sel
-	sec				
+	sec
 	sbc	#PTRFME7		;FME7の何チャンネル目か？
 	sta	fme7_ch_sel
 	asl	a
