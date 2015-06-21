@@ -605,18 +605,38 @@ __fme7_volume_set:
 	jsr	effect_init
 	rts				;音長を伴うコマンドなのでこのまま終了
 
+
 ;-------------------------------------------------------------------------------
+;register write sub routines
+;-------------------------------------------------------------------------------
+
+;--------------------
+; sound_fme7_write : 音量レジスタと分周器レジスタへ書き込む
+;
+; 入力:
+;	x : channel_selx2
+;	fme7_volume,x : ボリューム値
+;	sound_freq_{low,high,n106},x : 分周器レジスタの値
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+;	音源 : 反映
+; 備考:
+;	XXX:サブルーチン名
+;	XXX:他の音源のsound_xxx_writeと処理内容が異なるのを統一させるべし
+;	    (他の音源のsound_xxx_writeに相当するのは_fme7_write)
+;
 sound_fme7_write:
 	ldy	fme7_volume,x
 	jsr	fme7_volume_write_sub
 
-fme7_write:
+_fme7_write:
 	lda	fme7_tone,x
 	cmp	#$02
-	beq	fme7_noise_write	;ノイズ時はノイズ周波数を出力
+	beq	.noise_freq_write	;ノイズ時はノイズ周波数を出力
 
+	;トーン周波数設定
 	ldy	fme7_ch_selx2		;周波数レジスタ番号
-
 	lda	sound_freq_low,x
 	sty	FME7_ADDR
 	sta	FME7_DATA
@@ -626,7 +646,8 @@ fme7_write:
 	sta	FME7_DATA
 	rts
 
-fme7_noise_write:
+	;ノイズ周波数番号
+.noise_freq_write:
 	ldy	#$06
 	lda	sound_freq_low,x
 	and	#%00011111
