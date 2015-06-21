@@ -158,7 +158,8 @@ sound_fme7:
 	lda	rest_flag,x
 	and	#RESTF_KEYON		;キーオンフラグ
 	beq	.done
-	jsr	sound_fme7_write	;立っていたらデータ書き出し
+	;キーオンフラグが立っていたらデータ書き出し
+	jsr	fme7_write_volume_and_freq
 	lda	rest_flag,x
 	and	#~RESTF_KEYON		;キーオンフラグオフ
 	sta	rest_flag,x
@@ -611,7 +612,24 @@ __fme7_volume_set:
 ;-------------------------------------------------------------------------------
 
 ;--------------------
-; sound_fme7_write : 音量レジスタと分周器レジスタへ書き込む
+; fme7_write_volume_and_freq : 音量レジスタと分周器レジスタへ書き込む
+;
+; 入力:
+;	x : channel_selx2
+;	fme7_volume,x : ボリューム値
+;	sound_freq_{low,high,n106},x : 分周器レジスタの値
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+;	音源 : 反映
+;
+fme7_write_volume_and_freq:
+	ldy	fme7_volume,x
+	jsr	fme7_volume_write_sub
+	;fallthrough
+
+;--------------------
+; sound_fme7_write : 分周器レジスタへ書き込む
 ;
 ; 入力:
 ;	x : channel_selx2
@@ -623,14 +641,8 @@ __fme7_volume_set:
 ;	音源 : 反映
 ; 備考:
 ;	XXX:サブルーチン名
-;	XXX:他の音源のsound_xxx_writeと処理内容が異なるのを統一させるべし
-;	    (他の音源のsound_xxx_writeに相当するのは_fme7_write)
 ;
 sound_fme7_write:
-	ldy	fme7_volume,x
-	jsr	fme7_volume_write_sub
-
-_fme7_write:
 	lda	fme7_tone,x
 	cmp	#$02
 	beq	.noise_freq_write	;ノイズ時はノイズ周波数を出力
@@ -727,7 +739,7 @@ sound_fme7_softenve:
 ;
 sound_fme7_lfo:
 	jsr	lfo_sub
-	jmp	_fme7_write
+	jmp	sound_fme7_write
 
 
 ;--------------------
@@ -746,7 +758,7 @@ sound_fme7_lfo:
 ;
 sound_fme7_pitch_enve:
 	jsr	pitch_sub
-	jsr	_fme7_write
+	jsr	sound_fme7_write
 	jmp	pitch_enverope_address
 
 
@@ -780,7 +792,7 @@ sound_fme7_note_enve
 	jsr	note_enve_sub
 	bcs	.done			;0なので書かなくてよし
 	jsr	fme7_freq_set
-	jsr	_fme7_write
+	jsr	sound_fme7_write
 .done:
 	jmp	arpeggio_address
 
