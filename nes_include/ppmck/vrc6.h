@@ -433,64 +433,82 @@ vrc6_freq_set:
 .done:
 	jsr	detune_write_sub
 	rts
-;---------------------------------------------------------------
+
+
+;-------------------------------------------------------------------------------
+;command read routine
+;-------------------------------------------------------------------------------
+
+;--------------------
+; sound_vrc6_read : 演奏データの解釈
+;
+; 備考:
+;	XXX:音源非依存な形での共通化
+;
 sound_vrc6_read:
+.next_cmd:
 	ldx	<channel_selx2
-	
+
 	lda	sound_bank,x
 	jsr	change_bank
-	
+
 	lda	[sound_add_low,x]
+
 ;----------
 ;ループ処理1
-vrc6_loop_program
+.loop_program:
 	cmp	#CMD_LOOP1
-	bne	vrc6_loop_program2
+	bne	.loop_program2
 	jsr	loop_sub
-	jmp	sound_vrc6_read
+	jmp	.next_cmd
+
 ;----------
 ;ループ処理2(分岐)
-vrc6_loop_program2
+.loop_program2:
 	cmp	#CMD_LOOP2
-	bne	vrc6_bank_command
+	bne	.bank_command
 	jsr	loop_sub2
-	jmp	sound_vrc6_read
+	jmp	.next_cmd
+
 ;----------
 ;バンク切り替え
-vrc6_bank_command
+.bank_command
 	cmp	#CMD_BANK_SWITCH
-	bne	vrc6_slur
+	bne	.slur
 	jsr	data_bank_addr
-	jmp	sound_vrc6_read
+	jmp	.next_cmd
+
 ;----------
 ;データエンド設定
-;vrc6_data_end:
+;.data_end:
 ;	cmp	#CMD_END
-;	bne	vrc6_wave_set
+;	bne	.wave_set
 ;	jsr	data_end_sub
-;	jmp	sound_vrc6_read
+;	jmp	.next_cmd
+
 ;----------
 ;スラー
-vrc6_slur:
+.slur:
 	cmp	#CMD_SLUR
-	bne	vrc6_wave_set
+	bne	.wave_set
 	lda	effect2_flags,x
 	ora	#EFF2_SLUR_ENABLE
 	sta	effect2_flags,x
 	jsr	sound_data_address
-	jmp	sound_vrc6_read
+	jmp	.next_cmd
 
 ;----------
 ;音色設定
-vrc6_wave_set:
+.wave_set:
 	cmp	#CMD_TONE
-	bne	vrc6_volume_set
+	bne	.volume_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]	;音色データ読み出し
 	pha
-	bpl	vrc6_duty_enverope_part	;ヂューティエンベ処理へ
+	bpl	.duty_enverope_part	;ヂューティエンベ処理へ
 
-vrc6_duty_select_part:
+	;デューティー比直接指定
+.duty_select_part:
 	lda	effect_flag,x
 	and	#~EFF_DUTYENV_ENABLE
 	sta	effect_flag,x		;デューティエンベロープ無効指定
@@ -503,9 +521,10 @@ vrc6_duty_select_part:
 	sta	register_high,x		;書き込み
 	jsr	vrc6_ctrl_reg_write
 	jsr	sound_data_address
-	jmp	sound_vrc6_read
+	jmp	.next_cmd
 
-vrc6_duty_enverope_part:
+	;デューティー比エンベロープ有効化
+.duty_enverope_part:
 	lda	effect_flag,x
 	ora	#EFF_DUTYENV_ENABLE
 	sta	effect_flag,x		;デューティエンベロープ有効指定
@@ -518,46 +537,54 @@ vrc6_duty_enverope_part:
 	lda	dutyenve_table+1,y
 	sta	duty_add_high,x
 	jsr	sound_data_address
-	jmp	sound_vrc6_read
+	jmp	.next_cmd
 
 ;----------
 ;音量設定
-vrc6_volume_set:
+.volume_set:
 	cmp	#CMD_VOLUME
-	bne	vrc6_rest_set
+	bne	.rest_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
 	sta	temporary
-	bpl	vrc6_softenve_part		;ソフトエンベ処理へ
+	bpl	.softenve_part		;ソフトエンベ処理へ
 
-vrc6_volume_part:
+	;音量直接指定
+.volume_part:
 	lda	effect_flag,x
 	and	#~EFF_SOFTENV_ENABLE
 	sta	effect_flag,x		;ソフトエンベ無効指定
 
 	lda	<channel_sel
 	cmp	#PTRVRC6+2
-	beq	.saw
+	beq	.volume_saw
+
+	;ch1,2
 	lda	temporary
 	and	#%00001111
-	jmp	.kakikomi
-.saw
+	jmp	.volume_write
+
+	;ch3
+.volume_saw:
 	lda	temporary
 	and	#%00111111
-.kakikomi
+
+.volume_write:
 	sta	register_low,x
 	jsr	vrc6_ctrl_reg_write
 	jsr	sound_data_address
-	jmp	sound_vrc6_read
+	jmp	.next_cmd
 
-vrc6_softenve_part:
+	;ソフトエンベ有効化
+.softenve_part:
 	jsr	volume_sub
-	jmp	sound_vrc6_read
+	jmp	.next_cmd
 
 ;----------
-vrc6_rest_set:
+;休符
+.rest_set:
 	cmp	#CMD_REST
-	bne	vrc6_lfo_set
+	bne	.lfo_set
 
 	lda	rest_flag,x
 	ora	#RESTF_REST
@@ -570,56 +597,68 @@ vrc6_rest_set:
 	jsr	vrc6_mute_write
 
 	jsr	sound_data_address
-	rts
+	rts				;音長を伴うコマンドなのでこのまま終了
+
 ;----------
-vrc6_lfo_set:
+;ピッチLFO設定
+.lfo_set:
 	cmp	#CMD_SOFTLFO
-	bne	vrc6_detune_set
+	bne	.detune_set
 	jsr	lfo_set_sub
-	jmp	sound_vrc6_read
+	jmp	.next_cmd
+
 ;----------
-vrc6_detune_set:
+;デチューン設定
+.detune_set:
 	cmp	#CMD_DETUNE
-	bne	vrc6_pitch_set
+	bne	.pitch_set
 	jsr	detune_sub
-	jmp	sound_vrc6_read
+	jmp	.next_cmd
+
 ;----------
 ;ピッチエンベロープ設定
-vrc6_pitch_set:
+.pitch_set:
 	cmp	#CMD_PITCHENV
-	bne	vrc6_arpeggio_set
+	bne	.arpeggio_set
 	jsr	pitch_set_sub
-	jmp	sound_vrc6_read
+	jmp	.next_cmd
+
 ;----------
 ;ノートエンベロープ設定
-vrc6_arpeggio_set:
+.arpeggio_set:
 	cmp	#CMD_NOTEENV
-	bne	vrc6_freq_direct_set
+	bne	.freq_direct_set
 	jsr	arpeggio_set_sub
-	jmp	sound_vrc6_read
+	jmp	.next_cmd
+
 ;----------
 ;再生周波数直接設定
-vrc6_freq_direct_set:
+.freq_direct_set:
 	cmp	#CMD_DIRECT_FREQ
-	bne	vrc6_y_command_set
+	bne	.y_command_set
 	jsr	direct_freq_sub
-	rts
+	rts				;音長を伴うコマンドなのでこのまま終了
+
 ;----------
 ;ｙコマンド設定
-vrc6_y_command_set:
+.y_command_set:
 	cmp	#CMD_WRITE_REG
-	bne	vrc6_wait_set
+	bne	.wait_set
 	jsr	y_sub
-	jmp	sound_vrc6_read
+	jmp	.next_cmd
+
 ;----------
 ;ウェイト設定
-vrc6_wait_set:
+.wait_set:
 	cmp	#CMD_WAIT
-	bne	vrc6_oto_set
+	bne	.keyon_set
 	jsr	wait_sub
-	rts
+	rts				;音長を伴うコマンドなのでこのまま終了
+
 ;----------
-vrc6_oto_set:
+;キーオンコマンド
+.keyon_set:
+	;XXX:知らないコマンドが来たときの処理はあったほうが良いかも
 	sta	sound_sel,x		;処理はまた後で
 	jsr	sound_data_address
 	lda	[sound_add_low,x]	;音長読み出し
@@ -629,15 +668,15 @@ vrc6_oto_set:
 
 	lda	effect2_flags,x		;スラーフラグのチェック
 	and	#EFF2_SLUR_ENABLE
-	beq	no_slur_vrc6
+	beq	.no_slur
 
 	lda	effect2_flags,x
 	and	#~EFF2_SLUR_ENABLE
 	sta	effect2_flags,x		;スラーフラグのクリア
 	jmp	sound_flag_clear_key_on
+.no_slur:
+	jmp	effect_init		;音長を伴うコマンドなのでこのまま終了
 
-no_slur_vrc6:
-	jmp	effect_init
 
 ;-------------------------------------------------------------------------------
 sound_vrc6_write:
