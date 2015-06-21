@@ -864,17 +864,19 @@ sound_vrc6_dutyenve:
 	lda	dutyenve_lp_table+1,y
 	sta	duty_add_high,x
 	jmp	sound_vrc6_dutyenve
-;-------------------------------------------------------------------------------
-vrc6_pls_frequency_table
-;psg_frequency_tableの各値の2倍と同じはずなのだけど
-	dw	$0D5C, $0C9D, $0BE7, $0B3C
-	dw	$0A9B, $0A02, $0973, $08EB
-	dw	$086B, $07F2, $0780, $0714
-	dw	$0000, $0FE4, $0EFF, $0E28
-	
-vrc6_saw_frequency_table:
-	dw	$0F45, $0E6A, $0D9B, $0CD7
-	dw	$0C1F, $0B71, $0ACC, $0A31
-	dw	$099F, $0914, $0892, $0817
-	dw	$0000, $0000, $0000, $0000
 
+
+;--------------------
+;分周器テーブル
+vrc6_pls_frequency_table:
+;psg_frequency_tableの各値の2倍と同じはずなのだけど
+	dw	$0D5C, $0C9D, $0BE7, $0B3C	; c  c+ d  d+
+	dw	$0A9B, $0A02, $0973, $08EB	; e  f  f+ g
+	dw	$086B, $07F2, $0780, $0714	; g+ a  a+ b
+	dw	$0000, $0FE4, $0EFF, $0E28	;o-1 a  a+ b
+
+vrc6_saw_frequency_table:
+	dw	$0F45, $0E6A, $0D9B, $0CD7	; c  c+ d  d+
+	dw	$0C1F, $0B71, $0ACC, $0A31	; e  f  f+ g
+	dw	$099F, $0914, $0892, $0817	; g+ a  a+ b
+	dw	$0000, $0000, $0000, $0000	;o-1 a  a+ b
