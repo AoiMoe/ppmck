@@ -758,13 +758,30 @@ sound_fme7_pitch_enve:
 ;
 sound_fme7_tone_enve:
 	jmp	fme7_tone_enve_sub
-;-------------------------------------------------------------------------------
+
+
+;--------------------
+; sound_fme7_note_enve : ノートエンベロープのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+;	temporary2 : 破壊
+;	sound_freq_{low,high},x : 反映
+;	sound_lasthigh,x : 反映
+;	音程 : 反映
+;	arpe_add_{low,high},x : 反映
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_fme7_note_enve
 	jsr	note_enve_sub
-	bcs	.end4			;0なので書かなくてよし
+	bcs	.done			;0なので書かなくてよし
 	jsr	fme7_freq_set
-	jsr	fme7_write
-.end4
+	jsr	_fme7_write
+.done:
 	jmp	arpeggio_address
 ;-------------------------------------------------------------------------------
 fme7_tone_enve_sub:
