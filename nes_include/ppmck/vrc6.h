@@ -753,18 +753,32 @@ sound_vrc6_lfo:
 	jsr	vrc6_frq_high_reg_write
 .done:
 	rts
-;-------------------------------------------------------------------------------
+
+
+;--------------------
+; sound_vrc6_pitch_enve : ピッチエンベロープのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	音程 : 反映
+;	(以下pitch_subからの間接的な副作用)
+;	pitch_add_{low,high},x : 反映
+;	sound_freq_{low,high},x : 反映
+;	バンク : #bank(pitchenve_table)
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_vrc6_pitch_enve:
 	lda	sound_freq_high,x
 	sta	temporary
 	jsr	pitch_sub
-vrc6_pitch_write:
 	jsr	vrc6_frq_low_reg_write
 	lda	sound_freq_high,x
 	cmp	temporary
-	beq	vrc6_end3
+	beq	.done
 	jsr	vrc6_frq_high_reg_write
-vrc6_end3:
+.done:
 	jsr	pitch_enverope_address
 	rts
 ;-------------------------------------------------------------------------------
