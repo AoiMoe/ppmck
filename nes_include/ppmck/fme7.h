@@ -654,19 +654,29 @@ _fme7_write:
 	sty	FME7_ADDR
 	sta	FME7_DATA
 	rts
-;----------------------------------------
-;ボリューム書き込み、エンベロープシェイプ
-; input: Y
+
+
+;--------------------
+; fme7_volume_write_sub : 音量レジスタ/ハードエンベ波形レジスタ書き込み
+;
+; 入力:
+;	y : 音量/波形($0-$f:音量、$10-$1f:波形)
+;
 fme7_volume_write_sub:
 	cpy	#$10
-	bcc	.write_vol
-	tya				;ハードエンベロープのときは
-	and	#%00001111
-	ldy	#$0D			;エンベロープシェイプも
+	bcc	.write_vol		;音量レジスタ設定へ($0-$f)
+
+	;ハードエンベロープ波形指定($10-$1f)
+	tya
+	and	#%00001111		;下位4ビットを取り出す
+	ldy	#$0D
 	sty	FME7_ADDR
 	sta	FME7_DATA
+	;ハードウェアエンベロープイネーブルを音量レジスタに書き込む
 	ldy	#$10
-.write_vol:				;通常ボリュームのときはここだけ
+
+.write_vol:
+	;音量レジスタの処理
 	lda	fme7_vol_regno
 	sta	FME7_ADDR
 	sty	FME7_DATA
