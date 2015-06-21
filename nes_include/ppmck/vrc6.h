@@ -781,24 +781,48 @@ sound_vrc6_pitch_enve:
 .done:
 	jsr	pitch_enverope_address
 	rts
-;-------------------------------------------------------------------------------
+
+
+;--------------------
+; sound_vrc6_note_enve : ノートエンベロープのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	a : 破壊
+;	y : 破壊
+;	temporary2 : 破壊
+;	sound_freq_{low,high},x : 反映
+;	音程 : 反映
+;	arpe_add_{low,high},x : 反映
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_vrc6_note_enve
-;	lda	sound_freq_high,x
-;	sta	temporary2
+.VRC6_SKIP_HIGH_IF_NOCHANGE	= 0	;無効
+	.if .VRC6_SKIP_HIGH_IF_NOCHANGE
+		;上位4bitの変更検出
+		lda	sound_freq_high,x
+		sta	temporary2
+	.endif
 	jsr	note_enve_sub
-	bcs	.end4			;0なので書かなくてよし
+	bcs	.done			;0なので書かなくてよし
+
 	jsr	vrc6_freq_set
-;.vrc6_note_freq_write:
+
 	ldx	<channel_selx2
 	jsr	vrc6_frq_low_reg_write
 	lda	sound_freq_high,x
-;	cmp	temporary2
-;	beq	.vrc6_end2
+	.if .VRC6_SKIP_HIGH_IF_NOCHANGE
+		;上位4bitの変更検出
+		cmp	temporary2
+		beq	.skip_high
+	.endif
 	jsr	vrc6_frq_high_reg_write
-;.vrc6_end2:
+.skip_high:
 	jsr	arpeggio_address
 	rts
-.end4
+.done:
 ;	jsr	vrc6_freq_set
 	jsr	arpeggio_address
 	rts
