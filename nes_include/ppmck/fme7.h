@@ -783,21 +783,32 @@ sound_fme7_note_enve
 	jsr	_fme7_write
 .done:
 	jmp	arpeggio_address
-;-------------------------------------------------------------------------------
+
+
+;--------------------
+; sound_fme7_tone_enve : 音色エンベロープの処理
+;
+; 副作用:
+;	音色 : 反映
+;	バンク : dutyenve_tableのあるバンク
+; 備考:
+;	XXX:sound_duty_enveropeと共通化できそう
+;
 fme7_tone_enve_sub:
+.retry:
 	ldx	<channel_selx2
 
 	lda	#bank(dutyenve_table)*2
 	jsr	change_bank
 
 	indirect_lda	duty_add_low		;エンベロープデータ読み込み
-	cmp	#$ff			;最後かどーか
-	beq	fme7_tone_enve_endmark	;最後ならそのままおしまい
+	cmp	#$ff				;末尾かどうか
+	beq	.do_repeat			;末尾ならばリピート処理へ
 	jsr	fme7_tone_set_sub		;音色を設定する
+	jmp	duty_enverope_address		;アドレス一個増やして終了
 
-	jmp	duty_enverope_address	;アドレス一個増やして終了
-
-fme7_tone_enve_endmark:
+.do_repeat:
+	; リピートテーブルを参照してデータアドレスをリストアする
 	lda	duty_sel,x
 	asl	a
 	tay
@@ -806,6 +817,4 @@ fme7_tone_enve_endmark:
 	sta	duty_add_low,x
 	lda	dutyenve_lp_table+1,y
 	sta	duty_add_high,x
-	jmp	fme7_tone_enve_sub
-
-;-------------------------------------------------------------------------------
+	jmp	.retry
