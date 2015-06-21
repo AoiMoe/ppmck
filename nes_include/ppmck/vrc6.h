@@ -60,7 +60,15 @@ VRC6_REG_FREQ_H	=	2
 	.endif
 
 
+;--------------------
+; vrc6_sound_init - MMC5の初期化
+;
+; 副作用:
+;	a : 破壊
+;	VRC6 : 初期化
+;
 vrc6_sound_init:
+	;マスタークロックと1/256プリスケーラーを有効にする
 	lda	#0
 	sta	$9003
 	rts
