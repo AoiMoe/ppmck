@@ -132,6 +132,20 @@ vrc6_ctrl_reg_write:
 	sta	[VRC6_DST_REG_LOW],y
 	rts
 
+
+;--------------------
+; vrc6_frq_reg_write : 分周器レジスタ(+$01,+$02)書き込み
+;
+; 入力:
+;	channel_selx2 : グローバルチャンネル番号*2
+;	sound_freq_{low,high},x : 分周器カウンタ値
+;	VRC6_DST_REG_LOW(2バイト) : レジスタベースアドレス
+; 副作用:
+;	a : 破壊
+;	x : channel_selx2になる
+;	y : 破壊
+;	音源 : 反映
+;
 vrc6_frq_reg_write:
 	ldx	<channel_selx2
 	lda	sound_freq_low,x
