@@ -73,23 +73,30 @@ FNUM_LOW = $10
 FNUM_HI  = $20
 INST_VOL = $30
 
+
+;--------------------
+; sound_vrc7 : NMI割り込みエントリポイント
+;
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_vrc7:
 	ldx	<channel_selx2
 	dec	sound_counter,x		;カウンタいっこ減らし
 	beq	.sound_read_go		;ゼロならサウンド読み込み
 	jsr	vrc7_do_effect		;ゼロ以外ならエフェクトして
 	rts				;おわり
-.sound_read_go
+.sound_read_go:
 	jsr	sound_vrc7_read
 	jsr	vrc7_do_effect
 	lda	rest_flag,x
 	and	#RESTF_KEYON		;キーオンフラグ
-	beq	.end1			
+	beq	.done
 	jsr	sound_vrc7_write	;立っていたらデータ書き出し
 	lda	rest_flag,x
 	and	#~RESTF_KEYON		;キーオンフラグオフ
 	sta	rest_flag,x
-.end1
+.done:
 	rts
 
 ;-------
