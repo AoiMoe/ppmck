@@ -7,8 +7,8 @@
 ; - アドレスレジスタに書き込んだ後は6clkのウェイトが必要
 ; - データレジスタに書き込んだ後は42clkのウェイトが必要
 ;
-VRC7_ADRS = $9010		;アドレスレジスタ
-VRC7_DATA = $9030		;データレジスタ
+VRC7_ADDR_PORT = $9010		;アドレスレジスタ
+VRC7_DATA_PORT = $9030		;データレジスタ
 
 ;
 ;FM音源(OPLLカスタム)レジスタマップ
@@ -69,9 +69,9 @@ VRC7_DATA = $9030		;データレジスタ
 ;	||||++++--- 音量(0:0dB, 1:-3dB ...)
 ;	++++------- 音色番号(0:ユーザ定義音色, 1-15:プリセット)
 ;
-FNUM_LOW = $10
-FNUM_HI  = $20
-INST_VOL = $30
+VRC7_REG_FNUM_LOW = $10
+VRC7_REG_FNUM_HI  = $20
+VRC7_REG_INST_VOL = $30
 
 
 ;--------------------
@@ -355,10 +355,10 @@ sound_vrc7_read:
 
 	ldy	#$00			;y : FMアドレス / データオフセット
 .loop_set_fmdata:
-	sty	VRC7_ADRS
+	sty	VRC7_ADDR_PORT
 	jsr	vrc7_write_reg_wait2
 	lda	[temp_data_add],y
-	sta	VRC7_DATA
+	sta	VRC7_DATA_PORT
 	jsr	vrc7_write_reg_wait
 	iny
 	cpy	temporary		;XXX:なんでimmediateにしないのか
@@ -380,11 +380,11 @@ sound_vrc7_read:
 	sta	vrc7_volume,x
 
 	;実際にFMレジスタへ設定する
-	lda	#INST_VOL
+	lda	#VRC7_REG_INST_VOL
 	jsr	vrc7_adrs_ch
 	lda	vrc7_volume,x
 	eor	#$0f			;FMは音量の増減が逆なので反転する
-	sta	VRC7_DATA
+	sta	VRC7_DATA_PORT
 	jsr	vrc7_write_reg_wait
 
 .end_tone_set:
@@ -420,11 +420,11 @@ sound_vrc7_read:
 	sta	vrc7_volume,x
 
 	;レジスタライト
-	lda	#INST_VOL
+	lda	#VRC7_REG_INST_VOL
 	jsr	vrc7_adrs_ch
 	lda	vrc7_volume,x
 	eor	#$0f			;FMは音量の増減が逆なので反転する
-	sta	VRC7_DATA
+	sta	VRC7_DATA_PORT
 	jsr	vrc7_write_reg_wait
 
 	jsr	sound_data_address
@@ -461,11 +461,11 @@ sound_vrc7_read:
 	and	#%11101111
 	sta	temporary
 
-	lda	#FNUM_HI
+	lda	#VRC7_REG_FNUM_HI
 	jsr	vrc7_adrs_ch
 	lda	sound_freq_high,x
 	ora	temporary
-	sta	VRC7_DATA
+	sta	VRC7_DATA_PORT
 	jsr	vrc7_write_reg_wait
 
 	rts
@@ -558,11 +558,11 @@ sound_vrc7_read:
 
 .no_slur:
 	;音量の再設定
-	lda	#INST_VOL
+	lda	#VRC7_REG_INST_VOL
 	jsr	vrc7_adrs_ch
 	lda	vrc7_volume,x
 	eor	#$0f			;FMは音量の増減が逆なので反転する
-	sta	VRC7_DATA
+	sta	VRC7_DATA_PORT
 	jsr	vrc7_write_reg_wait
 	;最後にキーオフをしておく
 	;このフレームの処理の最後で再びキーオンされるので、
@@ -593,18 +593,18 @@ sound_vrc7_write:
 	ldx	<channel_selx2
 
 	;下位
-	lda	#FNUM_LOW
+	lda	#VRC7_REG_FNUM_LOW
 	jsr	vrc7_adrs_ch
 	lda	sound_freq_low,x
-	sta	VRC7_DATA
+	sta	VRC7_DATA_PORT
 	jsr	vrc7_write_reg_wait
 
 	;上位
-	lda	#FNUM_HI
+	lda	#VRC7_REG_FNUM_HI
 	jsr	vrc7_adrs_ch
 	lda	sound_freq_high,x
 	ora	vrc7_key_stat,x
-	sta	VRC7_DATA
+	sta	VRC7_DATA_PORT
 	jsr	vrc7_write_reg_wait
 
 	rts
@@ -628,7 +628,7 @@ vrc7_adrs_ch:
 	sec
 	sbc	#PTRVRC7
 	ora	<t0
-	sta	VRC7_ADRS
+	sta	VRC7_ADDR_PORT
 	;6clkのウェイトを入れる
 	;XXX:rtsに6clkかかるのでnopいらないはずだが
 	nop			;2clk
@@ -694,13 +694,13 @@ vrc7_write_reg_wait2:
 sound_vrc7_softenve:
 	jsr	volume_enve_sub
 	sta	temporary
-	lda	#INST_VOL
+	lda	#VRC7_REG_INST_VOL
 	jsr	vrc7_adrs_ch
 	lda	vrc7_volume,x
 	and	#%11110000
 	ora	temporary
 	eor	#$0f			;FMは音量の増減が逆なので反転する
-	sta	VRC7_DATA
+	sta	VRC7_DATA_PORT
 	jsr	vrc7_write_reg_wait
 	jmp	enverope_address
 
