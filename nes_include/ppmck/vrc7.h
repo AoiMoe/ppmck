@@ -664,16 +664,42 @@ vrc7_write_reg_wait:
 ;
 vrc7_write_reg_wait2:
 	rts			;6clk
+
+
+;-------------------------------------------------------------------------------
+;各エフェクトのフレーム処理サブルーチン
+;-------------------------------------------------------------------------------
+
+;--------------------
+;sound_vrc7_softenve : ソフトウェアエンベロープのフレーム処理
+;
+; 入力:
+; 副作用:
+;	a : 破壊
+;	temporary : 破壊
+;	音量 : 反映
+;	(以下volume_enve_subからの間接的な副作用)
+;	x : channel_selx2になる
+;	y : 破壊
+;	バンク : softenve_tableのあるバンク
+;	soft_add_{low,high},x : リピートマークを指していた場合には先頭に戻る
+;	(以下vrc7_adrs_chからの間接的な副作用)
+;	t0 : 破壊
+;	(以下volume_enve_subからの間接的な副作用)
+;	soft_add_{low,high},x : 反映
+;	バンク : softenve_tableのあるバンク
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_vrc7_softenve:
 	jsr	volume_enve_sub
 	sta	temporary
-
 	lda	#INST_VOL
 	jsr	vrc7_adrs_ch
 	lda	vrc7_volume,x
 	and	#%11110000
 	ora	temporary
-	eor	#$0f
+	eor	#$0f			;FMは音量の増減が逆なので反転する
 	sta	VRC7_DATA
 	jsr	vrc7_write_reg_wait
 	jmp	enverope_address
