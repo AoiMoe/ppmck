@@ -213,17 +213,17 @@ fme7_do_effect:
 	lda	effect_flag,x
 	and	#EFF_NOTEENV_ENABLE
 	beq	.done
-	; 同一フレームのsound_fme7_readの処理でキーオンが行われたかどうかで
-	; ノートエンベロープの処理が異なる
+	;同一フレームのsound_fme7_readの処理でキーオンが行われたかどうかで
+	;ノートエンベロープの処理が異なる
 	lda	rest_flag,x
 	and	#RESTF_KEYON
 	bne	.arpe_key_on
-	; キーオンが行われてないフレームは通常の処理
+	;キーオンが行われてないフレームは通常の処理
 	jsr	sound_fme7_note_enve
 	jmp	.done
 .arpe_key_on:
-	; キーオンが行われたフレームはワークエリアの調整のみ行う
-	; 実際にレジスタに反映するのは sound_fme7 の最後
+	;キーオンが行われたフレームはワークエリアの調整のみ行う
+	;実際にレジスタに反映するのは sound_fme7 の最後
 	jsr	note_enve_sub
 	jsr	fme7_freq_set
 	jsr	arpeggio_address

@@ -10,7 +10,7 @@
 ;	音源 : 初期化
 ;
 fds_sound_init:
-	lda #%00000010		; 2C33 Sound Enable
+	lda #%00000010		;2C33 Sound Enable
 	sta $4023
 
 	lda	#$00
@@ -94,17 +94,17 @@ fds_do_effect:
 	lda	effect_flag,x
 	and	#EFF_NOTEENV_ENABLE
 	beq	.hwlfo_write
-	; 同一フレームのsound_fds_readの処理でキーオンが行われたかどうかで
-	; ノートエンベロープの処理が異なる
+	;同一フレームのsound_fds_readの処理でキーオンが行われたかどうかで
+	;ノートエンベロープの処理が異なる
 	lda	rest_flag,x
 	and	#RESTF_KEYON
 	bne	.arpe_key_on
-	; キーオンが行われてないフレームは通常の処理
+	;キーオンが行われてないフレームは通常の処理
 	jsr	sound_fds_note_enve
 	jmp	.hwlfo_write
 .arpe_key_on:
-	; キーオンが行われたフレームはワークエリアの調整のみ行う
-	; 実際にレジスタに反映するのは sound_fds の最後
+	;キーオンが行われたフレームはワークエリアの調整のみ行う
+	;実際にレジスタに反映するのは sound_fds の最後
 	jsr	note_enve_sub
 	jsr	fds_freq_set
 	jsr	arpeggio_address
