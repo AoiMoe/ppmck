@@ -726,7 +726,27 @@ sound_vrc7_softenve:
 sound_vrc7_lfo:
 	jsr	lfo_sub
 	jmp	sound_vrc7_write
-;-------------------------------------------------------------------------------
+
+
+;--------------------
+; sound_vrc7_pitch_enve : ピッチエンベロープのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	sound_freq_{low,high},x : 反映
+;	音程 : 反映
+;	(以下sound_vrc7_writeからの間接的な副作用)
+;	a : 破壊
+;	(以下pitch_subからの間接的な副作用)
+;	pitch_add_{low,high},x : 反映
+;	バンク : #bank(pitchenve_table)
+;	(以下pitch_enverope_addressからの間接的な副作用)
+;	y : 破壊
+;	temporary : 破壊
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_vrc7_pitch_enve:
 	jsr	pitch_sub
 	jsr	sound_vrc7_write
