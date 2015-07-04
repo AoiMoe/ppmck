@@ -608,17 +608,32 @@ sound_vrc7_write:
 	jsr	vrc7_write_reg_wait
 
 	rts
-;-------------------------------------------------------------------------------
-vrc7_adrs_ch
+
+;--------------------
+; vrc7_adrs_ch - FMアドレスレジスタにチャンネル番号を反映したアドレスを書き込む
+;
+; 入力:
+;	a : レジスタオフセット
+;	channel_sel : チャンネル番号
+; 副作用:
+;	FMアドレスレジスタ : 反映
+;	t0 : 破壊
+; 備考:
+;	アドレスライト後に適切なウェイト(6clk以上)が挿入される
+;	XXX:サブルーチン名
+;
+vrc7_adrs_ch:
 	sta	<t0
 	lda	<channel_sel
 	sec
 	sbc	#PTRVRC7
 	ora	<t0
 	sta	VRC7_ADRS
-	nop
-	nop
-	nop
+	;6clkのウェイトを入れる
+	;XXX:rtsに6clkかかるのでnopいらないはずだが
+	nop			;2clk
+	nop			;2clk
+	nop			;2clk
 	rts
 
 vrc7_write_reg_wait:
