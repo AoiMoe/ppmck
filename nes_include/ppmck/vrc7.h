@@ -573,18 +573,33 @@ sound_vrc7_read:
 
 
 ;-------------------------------------------------------------------------------
+;register write sub routines
+;-------------------------------------------------------------------------------
+
+;--------------------
+; sound_vrc7_write : 分周器レジスタへ書き込む
+;
+; 入力:
+;	sound_freq_{low,high},x : 分周器の設定値
+;	vrc7_key_stat,x : オクターブプリスケーラやキーオンフラグなど
+; 副作用:
+;	a : 破壊
+;	x : channel_selx2になる
+;	音源 : 反映
+; 備考:
+;	XXX: サブルーチン名
+;
 sound_vrc7_write:
 	ldx	<channel_selx2
 
-	; 下位
+	;下位
 	lda	#FNUM_LOW
 	jsr	vrc7_adrs_ch
-
 	lda	sound_freq_low,x
 	sta	VRC7_DATA
 	jsr	vrc7_write_reg_wait
 
-	; 上位
+	;上位
 	lda	#FNUM_HI
 	jsr	vrc7_adrs_ch
 	lda	sound_freq_high,x
