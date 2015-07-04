@@ -703,7 +703,26 @@ sound_vrc7_softenve:
 	sta	VRC7_DATA
 	jsr	vrc7_write_reg_wait
 	jmp	enverope_address
-;-------------------------------------------------------------------------------
+
+
+;--------------------
+; sound_vrc7_lfo : ピッチLFOのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	音程 : 反映
+;	(以下sound_vrc7_writeからの間接的な副作用)
+;	a : 破壊
+;	(以下lfo_subからの間接的な副作用)
+;	sound_freq_{low,high},x : 反映
+;	lfo_start_counter,x : 反映
+;	lfo_reverse_counter,x : 反映
+;	lfo_adc_sbc_counter,x : 反映
+;	effect_flag,x : EFF_SOFTLFO_DIRビットが影響を受ける
+; 備考:
+;	XXX:サブルーチン名
+;
 sound_vrc7_lfo:
 	jsr	lfo_sub
 	jmp	sound_vrc7_write
