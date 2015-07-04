@@ -271,7 +271,7 @@ sound_vrc6:
 	and	#RESTF_KEYON		;キーオンフラグ
 	beq	.done
 	;キーオンフラグが立っていたらデータ書き出し
-	jsr	vrc6_write_volume_and_freq	;立っていたらデータ書き出し
+	jsr	vrc6_write_volume_and_freq
 	lda	rest_flag,x
 	and	#~RESTF_KEYON		;キーオンフラグオフ
 	sta	rest_flag,x
