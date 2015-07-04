@@ -751,16 +751,42 @@ sound_vrc7_pitch_enve:
 	jsr	pitch_sub
 	jsr	sound_vrc7_write
 	jmp	pitch_enverope_address
-;-------------------------------------------------------------------------------
-sound_vrc7_note_enve
+
+
+;--------------------
+; sound_vrc7_note_enve : ノートエンベロープのフレーム処理
+;
+; 入力:
+;	x : channel_selx2
+; 副作用:
+;	sound_freq_{low,high},x : 反映
+;	音程 : 反映
+;	(以下note_enve_subからの間接的な副作用)
+;	a : 破壊
+;	x : channel_selx2
+;	y : 破壊
+;	t0 : 破壊
+;	arpe_add_{low,higi},x : リピートマークを指していた場合には先頭に戻る
+;	バンク : arpeggio_tableのあるバンク
+;	(以下vrc7_freq_setからの間接的な副作用)
+;	a : 破壊
+;	x : channel_selx2
+;	y : 破壊
+;	temporary : 破壊
+;	vrc7_key_stat,x : 反映
+;	(以下arpeggio_addressからの間接的な副作用)
+;	arpe_add_{low,high},x : 反映
+; 備考:
+;	XXX:サブルーチン名
+;
+sound_vrc7_note_enve:
 	jsr	note_enve_sub
-	bcs	.end4			;0なので書かなくてよし
+	bcs	.done			;0なので書かなくてよし
 	jsr	vrc7_freq_set
 	jsr	sound_vrc7_write
 	jsr	arpeggio_address
 	rts
-.end4
+.done:
 ;	jsr	vrc7_freq_set
 	jsr	arpeggio_address
 	rts
-;-------------------------------------------------------------------------------
