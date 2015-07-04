@@ -636,16 +636,34 @@ vrc7_adrs_ch:
 	nop			;2clk
 	rts
 
+
+;--------------------
+; vrc7_write_reg_wait : FMデータレジスタライト後のウェイト
+;
+; 備考:
+;	42clk以上のウェイトが必要
+;
 vrc7_write_reg_wait:
-	pha
-	lda	#$01
+	pha			;3clk
+	lda	#$01		;2clk
+
+	;ループ:(2+3)*7 + 2+2 = 39clk
 .wait:
-	asl	a
-	bcc	.wait
-	pla
+	asl	a		;2clk
+	bcc	.wait		;分岐時3clk / 通過時2clk
+
+	pla			;4clk
+	;fallthrough
+
+;--------------------
+; vrc7_write_reg_wait2 : FMアドレスレジスタライト後のウェイト
+;
+; 備考:
+;	6clk以上のウェイトが必要
+;	XXX:jsrが3バイト6clkなので、単にnop三つをマクロで挿入したほうが良い
+;
 vrc7_write_reg_wait2:
-	rts
-;-----------------------------------------------------
+	rts			;6clk
 sound_vrc7_softenve:
 	jsr	volume_enve_sub
 	sta	temporary
