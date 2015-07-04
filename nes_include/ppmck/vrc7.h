@@ -262,127 +262,154 @@ vrc7_freq_set:
 	;XXX:12-15
 
 
+;-------------------------------------------------------------------------------
+;command read routine
+;-------------------------------------------------------------------------------
+
+;--------------------
+; sound_vrc7_read : 演奏データの解釈
+;
+; 備考:
+;	XXX:音源非依存な形での共通化
+;
 sound_vrc7_read:
+.next_cmd:
 	ldx	<channel_selx2
 
 	lda	sound_bank,x
 	jsr	change_bank
 
 	lda	[sound_add_low,x]
+
 ;----------
 ;ループ処理1
-vrc7_loop_program
+.loop_program:
 	cmp	#CMD_LOOP1
-	bne	vrc7_loop_program2
+	bne	.loop_program2
 	jsr	loop_sub
-	jmp	sound_vrc7_read
+	jmp	.next_cmd
+
 ;----------
 ;ループ処理2(分岐)
-vrc7_loop_program2
+.loop_program2:
 	cmp	#CMD_LOOP2
-	bne	vrc7_bank_set
+	bne	.bank_set
 	jsr	loop_sub2
-	jmp	sound_vrc7_read
+	jmp	.next_cmd
+
 ;----------
-;バンクを切り替えます〜
-vrc7_bank_set
+;バンク切り替え
+.bank_set
 	cmp	#CMD_BANK_SWITCH
-	bne	vrc7_wave_set
+	bne	.wave_set
 	jsr	data_bank_addr
-	jmp	sound_vrc7_read
+	jmp	.next_cmd
+
 ;----------
 ;データエンド設定
-;vrc7_data_end:
+;.data_end:
 ;	cmp	#CMD_END
-;	bne	vrc7_wave_set
+;	bne	.wave_set
 ;	jsr	data_end_sub
-;	jmp	sound_vrc7_read
+;	jmp	.next_cmd
+
 ;----------
 ;音色設定
-vrc7_wave_set:
+;XXX:サブルーチン化
+.wave_set:
 	cmp	#CMD_TONE
-	bne	vrc7_volume_set
+	bne	.volume_set
+
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
-
 	sta	temporary
-	and	#%01000000		;if over 64, set user tone data
-	cmp	#%01000000
-	bne	vrc7_set_tone
 
+	;64-127ならユーザ定義音色のストアを行う
+	;実際にこの音色を使うには、別途チャンネルごとに音色0を設定する必要がある
+	;ユーザ定義音色は全てのチャンネルを通して同時に1つしかストアできない
+	;同じ音色を複数のチャンネルで共用することは可能
+	and	#%01000000
+	cmp	#%01000000
+	bne	.set_tone
+
+	;ユーザ定義音色の転送
 	lda	temporary
 	and	#$3F
-	
 	asl	a
 	tax
 
-	; 定義バンク切り替え
+	;定義バンク切り替え
 	lda	#bank(vrc7_data_table)*2
 	jsr	change_bank
 
+	;temp_data_addに音色データのアドレスを格納する
 	lda	vrc7_data_table,x
 	sta	<temp_data_add
-	inx
-	lda	vrc7_data_table,x
+	inx				;XXX:inxじゃなくて
+	lda	vrc7_data_table,x	;    vrc7_data_table+1でいいのでは
 	sta	<temp_data_add+1
 
-	ldy	#$8
+	;FMアドレス$00-$07に音色データを転送する
+	ldy	#$8			;ループ回数
 	sty	temporary
 
-	ldy	#$00
-loop_set_fmdata:
+	ldy	#$00			;y : FMアドレス / データオフセット
+.loop_set_fmdata:
 	sty	VRC7_ADRS
 	jsr	vrc7_write_reg_wait2
 	lda	[temp_data_add],y
 	sta	VRC7_DATA
 	jsr	vrc7_write_reg_wait
-
 	iny
-	cpy	temporary
-	bmi	loop_set_fmdata
+	cpy	temporary		;XXX:なんでimmediateにしないのか
+	bmi	.loop_set_fmdata
 
-	jmp	end_tone_set
+	jmp	.end_tone_set
 
-vrc7_set_tone:
-	lda	temporary
-
+.set_tone:
+	;音色番号をボリュームレジスタの上位4ビットに設定する
+	lda	temporary		;音色番号
 	asl	a
 	asl	a
 	asl	a
 	asl	a
-
 	sta	temporary
 	lda	vrc7_volume,x
 	and	#%00001111
 	ora	temporary
 	sta	vrc7_volume,x
 
+	;実際にFMレジスタへ設定する
 	lda	#INST_VOL
 	jsr	vrc7_adrs_ch
 	lda	vrc7_volume,x
-	eor	#$0f
+	eor	#$0f			;FMは音量の増減が逆なので反転する
 	sta	VRC7_DATA
 	jsr	vrc7_write_reg_wait
-end_tone_set:
+
+.end_tone_set:
 	ldx	<channel_selx2
 	jsr	sound_data_address
-	jmp	sound_vrc7_read
+	jmp	.next_cmd
+
 ;----------
 ;音量設定
-vrc7_volume_set:
+;XXX:サブルーチン化
+.volume_set:
 	cmp	#CMD_VOLUME
-	bne	vrc7_rest_set
+	bne	.rest_set
 	jsr	sound_data_address
 	lda	[sound_add_low,x]
-
 	sta	temporary
-	bpl	vrc7_softenve_part	;ソフトエンベ処理へ
+	bpl	.softenve_part		;ソフトエンベ処理へ
 
-vrc7_volume_part:
+	;音量直接指定
+.volume_part:
 	lda	effect_flag,x
 	and	#~EFF_SOFTENV_ENABLE
 	sta	effect_flag,x		;ソフトエンベ無効指定
 
+	;下位4bit:音量 / 上位4bit:音色
 	lda	temporary
 	and	#%00001111
 	sta	temporary
@@ -392,23 +419,27 @@ vrc7_volume_part:
 	ora	temporary
 	sta	vrc7_volume,x
 
+	;レジスタライト
 	lda	#INST_VOL
 	jsr	vrc7_adrs_ch
 	lda	vrc7_volume,x
-	eor	#$0f
+	eor	#$0f			;FMは音量の増減が逆なので反転する
 	sta	VRC7_DATA
 	jsr	vrc7_write_reg_wait
 
 	jsr	sound_data_address
-	jmp	sound_vrc7_read
+	jmp	.next_cmd
 
-vrc7_softenve_part:
+	;ソフトエンベ有効化
+.softenve_part:
 	jsr	volume_sub
-	jmp	sound_vrc7_read
+	jmp	.next_cmd
+
 ;----------
-vrc7_rest_set:
+;休符
+.rest_set:
 	cmp	#CMD_REST
-	bne	vrc7_lfo_set
+	bne	.lfo_set
 
 	lda	rest_flag,x
 	ora	#RESTF_REST
@@ -418,12 +449,14 @@ vrc7_rest_set:
 	lda	[sound_add_low,x]
 	sta	sound_counter,x
 
-	jsr	vrc7_key_off
+	jsr	.key_off
 
 	jsr	sound_data_address
-	rts
+	rts				;音長を伴うコマンドなのでこのまま終了
+
 ;-------------
-vrc7_key_off
+;キーオフサブルーチン
+.key_off
 	lda	vrc7_key_stat,x
 	and	#%11101111
 	sta	temporary
@@ -438,66 +471,74 @@ vrc7_key_off
 	rts
 
 ;----------
-vrc7_lfo_set:
+;ピッチLFO設定
+.lfo_set:
 	cmp	#CMD_SOFTLFO
-	bne	vrc7_detune_set
+	bne	.detune_set
 	jsr	lfo_set_sub
-	jmp	sound_vrc7_read
+	jmp	.next_cmd
+
 ;----------
-vrc7_detune_set:
+;デチューン設定
+.detune_set:
 	cmp	#CMD_DETUNE
-	bne	vrc7_pitch_set
+	bne	.pitch_set
 	jsr	detune_sub
-	jmp	sound_vrc7_read
+	jmp	.next_cmd
+
 ;----------
 ;ピッチエンベロープ設定
-vrc7_pitch_set:
+.pitch_set:
 	cmp	#CMD_PITCHENV
-	bne	vrc7_arpeggio_set
+	bne	.arpeggio_set
 	jsr	pitch_set_sub
-	jmp	sound_vrc7_read
+	jmp	.next_cmd
+
 ;----------
 ;ノートエンベロープ設定
-vrc7_arpeggio_set:
+.arpeggio_set:
 	cmp	#CMD_NOTEENV
-	bne	vrc7_freq_direct_set
+	bne	.freq_direct_set
 	jsr	arpeggio_set_sub
-	jmp	sound_vrc7_read
+	jmp	.next_cmd
+
 ;----------
 ;再生周波数直接設定
-vrc7_freq_direct_set:
+.freq_direct_set:
 	cmp	#CMD_DIRECT_FREQ
-	bne	vrc7_y_command_set
+	bne	.y_command_set
 	jsr	direct_freq_sub
-	rts
+	rts				;音長を伴うコマンドなのでこのまま終了
+
 ;----------
 ;ｙコマンド設定
-vrc7_y_command_set:
+.y_command_set:
 	cmp	#CMD_WRITE_REG
-	bne	vrc7_wait_set
+	bne	.wait_set
 	jsr	y_sub
-	jmp	sound_vrc7_read
+	jmp	.next_cmd
+
 ;----------
 ;ウェイト設定
-vrc7_wait_set:
+.wait_set:
 	cmp	#CMD_WAIT
-	bne	vrc7_slur
+	bne	.slur
 	jsr	wait_sub
-	rts
+	rts				;音長を伴うコマンドなのでこのまま終了
+
 ;----------
 ;スラー
-vrc7_slur:
+.slur:
 	cmp	#CMD_SLUR
-	bne	vrc7_oto_set
+	bne	.keyon_set
 	lda	effect2_flags,x
 	ora	#EFF2_SLUR_ENABLE
 	sta	effect2_flags,x
 	jsr	sound_data_address
-	jmp	sound_vrc7_read
-
+	jmp	.next_cmd
 
 ;----------
-vrc7_oto_set:
+.keyon_set:
 	sta	sound_sel,x		;処理はまた後で
 	jsr	sound_data_address
 	lda	[sound_add_low,x]	;音長読み出し
@@ -507,24 +548,30 @@ vrc7_oto_set:
 
 	lda	effect2_flags,x		;スラーフラグのチェック
 	and	#EFF2_SLUR_ENABLE
-	beq	no_slur_vrc7
+	beq	.no_slur
 
+	;スラー時の処理
 	lda	effect2_flags,x
 	and	#~EFF2_SLUR_ENABLE
 	sta	effect2_flags,x		;スラーフラグのクリア
 	jmp	sound_flag_clear_key_on
 
-no_slur_vrc7:
-;volume
+.no_slur:
+	;音量の再設定
 	lda	#INST_VOL
 	jsr	vrc7_adrs_ch
 	lda	vrc7_volume,x
-	eor	#$0f
+	eor	#$0f			;FMは音量の増減が逆なので反転する
 	sta	VRC7_DATA
 	jsr	vrc7_write_reg_wait
-	jsr	vrc7_key_off
+	;最後にキーオフをしておく
+	;このフレームの処理の最後で再びキーオンされるので、
+	;結果としてスラーではなくなる
+	jsr	.key_off
 	jsr	effect_init
-	rts
+	rts				;音長を伴うコマンドなのでこのまま終了
+
+
 ;-------------------------------------------------------------------------------
 sound_vrc7_write:
 	ldx	<channel_selx2
