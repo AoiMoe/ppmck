@@ -1,12 +1,14 @@
-PWD= $(shell pwd)
-EXESFX= .exe
+PWD=		$(shell pwd)
+TOP=		$(PWD)/../..
+
+include $(TOP)/mk/sys.mk
 
 RELIABLE_BASE= $(PWD)/reliable
 RELIABLE_PPMCKC= $(RELIABLE_BASE)/bin/ppmckc$(EXESFX)
 RELIABLE_NESASM= $(RELIABLE_BASE)/bin/nesasm$(EXESFX)
 RELIABLE_PPMCKASMSRCDIR= $(RELIABLE_BASE)/nes_include
 
-TEST_TARGET_BASE= $(PWD)/../..
+TEST_TARGET_BASE= $(TOP)
 
 ifeq ($(shell test -e .in_place && echo yes),yes)
 TEST_TARGET_PPMCKC= $(TEST_TARGET_BASE)/src/ppmckc/ppmckc$(EXESFX)
@@ -42,7 +44,7 @@ _each_tests: $(TESTS)
 
 
 BUILD_F = \
-	@$(MAKE) --no-print-directory -f $(PWD)/ppmck.mk \
+	@$(MAKE) --no-print-directory -f $(TOP)/mk/ppmck.mk \
 	SONGNAME=$(1) \
 	PPMCKC=$($(2)_PPMCKC) \
 	NESASM=$($(2)_NESASM) \
