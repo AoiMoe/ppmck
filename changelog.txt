@@ -1,6 +1,16 @@
-2015-02-11 release 9a ex11.1 am1
+2015-02-11 release 9a ex11.3 am1
 
-#LINEを追加
+	- #LINEを追加。
+	- nes_include以下のドライバソースをリファクタリングした
+	  (出力バイナリは変化なし)。
+
+2014-08-07 release 9a ex11.3
+
+improved effects in repeat2
+
+2014-08-07 release 9a ex11.2
+
+improved write timing of soft env.
 
 2014-08-05 release 9a ex11.1
 
