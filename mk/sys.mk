@@ -6,12 +6,7 @@ CDEFS	=
 LDFLAGS	=
 CFLAGS	= $(DBG) $(CDEFS) $(TARGET_CFLAGS)
 
-ifeq ($(shell uname -s | grep -qi mingw && echo yes),yes)
-TARGET_SYSNAME		:= Windows
-TARGET_TOOLCHAINNAME	:= MinGW
-endif
-
-ifeq ($(shell uname -s | grep -qi msys_nt && echo yes),yes)
+ifeq ($(shell uname -s | grep -qi "mingw\|msys_nt" && echo yes),yes)
 TARGET_SYSNAME		:= Windows
 TARGET_TOOLCHAINNAME	:= MinGW
 endif
