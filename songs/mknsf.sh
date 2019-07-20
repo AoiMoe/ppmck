@@ -43,7 +43,7 @@ fi
 #
 # add .list
 #
-if [ "x$MODE" == "xDEBUG" ]
+if [ "x$MODE" = "xDEBUG" ]
 then
     echo "    .list" >> define.inc
 fi
