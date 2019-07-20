@@ -2,33 +2,38 @@
 
 include ../../mk/sys.mk
 
-OBJS	= datamake$(OBJSFX) file$(OBJSFX) mckc$(OBJSFX) strings$(OBJSFX)
+SRCS	= datamake.c file.c mckc.c strings.c
+
+OBJDIR = ./obj
+OBJS = $(addprefix $(OBJDIR)/,$(SRCS:.c=.o))
 
 .PHONY: all clean strip install
 .SUFFIX: $(EXESFX) $(OBJSFX)
 
-TARGET_E= ppmckc_e$(EXESFX)
-TARGET	= ppmckc$(EXESFX)
+TARGET_E= $(OBJDIR)/ppmckc_e$(EXESFX)
+TARGET	= $(OBJDIR)/ppmckc$(EXESFX)
 
 all: $(TARGET_E) $(TARGET)
 
-$(TARGET_E): $(OBJS) version_e$(OBJSFX)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) version_e$(OBJSFX)
+$(TARGET_E): $(OBJS) $(OBJDIR)/version_e$(OBJSFX)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(OBJDIR)/version_e$(OBJSFX)
 ifdef IS_STRIP
 	$(STRIP) $@
 endif
 
-$(TARGET): $(OBJS) version$(OBJSFX)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) version$(OBJSFX)
+$(TARGET): $(OBJS) $(OBJDIR)/version$(OBJSFX)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(OBJDIR)/version$(OBJSFX)
 ifdef IS_STRIP
 	$(STRIP) $@
 endif
 
-version_e$(OBJSFX): version.c
+$(OBJS): $(OBJDIR)
+
+$(OBJDIR)/version_e$(OBJSFX): version.c
 	$(CC) $(CFLAGS) $(CDEFS) -DENGLISH -o $@ -c version.c
 
-.c$(OBJSFX):
-	$(CC) $(CFLAGS) $(CDEFS) -c $<
+$(OBJDIR)/%$(OBJSFX): %.c
+	$(CC) $(CFLAGS) $(CDEFS) -o $@ -c $<
 
 strip:
 	$(STRIPPER) $(TARGET) $(TARGET_E)
@@ -42,4 +47,7 @@ install:
 	$(CP) $(TARGET_E) $(EXEDIR)/
 
 clean:
-	$(RM) $(OBJS) version$(OBJSFX) version_e$(OBJSFX) $(TARGET) $(TARGET_E)
+	$(RM) $(OBJS) $(OBJDIR)/version$(OBJSFX) $(OBJDIR)/version_e$(OBJSFX) $(TARGET) $(TARGET_E)
+
+$(OBJDIR) :
+	mkdir $(OBJDIR)

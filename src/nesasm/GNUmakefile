@@ -2,28 +2,31 @@
 
 include ../../mk/sys.mk
 
-OBJS =	main$(OBJSFX) \
-	input$(OBJSFX) \
-	assemble$(OBJSFX) \
-	expr$(OBJSFX) \
-	code$(OBJSFX) \
-	command$(OBJSFX) \
-	macro$(OBJSFX) \
-	func$(OBJSFX) \
-	proc$(OBJSFX) \
-	symbol$(OBJSFX) \
-	pcx$(OBJSFX) \
-	output$(OBJSFX) \
-	crc$(OBJSFX) \
-	pce$(OBJSFX) \
-	map$(OBJSFX) \
-	mml$(OBJSFX) \
-	nes$(OBJSFX)
+SRCS =	main.c \
+	input.c \
+	assemble.c \
+	expr.c \
+	code.c \
+	command.c \
+	macro.c \
+	func.c \
+	proc.c \
+	symbol.c \
+	pcx.c \
+	output.c \
+	crc.c \
+	pce.c \
+	map.c \
+	mml.c \
+	nes.c
 
 EXEDIR   = ../../bin/
+OBJDIR   = ./obj
 
-TARGPCE  = pceas$(EXESFX)
-TARGNES  = nesasm$(EXESFX)
+OBJS = $(addprefix $(OBJDIR)/,$(SRCS:.c=.o))
+
+TARGPCE  = $(OBJDIR)/pceas$(EXESFX)
+TARGNES  = $(OBJDIR)/nesasm$(EXESFX)
 TARGETS  = $(TARGPCE) $(TARGNES)
 
 .PHONY: all clean strip install
@@ -38,7 +41,7 @@ all: $(TARGETS)
 #
 
 clean:
-	$(RM) *$(OBJSFX)
+	$(RM) $(OBJS)
 	$(RM) $(TARGETS)
 
 # INSTALL
@@ -52,12 +55,12 @@ install:
 # ASSEMBLER
 #
 
-$(OBJS)		: defs.h externs.h protos.h
+$(OBJS)		: $(OBJDIR) defs.h externs.h protos.h
 main$(OBJSFX)   : inst.h vars.h
 expr$(OBJSFX)   : expr.h
 pce$(OBJSFX)    : pce.h
 nes$(OBJSFX)    : nes.h
-%$(OBJSFX)	: %.c
+$(OBJDIR)/%$(OBJSFX)	: %.c
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 # EXE
@@ -74,3 +77,6 @@ $(TARGNES) : $(OBJS)
 ifdef IS_STRIP
 	$(STRIP) $@
 endif
+
+$(OBJDIR) :
+	mkdir $(OBJDIR)
